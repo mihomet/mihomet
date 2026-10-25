@@ -60,8 +60,9 @@ class ConfigGeneratorTest {
         assertEquals("0.0.0.0:1053", dns["listen"])
 
         val proxies = parsed["proxies"] as List<Map<String, Any>>
-        assertEquals(1, proxies.size)
-        assertEquals("TestNode", proxies[0]["name"])
+        assertEquals(2, proxies.size)
+        assertTrue(proxies.any { it["name"] == "dns-out" })
+        assertTrue(proxies.any { it["name"] == "TestNode" })
     }
 
     @Test

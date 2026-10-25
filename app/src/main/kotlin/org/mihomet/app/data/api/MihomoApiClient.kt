@@ -115,7 +115,10 @@ class MihomoApiClient(
 
     fun streamTraffic(): Flow<TrafficSample> = flow {
         try {
-            httpClient.webSocket("$wsUrl/traffic") {
+            httpClient.webSocket(
+                urlString = "$wsUrl/traffic",
+                request = { applyAuth() }
+            ) {
                 while (isActive) {
                     val frame = incoming.receive()
                     if (frame is Frame.Text) {
@@ -136,7 +139,10 @@ class MihomoApiClient(
 
     fun streamLogs(): Flow<LogEntry> = flow {
         try {
-            httpClient.webSocket("$wsUrl/logs") {
+            httpClient.webSocket(
+                urlString = "$wsUrl/logs",
+                request = { applyAuth() }
+            ) {
                 while (isActive) {
                     val frame = incoming.receive()
                     if (frame is Frame.Text) {

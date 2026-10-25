@@ -59,7 +59,8 @@ class SubscriptionTest {
         assertEquals("0.0.0.0:1053", (runtimeParsed["dns"] as Map<String, Any>)["listen"])
 
         val runtimeProxies = runtimeParsed["proxies"] as List<Map<String, Any>>
-        assertEquals(proxies.size, runtimeProxies.size)
+        assertEquals(proxies.size + 1, runtimeProxies.size)
+        assertTrue(runtimeProxies.any { it["name"] == "dns-out" })
         println("Successfully imported ${runtimeProxies.size} nodes from subscription!")
     }
 }
