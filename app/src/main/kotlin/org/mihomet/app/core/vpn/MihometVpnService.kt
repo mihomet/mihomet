@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.system.Os
 import android.system.OsConstants
+import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +21,7 @@ import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.mihomet.app.R
+import org.mihomet.app.core.ServiceState
 import org.mihomet.app.core.CoreManager
 import org.mihomet.app.core.config.ConfigGenerator
 import org.mihomet.app.data.db.ProfileDao
@@ -66,7 +68,16 @@ class MihometVpnService : VpnService(), KoinComponent {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                startForeground(NOTIFICATION_ID, buildNotification("Starting VPN..."))
+                val notification = buildNotification("Starting VPN...")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    startForeground(
+                        NOTIFICATION_ID,
+                        notification,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                    )
+                } else {
+                    startForeground(NOTIFICATION_ID, notification)
+                }
                 serviceScope.launch {
                     startVpn()
                 }
@@ -149,8 +160,10 @@ class MihometVpnService : VpnService(), KoinComponent {
 
             mihomoProcess = pb.start()
 
+            ServiceState.setRunning(true)
             updateNotification("Connected (${selectedProfile?.name ?: "Default"})")
         } catch (e: Exception) {
+            ServiceState.setRunning(false)
             updateNotification("VPN Error: ${e.message}")
             e.printStackTrace()
         }
@@ -158,6 +171,7 @@ class MihometVpnService : VpnService(), KoinComponent {
 
     private fun stopVpn() {
         try {
+            ServiceState.setRunning(false)
             mihomoProcess?.destroy()
             mihomoProcess = null
             vpnInterface?.close()
@@ -169,6 +183,7 @@ class MihometVpnService : VpnService(), KoinComponent {
 
     override fun onDestroy() {
         super.onDestroy()
+        ServiceState.setRunning(false)
         stopVpn()
     }
 

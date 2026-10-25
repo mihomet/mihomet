@@ -8,6 +8,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import org.mihomet.app.core.ServiceState
+import org.mihomet.app.core.network.NodePingTester
 import org.mihomet.app.core.root.RootShellManager
 import org.mihomet.app.core.root.RootTProxyService
 import org.mihomet.app.core.vpn.MihometVpnService
@@ -16,17 +18,20 @@ import org.mihomet.app.data.api.TrafficSample
 import org.mihomet.app.data.db.ProfileDao
 import org.mihomet.app.data.preferences.ProxyMode
 import org.mihomet.app.data.preferences.SettingsRepository
+import org.yaml.snakeyaml.Yaml
+import java.io.File
 
 data class DashboardUiState(
     val isRunning: Boolean = false,
     val isRootMode: Boolean = true,
-    val activeProfileName: String = "No Profile",
+    val activeProfileName: String = "Нет профиля",
     val currentTraffic: TrafficSample = TrafficSample(),
     val trafficHistory: List<TrafficSample> = emptyList(),
     val activeMode: ProxyMode = ProxyMode.RULE,
-    val primaryGroup: String = "PROXY",
-    val selectedNode: String = "DIRECT",
-    val selectedNodeDelay: Int = 0
+    val primaryGroup: String = "GLOBAL",
+    val selectedNode: String = "⚡ Автовыбор",
+    val selectedNodeDelay: Long = 0,
+    val isConnecting: Boolean = false
 )
 
 class DashboardViewModel(
@@ -43,65 +48,79 @@ class DashboardViewModel(
     private val historyBuffer = mutableListOf<TrafficSample>()
 
     init {
-        // Observe settings
+        // Observe settings (root mode, proxy mode, selected node)
         viewModelScope.launch {
             settingsRepository.settingsFlow.collect { settings ->
                 _uiState.update {
                     it.copy(
                         isRootMode = settings.isRootMode,
-                        activeMode = settings.proxyMode
+                        activeMode = settings.proxyMode,
+                        selectedNode = settings.selectedNodeName
                     )
                 }
             }
         }
 
-        // Observe active profile
+        // Observe active profile name
         viewModelScope.launch {
             profileDao.getSelectedProfileFlow().collect { profile ->
                 _uiState.update {
-                    it.copy(activeProfileName = profile?.name ?: "Default (Assets)")
+                    it.copy(activeProfileName = profile?.name ?: "По умолчанию")
                 }
             }
         }
 
-        // Periodic check for daemon status
+        // Track running status from ServiceState
+        viewModelScope.launch {
+            ServiceState.isRunning.collect { running ->
+                _uiState.update { it.copy(isRunning = running, isConnecting = false) }
+                if (running) {
+                    startTrafficMonitor()
+                    syncActiveProxy()
+                } else {
+                    stopTrafficMonitor()
+                }
+            }
+        }
+
+        // Periodic root daemon check (if UI process restarted)
         viewModelScope.launch {
             while (isActive) {
-                val running = RootShellManager.isDaemonRunning()
-                if (running != _uiState.value.isRunning) {
-                    _uiState.update { it.copy(isRunning = running) }
-                    if (running) {
-                        startTrafficMonitor()
-                        loadProxyStatus()
-                    } else {
-                        stopTrafficMonitor()
+                if (_uiState.value.isRootMode && !_uiState.value.isRunning) {
+                    val rootRunning = RootShellManager.isDaemonRunning()
+                    if (rootRunning) {
+                        ServiceState.setRunning(true)
                     }
                 }
-                delay(2000)
+                delay(3000)
             }
         }
     }
 
-    fun toggleProxy() {
-        val currentlyRunning = _uiState.value.isRunning
+    fun startProxy() {
         val isRoot = _uiState.value.isRootMode
-
-        if (currentlyRunning) {
-            if (isRoot) {
-                RootTProxyService.stop(context)
-            } else {
-                MihometVpnService.stop(context)
-            }
-            _uiState.update { it.copy(isRunning = false) }
-            stopTrafficMonitor()
+        _uiState.update { it.copy(isConnecting = true) }
+        if (isRoot) {
+            RootTProxyService.start(context)
         } else {
-            if (isRoot) {
-                RootTProxyService.start(context)
-            } else {
-                MihometVpnService.start(context)
-            }
-            _uiState.update { it.copy(isRunning = true) }
-            startTrafficMonitor()
+            MihometVpnService.start(context)
+        }
+    }
+
+    fun stopProxy() {
+        val isRoot = _uiState.value.isRootMode
+        if (isRoot) {
+            RootTProxyService.stop(context)
+        } else {
+            MihometVpnService.stop(context)
+        }
+    }
+
+    fun toggleProxy() {
+        if (_uiState.value.isRunning) {
+            stopProxy()
+        } else {
+            startProxy()
         }
     }
 
@@ -142,16 +161,25 @@ class DashboardViewModel(
         }
     }
 
-    fun loadProxyStatus() {
+    private fun syncActiveProxy() {
         viewModelScope.launch {
+            delay(1000) // wait for external controller to initialize
             apiClient.getProxies().onSuccess { response ->
-                val proxyGroup = response.proxies["PROXY"] ?: response.proxies.values.firstOrNull { it.type == "Selector" }
-                if (proxyGroup != null) {
-                    val nowNode = proxyGroup.now ?: "DIRECT"
-                    val delay = proxyGroup.history.lastOrNull()?.delay ?: 0
+                val primaryGroup = response.proxies.values.firstOrNull { it.type == "Selector" }
+                if (primaryGroup != null) {
+                    val groupName = primaryGroup.name
+                    val currentSelected = _uiState.value.selectedNode
+
+                    // Apply preselected node if not already selected
+                    if (primaryGroup.now != currentSelected && currentSelected != "DIRECT") {
+                        apiClient.selectProxyNode(groupName, currentSelected)
+                    }
+
+                    val nowNode = primaryGroup.now ?: currentSelected
+                    val delay = primaryGroup.history.lastOrNull()?.delay?.toLong() ?: 0L
                     _uiState.update {
                         it.copy(
-                            primaryGroup = proxyGroup.name,
+                            primaryGroup = groupName,
                             selectedNode = nowNode,
                             selectedNodeDelay = delay
                         )

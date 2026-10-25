@@ -8,6 +8,8 @@ import org.mihomet.app.core.CoreManager
 import org.mihomet.app.core.GitHubRelease
 import org.mihomet.app.data.api.MihomoApiClient
 import org.mihomet.app.data.preferences.AppSettings
+import org.mihomet.app.data.preferences.FirewallEngineType
+import org.mihomet.app.data.preferences.ProxyMode
 import org.mihomet.app.data.preferences.SettingsRepository
 
 data class SettingsUiState(
@@ -42,6 +44,37 @@ class SettingsViewModel(
         }
     }
 
+    fun updateRootMode(isRoot: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateRootMode(isRoot)
+        }
+    }
+
+    fun updateProxyMode(mode: ProxyMode) {
+        viewModelScope.launch {
+            settingsRepository.updateProxyMode(mode)
+            apiClient.updateMode(mode.apiValue)
+        }
+    }
+
+    fun updateShowSpeedInNotification(show: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateShowSpeedInNotification(show)
+        }
+    }
+
+    fun updateFirewallEngine(engine: FirewallEngineType) {
+        viewModelScope.launch {
+            settingsRepository.updateFirewallEngine(engine)
+        }
+    }
+
+    fun updateIpv6Enabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateIpv6Enabled(enabled)
+        }
+    }
+
     fun checkForCoreUpdate() {
         viewModelScope.launch {
             _uiState.update { it.copy(isCheckingUpdate = true, updateMessage = null) }
@@ -51,7 +84,7 @@ class SettingsViewModel(
                         it.copy(
                             isCheckingUpdate = false,
                             latestRelease = release,
-                            updateMessage = "Found release ${release.tag_name}"
+                            updateMessage = "Найдена новая версия: ${release.tag_name}"
                         )
                     }
                 }
@@ -59,7 +92,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isCheckingUpdate = false,
-                            updateMessage = "Check failed: ${error.message}"
+                            updateMessage = "Ошибка проверки: ${error.message}"
                         )
                     }
                 }
@@ -69,14 +102,14 @@ class SettingsViewModel(
     fun installCoreUpdate() {
         val release = _uiState.value.latestRelease ?: return
         viewModelScope.launch {
-            _uiState.update { it.copy(isDownloadingUpdate = true, updateMessage = "Downloading and installing...") }
+            _uiState.update { it.copy(isDownloadingUpdate = true, updateMessage = "Загрузка и установка...") }
             coreManager.downloadAndUpdateCore(release)
                 .onSuccess {
                     _uiState.update {
                         it.copy(
                             isDownloadingUpdate = false,
                             coreVersion = release.tag_name,
-                            updateMessage = "Core successfully updated to ${release.tag_name}!"
+                            updateMessage = "Ядро успешно обновлено до ${release.tag_name}!"
                         )
                     }
                 }
@@ -84,7 +117,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isDownloadingUpdate = false,
-                            updateMessage = "Update error: ${error.message}"
+                            updateMessage = "Ошибка обновления: ${error.message}"
                         )
                     }
                 }

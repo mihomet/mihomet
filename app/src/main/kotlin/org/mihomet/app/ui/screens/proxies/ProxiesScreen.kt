@@ -1,22 +1,29 @@
 package org.mihomet.app.ui.screens.proxies
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -33,14 +40,39 @@ fun ProxiesScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
+    val filteredServers = state.servers.filter {
+        state.searchQuery.isBlank() ||
+                it.name.contains(state.searchQuery, ignoreCase = true) ||
+                it.server.contains(state.searchQuery, ignoreCase = true)
+    }
+
+    val autoSelectNode = filteredServers.firstOrNull { it.isAutoSelect }
+    val regularNodes = filteredServers.filter { !it.isAutoSelect }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Proxies", fontWeight = FontWeight.Bold) },
+                title = { Text("Серверы", fontWeight = FontWeight.Bold) },
                 actions = {
-                    IconButton(onClick = { viewModel.loadProxies() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    FilledTonalButton(
+                        onClick = { viewModel.testAllServers() },
+                        enabled = !state.isTestingAll && state.servers.isNotEmpty(),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        if (state.isTestingAll) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Пинг...", fontSize = 13.sp)
+                        } else {
+                            Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Тест всех", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 }
             )
@@ -52,47 +84,80 @@ fun ProxiesScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp)
         ) {
-            // Search Bar
+            // Search Input
             OutlinedTextField(
                 value = state.searchQuery,
                 onValueChange = { viewModel.updateSearchQuery(it) },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search nodes...") },
+                placeholder = { Text("Поиск по имени или адресу...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                shape = RoundedCornerShape(16.dp),
-                singleLine = true
+                shape = RoundedCornerShape(18.dp),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                )
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             if (state.isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
-            } else if (state.groups.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+            } else if (state.servers.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        state.error ?: "No proxy groups found. Start proxy or import a profile.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = state.error ?: "Нет доступных серверов.\nДобавьте подписку во вкладке «Подписки».",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 14.sp
                     )
                 }
             } else {
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(bottom = 16.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
-                    items(state.groups) { group ->
-                        ProxyGroupCard(
-                            group = group,
-                            searchQuery = state.searchQuery,
-                            onSelectNode = { viewModel.selectNode(group.name, it) },
-                            onTestGroup = { viewModel.testGroupDelay(group.name) }
+                    // Featured Auto-Select Card
+                    if (autoSelectNode != null) {
+                        item(key = "auto_select_card") {
+                            AutoSelectCard(
+                                node = autoSelectNode,
+                                isSelected = state.selectedNodeName == autoSelectNode.name,
+                                isTesting = state.isTestingAll,
+                                onSelect = { viewModel.selectServer(autoSelectNode) },
+                                onTest = { viewModel.testAllServers() }
+                            )
+                        }
+                    }
+
+                    // Section Header
+                    if (regularNodes.isNotEmpty()) {
+                        item(key = "header_all_servers") {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Все локации (${regularNodes.size})",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+
+                    // Regular Servers
+                    items(regularNodes, key = { it.name }) { node ->
+                        ServerRowCard(
+                            node = node,
+                            isSelected = state.selectedNodeName == node.name,
+                            onSelect = { viewModel.selectServer(node) },
+                            onTest = { viewModel.testSingleServer(node) }
                         )
                     }
                 }
@@ -102,126 +167,202 @@ fun ProxiesScreen(
 }
 
 @Composable
-fun ProxyGroupCard(
-    group: GroupUiModel,
-    searchQuery: String,
-    onSelectNode: (String) -> Unit,
-    onTestGroup: () -> Unit
+fun AutoSelectCard(
+    node: ServerNodeItem,
+    isSelected: Boolean,
+    isTesting: Boolean,
+    onSelect: () -> Unit,
+    onTest: () -> Unit
 ) {
-    val filteredNodes = group.nodes.filter {
-        searchQuery.isBlank() || it.name.contains(searchQuery, ignoreCase = true)
-    }
+    val containerColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        animationSpec = tween(250), label = "cardColor"
+    )
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .clickable { onSelect() },
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Group Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Surface(
+                    shape = CircleShape,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.Bolt,
+                            contentDescription = null,
+                            tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(14.dp))
+
                 Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = node.name,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        SuggestionChip(
+                            onClick = {},
+                            label = { Text("Авто", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
+                            modifier = Modifier.height(22.dp)
+                        )
+                    }
                     Text(
-                        text = group.name,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                    Text(
-                        text = "${group.type} • ${group.nodes.size} nodes",
+                        text = "Выбирает сервер с наименьшим пингом",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
-                FilledTonalIconButton(
-                    onClick = onTestGroup,
-                    enabled = !group.isTestingGroup
-                ) {
-                    if (group.isTestingGroup) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(Icons.Default.Bolt, contentDescription = "Test Delay")
-                    }
-                }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Nodes List
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                filteredNodes.forEach { node ->
-                    val isSelected = node.name == group.selectedNode
-
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelectNode(node.name) },
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                        border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                if (isSelected) {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                }
-
-                                Text(
-                                    text = node.name,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    fontSize = 14.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                SuggestionChip(
-                                    onClick = {},
-                                    label = { Text(node.type, fontSize = 10.sp) },
-                                    modifier = Modifier.height(26.dp)
-                                )
-
-                                if (node.delay > 0) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    val delayColor = when {
-                                        node.delay < 200 -> AccentGreen
-                                        node.delay < 500 -> AccentOrange
-                                        else -> AccentRed
-                                    }
-                                    Text(
-                                        text = "${node.delay}ms",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = delayColor
-                                    )
-                                }
-                            }
-                        }
-                    }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (node.delayMs > 0) {
+                    LatencyBadge(delayMs = node.delayMs, onClick = onTest)
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                if (isSelected) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Selected",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+fun ServerRowCard(
+    node: ServerNodeItem,
+    isSelected: Boolean,
+    onSelect: () -> Unit,
+    onTest: () -> Unit
+) {
+    val containerColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface,
+        animationSpec = tween(200), label = "rowColor"
+    )
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onSelect() },
+        shape = RoundedCornerShape(16.dp),
+        color = containerColor,
+        border = BorderStroke(
+            width = if (isSelected) 1.5.dp else 1.dp,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (isSelected) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Выбран",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+
+                Column {
+                    Text(
+                        text = node.name,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (node.server.isNotBlank()) {
+                        Text(
+                            text = "${node.type} • ${node.server}:${node.port}",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Ping Badge / Button
+            if (node.isTesting) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+            } else {
+                LatencyBadge(
+                    delayMs = node.delayMs,
+                    onClick = onTest
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun LatencyBadge(
+    delayMs: Long,
+    onClick: () -> Unit
+) {
+    val (text, color, bgColor) = when {
+        delayMs <= 0 -> Triple(
+            if (delayMs == -1L) "Таймаут" else "Проверить",
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+        delayMs < 150 -> Triple("${delayMs} ms", AccentGreen, AccentGreen.copy(alpha = 0.15f))
+        delayMs < 300 -> Triple("${delayMs} ms", AccentOrange, AccentOrange.copy(alpha = 0.15f))
+        else -> Triple("${delayMs} ms", AccentRed, AccentRed.copy(alpha = 0.15f))
+    }
+
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = bgColor,
+        modifier = Modifier.clickable { onClick() }
+    ) {
+        Text(
+            text = text,
+            color = color,
+            fontWeight = FontWeight.Bold,
+            fontSize = 11.sp,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
     }
 }

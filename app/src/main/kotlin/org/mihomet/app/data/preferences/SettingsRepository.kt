@@ -27,6 +27,8 @@ class SettingsRepository(private val context: Context) {
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val DARK_THEME = booleanPreferencesKey("dark_theme")
         val AMOLED_BLACK = booleanPreferencesKey("amoled_black")
+        val SELECTED_NODE_NAME = stringPreferencesKey("selected_node_name")
+        val SHOW_SPEED_NOTIFICATION = booleanPreferencesKey("show_speed_notification")
         val CONTROLLER_SECRET = stringPreferencesKey("controller_secret")
     }
 
@@ -51,6 +53,7 @@ class SettingsRepository(private val context: Context) {
                 proxyMode = runCatching {
                     ProxyMode.valueOf(preferences[PreferencesKeys.PROXY_MODE] ?: ProxyMode.RULE.name)
                 }.getOrDefault(ProxyMode.RULE),
+                selectedNodeName = preferences[PreferencesKeys.SELECTED_NODE_NAME] ?: "⚡ Автовыбор",
                 mixedPort = preferences[PreferencesKeys.MIXED_PORT] ?: 7890,
                 tproxyPort = preferences[PreferencesKeys.TPROXY_PORT] ?: 7893,
                 dnsPort = preferences[PreferencesKeys.DNS_PORT] ?: 1053,
@@ -59,9 +62,18 @@ class SettingsRepository(private val context: Context) {
                 dynamicColor = preferences[PreferencesKeys.DYNAMIC_COLOR] ?: true,
                 darkTheme = preferences[PreferencesKeys.DARK_THEME] ?: true,
                 amoledBlack = preferences[PreferencesKeys.AMOLED_BLACK] ?: false,
+                showSpeedInNotification = preferences[PreferencesKeys.SHOW_SPEED_NOTIFICATION] ?: true,
                 controllerSecret = preferences[PreferencesKeys.CONTROLLER_SECRET] ?: "mihomet_secret_token"
             )
         }
+
+    suspend fun updateSelectedNodeName(name: String) {
+        context.dataStore.edit { it[PreferencesKeys.SELECTED_NODE_NAME] = name }
+    }
+
+    suspend fun updateShowSpeedInNotification(show: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.SHOW_SPEED_NOTIFICATION] = show }
+    }
 
     suspend fun updateRootMode(isRoot: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.IS_ROOT_MODE] = isRoot }

@@ -33,7 +33,7 @@ fun ProfilesScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Profiles", fontWeight = FontWeight.Bold) }
+                title = { Text("Подписки", fontWeight = FontWeight.Bold) }
             )
         },
         floatingActionButton = {
@@ -41,7 +41,7 @@ fun ProfilesScreen(
                 onClick = { showAddDialog = true },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Profile")
+                Icon(Icons.Default.Add, contentDescription = "Добавить подписку")
             }
         }
     ) { innerPadding ->
@@ -53,8 +53,9 @@ fun ProfilesScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "No profiles added yet. Tap + to add subscription.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    "У вас пока нет добавленных подписок.\nНажмите +, чтобы добавить ссылку на подписку.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 14.sp
                 )
             }
         } else {
@@ -103,7 +104,7 @@ fun ProfileItemCard(
     onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
-    val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
+    val dateFormat = remember { SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()) }
 
     Card(
         modifier = Modifier
@@ -137,7 +138,7 @@ fun ProfileItemCard(
                         fontSize = 16.sp
                     )
                     Text(
-                        text = "${if (profile.type == ProfileType.REMOTE) "Remote URL" else "Local"} • ${dateFormat.format(Date(profile.lastUpdated))}",
+                        text = "${if (profile.type == ProfileType.REMOTE) "Онлайн-подписка" else "Локальный файл"} • Обновлено: ${dateFormat.format(Date(profile.lastUpdated))}",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -146,23 +147,15 @@ fun ProfileItemCard(
 
             Box {
                 IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Menu")
+                    Icon(Icons.Default.MoreVert, contentDescription = "Меню")
                 }
                 DropdownMenu(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false }
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("Edit YAML") },
-                        onClick = {
-                            showMenu = false
-                            onEditYaml()
-                        },
-                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
-                    )
                     if (profile.type == ProfileType.REMOTE) {
                         DropdownMenuItem(
-                            text = { Text("Update Subscription") },
+                            text = { Text("Обновить сейчас") },
                             onClick = {
                                 showMenu = false
                                 onUpdate()
@@ -171,7 +164,15 @@ fun ProfileItemCard(
                         )
                     }
                     DropdownMenuItem(
-                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                        text = { Text("Редактировать YAML") },
+                        onClick = {
+                            showMenu = false
+                            onEditYaml()
+                        },
+                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Удалить", color = MaterialTheme.colorScheme.error) },
                         onClick = {
                             showMenu = false
                             onDelete()
@@ -197,26 +198,27 @@ fun AddProfileDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Profile") },
+        title = { Text("Добавить подписку", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = isRemote,
                         onClick = { isRemote = true },
-                        label = { Text("URL Subscription") }
+                        label = { Text("Ссылка (URL)") }
                     )
                     FilterChip(
                         selected = !isRemote,
                         onClick = { isRemote = false },
-                        label = { Text("Blank Local") }
+                        label = { Text("Локальный файл") }
                     )
                 }
 
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Profile Name") },
+                    label = { Text("Название подписки") },
+                    placeholder = { Text("Мой VPN") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -225,14 +227,15 @@ fun AddProfileDialog(
                     OutlinedTextField(
                         value = url,
                         onValueChange = { url = it },
-                        label = { Text("Subscription URL") },
+                        label = { Text("Ссылка на подписку (URL)") },
+                        placeholder = { Text("https://...") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = customHeaders,
                         onValueChange = { customHeaders = it },
-                        label = { Text("Custom Headers (Optional JSON)") },
+                        label = { Text("Заголовки (опционально, JSON)") },
                         placeholder = { Text("{\"x-hwid\": \"...\"}") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -241,7 +244,7 @@ fun AddProfileDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = {
                     if (name.isNotBlank()) {
                         if (isRemote && url.isNotBlank()) {
@@ -253,12 +256,12 @@ fun AddProfileDialog(
                     }
                 }
             ) {
-                Text("Add")
+                Text("Добавить")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Отмена")
             }
         }
     )

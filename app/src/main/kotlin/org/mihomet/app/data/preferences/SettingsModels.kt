@@ -24,6 +24,7 @@ data class AppSettings(
     val perAppMode: PerAppMode = PerAppMode.ALL,
     val selectedAppUids: Set<Int> = emptySet(),
     val proxyMode: ProxyMode = ProxyMode.RULE,
+    val selectedNodeName: String = "⚡ Автовыбор",
     val mixedPort: Int = 7890,
     val tproxyPort: Int = 7893,
     val dnsPort: Int = 1053,
@@ -32,5 +33,6 @@ data class AppSettings(
     val dynamicColor: Boolean = true,
     val darkTheme: Boolean = true,
     val amoledBlack: Boolean = false,
+    val showSpeedInNotification: Boolean = true,
     val controllerSecret: String = "mihomet_secret_token"
 )

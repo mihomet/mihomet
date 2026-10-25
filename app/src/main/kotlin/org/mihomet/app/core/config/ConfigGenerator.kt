@@ -68,10 +68,59 @@ object ConfigGenerator {
         }
         configMap["proxies"] = proxiesList
 
+        // Ensure proxy groups have an auto-select (url-test) group
+        val realProxyNames = proxiesList
+            .mapNotNull { it["name"]?.toString() }
+            .filter { it != "dns-out" && it != "DIRECT" && it != "REJECT" && it != "COMPATIBLE" }
+
+        val rawGroups = configMap["proxy-groups"] as? List<*>
+        val groupsList = rawGroups?.filterIsInstance<Map<String, Any>>()?.map { it.toMutableMap() }?.toMutableList() ?: mutableListOf()
+
+        val autoGroupName = "⚡ Автовыбор"
+        if (realProxyNames.isNotEmpty()) {
+            val hasAutoGroup = groupsList.any { it["type"] == "url-test" }
+            if (!hasAutoGroup) {
+                val autoGroup = mutableMapOf<String, Any>(
+                    "name" to autoGroupName,
+                    "type" to "url-test",
+                    "url" to "http://www.gstatic.com/generate_204",
+                    "interval" to 300,
+                    "tolerance" to 50,
+                    "proxies" to realProxyNames
+                )
+                groupsList.add(0, autoGroup)
+            }
+
+            // Ensure auto-group is selectable inside any select group
+            for (group in groupsList) {
+                if (group["type"] == "select") {
+                    val groupProxies = (group["proxies"] as? List<*>)?.filterIsInstance<String>()?.toMutableList() ?: mutableListOf()
+                    if (!groupProxies.contains(autoGroupName)) {
+                        groupProxies.add(0, autoGroupName)
+                        group["proxies"] = groupProxies
+                    }
+                }
+            }
+
+            if (groupsList.none { it["type"] == "select" }) {
+                val mainGroup = mutableMapOf<String, Any>(
+                    "name" to "GLOBAL",
+                    "type" to "select",
+                    "proxies" to listOf(autoGroupName) + realProxyNames + listOf("DIRECT")
+                )
+                groupsList.add(mainGroup)
+            }
+        }
+        configMap["proxy-groups"] = groupsList
+
         val rawRules = configMap["rules"] as? List<*>
         val rulesList = rawRules?.filterIsInstance<String>()?.toMutableList() ?: mutableListOf()
         if (rulesList.none { it.contains("53,dns-out") }) {
             rulesList.add(0, "DST-PORT,53,dns-out")
+        }
+        if (groupsList.isNotEmpty() && rulesList.none { it.startsWith("MATCH,") }) {
+            val defaultTarget = groupsList.firstOrNull { it["type"] == "select" }?.get("name")?.toString() ?: autoGroupName
+            rulesList.add("MATCH,$defaultTarget")
         }
         configMap["rules"] = rulesList
 
@@ -79,7 +128,7 @@ object ConfigGenerator {
         if (tunFd != null && tunFd >= 0) {
             val tunMap = mutableMapOf<String, Any>(
                 "enable" to true,
-                "stack" to "system",
+                "stack" to "gvisor",
                 "file-descriptor" to tunFd,
                 "auto-route" to false,
                 "auto-detect-interface" to false

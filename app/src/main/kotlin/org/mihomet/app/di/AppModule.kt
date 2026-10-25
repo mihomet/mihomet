@@ -45,7 +45,7 @@ val appModule = module {
 
     // ViewModels
     viewModel { DashboardViewModel(get(), get(), get(), get()) }
-    viewModel { ProxiesViewModel(get()) }
+    viewModel { ProxiesViewModel(get(), get(), get(), androidContext()) }
     viewModel { ProfilesViewModel(androidContext(), get()) }
     viewModel { RoutingViewModel(androidContext(), get()) }
     viewModel { ConnectionsViewModel(get()) }

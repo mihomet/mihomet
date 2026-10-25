@@ -21,6 +21,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.mihomet.app.R
 import org.mihomet.app.core.CoreManager
+import org.mihomet.app.core.ServiceState
 import org.mihomet.app.core.config.ConfigGenerator
 import org.mihomet.app.core.firewall.FirewallManager
 import org.mihomet.app.data.db.ProfileDao
@@ -139,8 +140,10 @@ class RootTProxyService : Service(), KoinComponent {
                 ipv6Enabled = settings.ipv6Enabled
             ).getOrThrow()
 
+            ServiceState.setRunning(true)
             updateNotification("Running (${selectedProfile?.name ?: "Default"})")
         } catch (e: Exception) {
+            ServiceState.setRunning(false)
             updateNotification("Error: ${e.message}")
             e.printStackTrace()
         }
@@ -150,10 +153,12 @@ class RootTProxyService : Service(), KoinComponent {
         val settings = settingsRepository.settingsFlow.first()
         firewallManager.teardown(settings.ipv6Enabled)
         RootShellManager.stopDaemon()
+        ServiceState.setRunning(false)
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        ServiceState.setRunning(false)
         serviceScope.launch {
             stopProxy()
         }

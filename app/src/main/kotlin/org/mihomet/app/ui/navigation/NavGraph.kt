@@ -30,6 +30,12 @@ fun AppNavGraph(
     ) {
         composable(Screen.Dashboard.route) {
             DashboardScreen(
+                onNavigateToServers = {
+                    navController.navigate(Screen.Proxies.route) {
+                        popUpTo(Screen.Dashboard.route)
+                        launchSingleTop = true
+                    }
+                },
                 onNavigateToConnections = { navController.navigate(Screen.Connections.route) },
                 onNavigateToLogs = { navController.navigate(Screen.Logs.route) }
             )
@@ -52,7 +58,11 @@ fun AppNavGraph(
         }
 
         composable(Screen.Settings.route) {
-            SettingsScreen()
+            SettingsScreen(
+                onNavigateToRouting = { navController.navigate(Screen.Routing.route) },
+                onNavigateToLogs = { navController.navigate(Screen.Logs.route) },
+                onNavigateToConnections = { navController.navigate(Screen.Connections.route) }
+            )
         }
 
         composable(Screen.Connections.route) {
