@@ -1,0 +1,54 @@
+package org.mihomet.app.di
+
+import androidx.room.Room
+import org.koin.android.ext.koin.androidContext
+import org.koin.androidx.viewmodel.dsl.viewModel
+import org.koin.dsl.module
+import org.mihomet.app.core.CoreManager
+import org.mihomet.app.core.firewall.FirewallManager
+import org.mihomet.app.data.api.MihomoApiClient
+import org.mihomet.app.data.db.AppDatabase
+import org.mihomet.app.data.preferences.SettingsRepository
+import org.mihomet.app.ui.screens.connections.ConnectionsViewModel
+import org.mihomet.app.ui.screens.dashboard.DashboardViewModel
+import org.mihomet.app.ui.screens.logs.LogsViewModel
+import org.mihomet.app.ui.screens.profiles.ProfilesViewModel
+import org.mihomet.app.ui.screens.proxies.ProxiesViewModel
+import org.mihomet.app.ui.screens.routing.RoutingViewModel
+import org.mihomet.app.ui.screens.settings.SettingsViewModel
+
+val appModule = module {
+    // Database
+    single {
+        Room.databaseBuilder(
+            androidContext(),
+            AppDatabase::class.java,
+            "mihomet.db"
+        ).fallbackToDestructiveMigration().build()
+    }
+
+    single { get<AppDatabase>().profileDao() }
+
+    // Repositories & Managers
+    single { SettingsRepository(androidContext()) }
+    single { CoreManager(androidContext()) }
+    single { FirewallManager() }
+
+    // API Client
+    single {
+        MihomoApiClient(
+            host = "127.0.0.1",
+            port = 9090,
+            secret = "mihomet_secret_token"
+        )
+    }
+
+    // ViewModels
+    viewModel { DashboardViewModel(get(), get(), get(), get()) }
+    viewModel { ProxiesViewModel(get()) }
+    viewModel { ProfilesViewModel(androidContext(), get()) }
+    viewModel { RoutingViewModel(androidContext(), get()) }
+    viewModel { ConnectionsViewModel(get()) }
+    viewModel { LogsViewModel(get()) }
+    viewModel { SettingsViewModel(get(), get(), get()) }
+}
