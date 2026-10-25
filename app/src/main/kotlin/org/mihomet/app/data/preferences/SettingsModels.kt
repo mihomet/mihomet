@@ -24,7 +24,7 @@ data class AppSettings(
     val perAppMode: PerAppMode = PerAppMode.ALL,
     val selectedAppUids: Set<Int> = emptySet(),
     val proxyMode: ProxyMode = ProxyMode.RULE,
-    val selectedNodeName: String = "⚡ Автовыбор",
+    val selectedNodeName: String = "",
     val mixedPort: Int = 7890,
     val tproxyPort: Int = 7893,
     val dnsPort: Int = 1053,

@@ -29,7 +29,7 @@ data class DashboardUiState(
     val trafficHistory: List<TrafficSample> = emptyList(),
     val activeMode: ProxyMode = ProxyMode.RULE,
     val primaryGroup: String = "GLOBAL",
-    val selectedNode: String = "⚡ Автовыбор",
+    val selectedNode: String = "Автовыбор",
     val selectedNodeDelay: Long = 0,
     val isConnecting: Boolean = false
 )
@@ -101,8 +101,10 @@ class DashboardViewModel(
         val isRoot = _uiState.value.isRootMode
         _uiState.update { it.copy(isConnecting = true) }
         if (isRoot) {
+            MihometVpnService.stop(context)
             RootTProxyService.start(context)
         } else {
+            RootTProxyService.stop(context)
             MihometVpnService.start(context)
         }
     }
@@ -165,22 +167,31 @@ class DashboardViewModel(
         viewModelScope.launch {
             delay(1000) // wait for external controller to initialize
             apiClient.getProxies().onSuccess { response ->
-                val primaryGroup = response.proxies.values.firstOrNull { it.type == "Selector" }
+                val primaryGroup = response.proxies.values.firstOrNull {
+                    it.type.equals("Selector", ignoreCase = true) || it.type.equals("select", ignoreCase = true)
+                }
                 if (primaryGroup != null) {
                     val groupName = primaryGroup.name
                     val currentSelected = _uiState.value.selectedNode
 
-                    // Apply preselected node if not already selected
-                    if (primaryGroup.now != currentSelected && currentSelected != "DIRECT") {
-                        apiClient.selectProxyNode(groupName, currentSelected)
+                    // Apply preselected node only if user selected one that belongs to this group
+                    val targetNode = if (currentSelected.isNotBlank() && primaryGroup.all?.contains(currentSelected) == true) {
+                        if (primaryGroup.now != currentSelected) {
+                            apiClient.selectProxyNode(groupName, currentSelected)
+                        }
+                        currentSelected
+                    } else {
+                        primaryGroup.now ?: "Автовыбор"
                     }
 
-                    val nowNode = primaryGroup.now ?: currentSelected
-                    val delay = primaryGroup.history.lastOrNull()?.delay?.toLong() ?: 0L
+                    val delay = response.proxies[targetNode]?.history?.lastOrNull()?.delay?.toLong()
+                        ?: primaryGroup.history.lastOrNull()?.delay?.toLong()
+                        ?: 0L
+
                     _uiState.update {
                         it.copy(
                             primaryGroup = groupName,
-                            selectedNode = nowNode,
+                            selectedNode = targetNode,
                             selectedNodeDelay = delay
                         )
                     }

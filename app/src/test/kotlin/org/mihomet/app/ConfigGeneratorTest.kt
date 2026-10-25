@@ -84,5 +84,57 @@ class ConfigGeneratorTest {
         val tun = parsed["tun"] as Map<String, Any>
         assertEquals(true, tun["enable"])
         assertEquals(42, tun["file-descriptor"])
+        assertEquals("gvisor", tun["stack"])
+        assertEquals(listOf("any:53", "tcp://any:53"), tun["dns-hijack"])
+        assertEquals(listOf("172.19.0.2/30"), tun["inet4-address"])
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test config generator preserves subscription proxy groups without injecting phantom groups`() {
+        val subscriptionYaml = """
+            proxies:
+              - name: "Node-1"
+                type: vmess
+                server: 1.1.1.1
+                port: 443
+              - name: "Node-2"
+                type: vmess
+                server: 2.2.2.2
+                port: 443
+            proxy-groups:
+              - name: "AUTO"
+                type: url-test
+                url: http://www.gstatic.com/generate_204
+                interval: 300
+                proxies:
+                  - "Node-1"
+                  - "Node-2"
+              - name: "PROXY"
+                type: select
+                proxies:
+                  - "AUTO"
+                  - "Node-1"
+                  - "Node-2"
+            rules:
+              - MATCH,PROXY
+        """.trimIndent()
+
+        val output = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = subscriptionYaml,
+            settings = AppSettings(),
+            tunFd = null
+        )
+
+        val yaml = Yaml()
+        val parsed = yaml.load<Map<String, Any>>(output)
+        val groups = parsed["proxy-groups"] as List<Map<String, Any>>
+        assertEquals(2, groups.size)
+        assertEquals("AUTO", groups[0]["name"])
+        assertEquals("PROXY", groups[1]["name"])
+
+        val proxyGroupProxies = groups[1]["proxies"] as List<String>
+        assertEquals(listOf("AUTO", "Node-1", "Node-2"), proxyGroupProxies)
+        assertFalse(proxyGroupProxies.contains("⚡ Автовыбор"))
     }
 }

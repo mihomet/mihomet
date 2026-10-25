@@ -109,16 +109,42 @@ class MihometVpnService : VpnService(), KoinComponent {
             // Build TUN interface
             val builder = Builder()
                 .setSession("Mihomet")
-                .setMtu(9000)
+                .setMtu(1500)
                 .addAddress("172.19.0.1", 30)
                 .addRoute("0.0.0.0", 0)
                 .addDnsServer("172.19.0.2")
-                // Bypass Mihomo subprocess and app traffic automatically
-                .addDisallowedApplication(packageName)
-
             if (settings.ipv6Enabled) {
                 builder.addAddress("fdfe:dcba:9876::1", 126)
                 builder.addRoute("::", 0)
+                builder.addDnsServer("fdfe:dcba:9876::2")
+            }
+
+            // Per-app split tunneling (VpnService does not allow mixing allowed and disallowed apps)
+            val pm = packageManager
+            when (settings.perAppMode) {
+                org.mihomet.app.data.preferences.PerAppMode.WHITELIST -> {
+                    // Only selected apps route through VPN; our own app is excluded by not being added
+                    settings.selectedAppUids.forEach { uid ->
+                        pm.getPackagesForUid(uid)?.forEach { pkg ->
+                            runCatching { builder.addAllowedApplication(pkg) }
+                        }
+                    }
+                }
+                org.mihomet.app.data.preferences.PerAppMode.BLACKLIST -> {
+                    // Exclude our own app plus selected blacklisted apps
+                    builder.addDisallowedApplication(packageName)
+                    settings.selectedAppUids.forEach { uid ->
+                        pm.getPackagesForUid(uid)?.forEach { pkg ->
+                            if (pkg != packageName) {
+                                runCatching { builder.addDisallowedApplication(pkg) }
+                            }
+                        }
+                    }
+                }
+                org.mihomet.app.data.preferences.PerAppMode.ALL -> {
+                    // Exclude only our own app so core traffic doesn't loop
+                    builder.addDisallowedApplication(packageName)
+                }
             }
 
             val pfd = builder.establish() ?: throw RuntimeException("Failed to establish VpnService")
@@ -149,6 +175,7 @@ class MihometVpnService : VpnService(), KoinComponent {
             val vpnConfigFile = File(vpnWorkDir, "config.yaml").apply {
                 writeText(runtimeYaml)
             }
+            val vpnLogFile = File(vpnWorkDir, "mihomo.log")
 
             // Launch bundled native binary
             val binaryPath = coreManager.getBundledLibraryPath()
@@ -157,14 +184,33 @@ class MihometVpnService : VpnService(), KoinComponent {
                 "-d", vpnWorkDir.absolutePath,
                 "-f", vpnConfigFile.absolutePath
             ).redirectErrorStream(true)
+             .redirectOutput(ProcessBuilder.Redirect.appendTo(vpnLogFile))
 
-            mihomoProcess = pb.start()
+            pb.environment()["HOME"] = vpnWorkDir.absolutePath
+            pb.environment()["TMPDIR"] = cacheDir.absolutePath
+
+            val proc = pb.start()
+            mihomoProcess = proc
+
+            serviceScope.launch {
+                try {
+                    val exitCode = proc.waitFor()
+                    if (exitCode != 0) {
+                        val tailLogs = runCatching { vpnLogFile.readLines().takeLast(10).joinToString("\n") }.getOrNull()
+                        android.util.Log.e("MihometVpn", "Core exited with $exitCode: $tailLogs")
+                        ServiceState.setRunning(false)
+                        updateNotification("Ошибка ядра ($exitCode)")
+                    }
+                } catch (e: Exception) {
+                    // Normal stop
+                }
+            }
 
             ServiceState.setRunning(true)
-            updateNotification("Connected (${selectedProfile?.name ?: "Default"})")
+            updateNotification("Подключено (${selectedProfile?.name ?: "По умолчанию"})")
         } catch (e: Exception) {
             ServiceState.setRunning(false)
-            updateNotification("VPN Error: ${e.message}")
+            updateNotification("Ошибка VPN: ${e.message}")
             e.printStackTrace()
         }
     }

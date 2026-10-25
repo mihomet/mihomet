@@ -1,5 +1,6 @@
 package org.mihomet.app
 
+import io.ktor.http.encodeURLPathPart
 import kotlinx.serialization.json.Json
 import org.junit.Assert.*
 import org.junit.Test
@@ -98,5 +99,24 @@ class FirewallAndModelTest {
         assertEquals("Node-A", group?.now)
         assertEquals(2, group?.all?.size)
         assertEquals(65, group?.history?.firstOrNull()?.delay)
+    }
+
+    @Test
+    fun `test proxy and group names url encoding for api client`() {
+        val groupName = "→ Remnawave"
+        val nodeName = "🇷🇺 Russia 01"
+        val autoGroupName = "⚡ Автовыбор"
+
+        val encodedGroup = groupName.encodeURLPathPart()
+        val encodedNode = nodeName.encodeURLPathPart()
+        val encodedAuto = autoGroupName.encodeURLPathPart()
+
+        assertFalse("Encoded group must not contain raw spaces", encodedGroup.contains(" "))
+        assertFalse("Encoded node must not contain raw spaces", encodedNode.contains(" "))
+        assertFalse("Encoded auto must not contain raw spaces", encodedAuto.contains(" "))
+
+        assertTrue(encodedGroup.contains("%20"))
+        assertTrue(encodedNode.contains("%20"))
+        assertTrue(encodedAuto.contains("%20"))
     }
 }

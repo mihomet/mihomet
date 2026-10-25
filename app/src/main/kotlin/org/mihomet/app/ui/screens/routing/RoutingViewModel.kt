@@ -99,4 +99,17 @@ class RoutingViewModel(
     fun updateSearchQuery(query: String) {
         _uiState.update { it.copy(appSearchQuery = query) }
     }
+
+    fun clearAllSelectedApps() {
+        viewModelScope.launch {
+            settingsRepository.updateSelectedAppUids(emptySet())
+        }
+    }
+
+    fun selectAllApps() {
+        viewModelScope.launch {
+            val allUids = _uiState.value.installedApps.map { it.uid }.toSet()
+            settingsRepository.updateSelectedAppUids(allUids)
+        }
+    }
 }

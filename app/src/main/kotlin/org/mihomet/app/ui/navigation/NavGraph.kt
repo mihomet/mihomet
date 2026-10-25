@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -32,8 +33,11 @@ fun AppNavGraph(
             DashboardScreen(
                 onNavigateToServers = {
                     navController.navigate(Screen.Proxies.route) {
-                        popUpTo(Screen.Dashboard.route)
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
                         launchSingleTop = true
+                        restoreState = true
                     }
                 },
                 onNavigateToConnections = { navController.navigate(Screen.Connections.route) },
@@ -54,7 +58,9 @@ fun AppNavGraph(
         }
 
         composable(Screen.Routing.route) {
-            RoutingScreen()
+            RoutingScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         composable(Screen.Settings.route) {

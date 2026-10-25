@@ -15,6 +15,7 @@ import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.http.encodeURLPathPart
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
@@ -67,7 +68,8 @@ class MihomoApiClient(
     }
 
     suspend fun selectProxyNode(groupName: String, nodeName: String): Result<Unit> = runCatching {
-        httpClient.put("$baseUrl/proxies/$groupName") {
+        val encodedGroup = groupName.encodeURLPathPart()
+        httpClient.put("$baseUrl/proxies/$encodedGroup") {
             applyAuth()
             contentType(ContentType.Application.Json)
             setBody(UpdateProxyRequest(name = nodeName))
@@ -79,7 +81,8 @@ class MihomoApiClient(
         testUrl: String = "http://www.gstatic.com/generate_204",
         timeoutMs: Int = 5000
     ): Result<Int> = runCatching {
-        val response: DelayResponse = httpClient.get("$baseUrl/proxies/$nodeName/delay") {
+        val encodedNode = nodeName.encodeURLPathPart()
+        val response: DelayResponse = httpClient.get("$baseUrl/proxies/$encodedNode/delay") {
             applyAuth()
             parameter("url", testUrl)
             parameter("timeout", timeoutMs)
@@ -94,7 +97,8 @@ class MihomoApiClient(
     }
 
     suspend fun closeConnection(id: String): Result<Unit> = runCatching {
-        httpClient.delete("$baseUrl/connections/$id") {
+        val encodedId = id.encodeURLPathPart()
+        httpClient.delete("$baseUrl/connections/$encodedId") {
             applyAuth()
         }
     }

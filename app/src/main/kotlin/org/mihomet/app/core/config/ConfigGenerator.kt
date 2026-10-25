@@ -68,7 +68,7 @@ object ConfigGenerator {
         }
         configMap["proxies"] = proxiesList
 
-        // Ensure proxy groups have an auto-select (url-test) group
+        // Preserve subscription proxy-groups if present, otherwise create defaults
         val realProxyNames = proxiesList
             .mapNotNull { it["name"]?.toString() }
             .filter { it != "dns-out" && it != "DIRECT" && it != "REJECT" && it != "COMPATIBLE" }
@@ -76,40 +76,22 @@ object ConfigGenerator {
         val rawGroups = configMap["proxy-groups"] as? List<*>
         val groupsList = rawGroups?.filterIsInstance<Map<String, Any>>()?.map { it.toMutableMap() }?.toMutableList() ?: mutableListOf()
 
-        val autoGroupName = "⚡ Автовыбор"
-        if (realProxyNames.isNotEmpty()) {
-            val hasAutoGroup = groupsList.any { it["type"] == "url-test" }
-            if (!hasAutoGroup) {
-                val autoGroup = mutableMapOf<String, Any>(
-                    "name" to autoGroupName,
-                    "type" to "url-test",
-                    "url" to "http://www.gstatic.com/generate_204",
-                    "interval" to 300,
-                    "tolerance" to 50,
-                    "proxies" to realProxyNames
-                )
-                groupsList.add(0, autoGroup)
-            }
-
-            // Ensure auto-group is selectable inside any select group
-            for (group in groupsList) {
-                if (group["type"] == "select") {
-                    val groupProxies = (group["proxies"] as? List<*>)?.filterIsInstance<String>()?.toMutableList() ?: mutableListOf()
-                    if (!groupProxies.contains(autoGroupName)) {
-                        groupProxies.add(0, autoGroupName)
-                        group["proxies"] = groupProxies
-                    }
-                }
-            }
-
-            if (groupsList.none { it["type"] == "select" }) {
-                val mainGroup = mutableMapOf<String, Any>(
-                    "name" to "GLOBAL",
-                    "type" to "select",
-                    "proxies" to listOf(autoGroupName) + realProxyNames + listOf("DIRECT")
-                )
-                groupsList.add(mainGroup)
-            }
+        if (groupsList.isEmpty() && realProxyNames.isNotEmpty()) {
+            val autoGroup = mutableMapOf<String, Any>(
+                "name" to "AUTO",
+                "type" to "url-test",
+                "url" to "http://www.gstatic.com/generate_204",
+                "interval" to 300,
+                "tolerance" to 50,
+                "proxies" to realProxyNames
+            )
+            val mainGroup = mutableMapOf<String, Any>(
+                "name" to "GLOBAL",
+                "type" to "select",
+                "proxies" to listOf("AUTO") + realProxyNames + listOf("DIRECT")
+            )
+            groupsList.add(autoGroup)
+            groupsList.add(mainGroup)
         }
         configMap["proxy-groups"] = groupsList
 
@@ -119,7 +101,9 @@ object ConfigGenerator {
             rulesList.add(0, "DST-PORT,53,dns-out")
         }
         if (groupsList.isNotEmpty() && rulesList.none { it.startsWith("MATCH,") }) {
-            val defaultTarget = groupsList.firstOrNull { it["type"] == "select" }?.get("name")?.toString() ?: autoGroupName
+            val defaultTarget = groupsList.firstOrNull { it["type"] == "select" }?.get("name")?.toString()
+                ?: groupsList.firstOrNull()?.get("name")?.toString()
+                ?: "DIRECT"
             rulesList.add("MATCH,$defaultTarget")
         }
         configMap["rules"] = rulesList
@@ -131,8 +115,13 @@ object ConfigGenerator {
                 "stack" to "gvisor",
                 "file-descriptor" to tunFd,
                 "auto-route" to false,
-                "auto-detect-interface" to false
+                "auto-detect-interface" to false,
+                "dns-hijack" to listOf("any:53", "tcp://any:53"),
+                "inet4-address" to listOf("172.19.0.2/30")
             )
+            if (settings.ipv6Enabled) {
+                tunMap["inet6-address"] = listOf("fdfe:dcba:9876::2/126")
+            }
             configMap["tun"] = tunMap
         }
 

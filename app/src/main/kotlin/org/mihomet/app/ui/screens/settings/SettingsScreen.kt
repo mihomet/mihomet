@@ -49,11 +49,12 @@ fun SettingsScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 24.dp)
+            contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
         ) {
             // 1. Connection Mode Card
             item {
                 SettingsSectionTitle("Режим подключения")
+                Spacer(modifier = Modifier.height(6.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(22.dp),
@@ -84,6 +85,7 @@ fun SettingsScreen(
             // 2. Routing & App Rules Card
             item {
                 SettingsSectionTitle("Маршрутизация и приложения")
+                Spacer(modifier = Modifier.height(6.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(22.dp),
@@ -98,28 +100,28 @@ fun SettingsScreen(
                             fontWeight = FontWeight.SemiBold
                         )
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            FilterChip(
+                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                            SegmentedButton(
                                 selected = settings.proxyMode == ProxyMode.RULE,
                                 onClick = { viewModel.updateProxyMode(ProxyMode.RULE) },
-                                label = { Text("Умный", fontSize = 12.sp) },
-                                modifier = Modifier.weight(1f)
-                            )
-                            FilterChip(
+                                shape = SegmentedButtonDefaults.itemShape(0, 3)
+                            ) {
+                                Text("Умный", fontSize = 12.sp)
+                            }
+                            SegmentedButton(
                                 selected = settings.proxyMode == ProxyMode.GLOBAL,
                                 onClick = { viewModel.updateProxyMode(ProxyMode.GLOBAL) },
-                                label = { Text("Все сайты", fontSize = 12.sp) },
-                                modifier = Modifier.weight(1f)
-                            )
-                            FilterChip(
+                                shape = SegmentedButtonDefaults.itemShape(1, 3)
+                            ) {
+                                Text("Все сайты", fontSize = 12.sp)
+                            }
+                            SegmentedButton(
                                 selected = settings.proxyMode == ProxyMode.DIRECT,
                                 onClick = { viewModel.updateProxyMode(ProxyMode.DIRECT) },
-                                label = { Text("Прямой", fontSize = 12.sp) },
-                                modifier = Modifier.weight(1f)
-                            )
+                                shape = SegmentedButtonDefaults.itemShape(2, 3)
+                            ) {
+                                Text("Прямой", fontSize = 12.sp)
+                            }
                         }
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -167,6 +169,7 @@ fun SettingsScreen(
             // 3. Notifications Explanation Banner
             item {
                 SettingsSectionTitle("Уведомления службы")
+                Spacer(modifier = Modifier.height(6.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(22.dp),
@@ -221,6 +224,7 @@ fun SettingsScreen(
             // 4. Appearance Card
             item {
                 SettingsSectionTitle("Оформление")
+                Spacer(modifier = Modifier.height(6.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(22.dp),
@@ -453,10 +457,10 @@ fun SettingsScreen(
 fun SettingsSectionTitle(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleSmall,
+        style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+        modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
     )
 }
 
