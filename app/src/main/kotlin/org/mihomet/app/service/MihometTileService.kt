@@ -51,7 +51,18 @@ class MihometTileService : TileService(), KoinComponent {
                         val activityIntent = Intent(this@MihometTileService, MainActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         }
-                        startActivityAndCollapse(activityIntent)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                            val pendingIntent = android.app.PendingIntent.getActivity(
+                                this@MihometTileService,
+                                0,
+                                activityIntent,
+                                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
+                            )
+                            startActivityAndCollapse(pendingIntent)
+                        } else {
+                            @Suppress("StartActivityAndCollapseDeprecated", "DEPRECATION")
+                            startActivityAndCollapse(activityIntent)
+                        }
                         return@launch
                     }
                     MihometVpnService.start(this@MihometTileService)

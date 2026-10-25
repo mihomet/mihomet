@@ -30,6 +30,7 @@ fun ProfilesScreen(
     var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("Profiles", fontWeight = FontWeight.Bold) }

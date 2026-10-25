@@ -38,6 +38,7 @@ fun DashboardScreen(
     val state by viewModel.uiState.collectAsState()
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {

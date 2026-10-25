@@ -116,8 +116,16 @@ class MihometVpnService : VpnService(), KoinComponent {
             // Clear FD_CLOEXEC so child process inherits the descriptor
             val fd = pfd.fd
             val fdObj = pfd.fileDescriptor
-            val currentFlags = Os.fcntlInt(fdObj, OsConstants.F_GETFD, 0)
-            Os.fcntlInt(fdObj, OsConstants.F_SETFD, currentFlags and OsConstants.FD_CLOEXEC.inv())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val currentFlags = Os.fcntlInt(fdObj, OsConstants.F_GETFD, 0)
+                Os.fcntlInt(fdObj, OsConstants.F_SETFD, currentFlags and OsConstants.FD_CLOEXEC.inv())
+            } else {
+                runCatching {
+                    val fcntlIntMethod = Os::class.java.getMethod("fcntlInt", java.io.FileDescriptor::class.java, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)
+                    val currentFlags = fcntlIntMethod.invoke(null, fdObj, OsConstants.F_GETFD, 0) as Int
+                    fcntlIntMethod.invoke(null, fdObj, OsConstants.F_SETFD, currentFlags and OsConstants.FD_CLOEXEC.inv())
+                }
+            }
 
             // Generate runtime config with tun fd
             val runtimeYaml = ConfigGenerator.generateRuntimeConfig(

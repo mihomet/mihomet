@@ -34,6 +34,7 @@ fun ProxiesScreen(
     val state by viewModel.uiState.collectAsState()
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("Proxies", fontWeight = FontWeight.Bold) },

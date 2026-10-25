@@ -34,6 +34,7 @@ fun RoutingScreen(
     val settings = state.settings
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("Routing & Firewall", fontWeight = FontWeight.Bold) }
