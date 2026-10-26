@@ -212,7 +212,7 @@ fun DashboardScreen(
                     title = "Исходящий",
                     speedText = formatSpeed(state.currentTraffic.up),
                     icon = Icons.Default.ArrowUpward,
-                    accentColor = PrimaryDark,
+                    accentColor = AccentBlue,
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier.weight(1f)
                 )

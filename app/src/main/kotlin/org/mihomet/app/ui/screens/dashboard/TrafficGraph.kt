@@ -20,9 +20,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.mihomet.app.data.api.TrafficSample
+import org.mihomet.app.ui.theme.AccentBlue
 import org.mihomet.app.ui.theme.AccentGreen
 import org.mihomet.app.ui.theme.AccentGreenLight
-import org.mihomet.app.ui.theme.PrimaryDark
 import kotlin.math.max
 
 @Composable
@@ -33,7 +33,7 @@ fun TrafficGraph(
         .height(140.dp)
 ) {
     val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
-    val uploadColor = PrimaryDark
+    val uploadColor = AccentBlue
     val downloadColor = AccentGreen
 
     Column(modifier = modifier) {

@@ -27,9 +27,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
+import org.mihomet.app.ui.theme.AccentBlue
 import org.mihomet.app.ui.theme.AccentGreen
 import org.mihomet.app.ui.theme.ExpressiveShapes
-import org.mihomet.app.ui.theme.PrimaryDark
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -152,7 +152,7 @@ fun ConnectionsScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Исходящий трафик", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(formatData(state.uploadTotal), fontWeight = FontWeight.Black, fontSize = 16.sp, color = PrimaryDark)
+                        Text(formatData(state.uploadTotal), fontWeight = FontWeight.Black, fontSize = 16.sp, color = AccentBlue)
                     }
                 }
             }

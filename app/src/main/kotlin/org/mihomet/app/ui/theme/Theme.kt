@@ -41,25 +41,25 @@ private val ExpressiveDarkColorScheme = darkColorScheme(
     onErrorContainer = Color(0xFFFFDAD6)
 )
 
-private val ExpressiveAmoledColorScheme = darkColorScheme(
-    primary = PrimaryDark,
-    onPrimary = OnPrimaryDark,
-    primaryContainer = Color(0xFF3B1578),
-    onPrimaryContainer = OnPrimaryContainerDark,
-    secondary = SecondaryDark,
-    onSecondary = OnSecondaryDark,
-    secondaryContainer = SecondaryContainerDark,
-    onSecondaryContainer = OnSecondaryContainerDark,
-    tertiary = Color(0xFFF472B6),
-    onTertiary = Color(0xFF500724),
-    tertiaryContainer = Color(0xFF831843),
-    onTertiaryContainer = Color(0xFFFCE7F3),
+val ExpressiveAmoledColorScheme = darkColorScheme(
+    primary = AmoledPrimary,
+    onPrimary = AmoledOnPrimary,
+    primaryContainer = AmoledPrimaryContainer,
+    onPrimaryContainer = AmoledOnPrimaryContainer,
+    secondary = AmoledSecondary,
+    onSecondary = AmoledOnSecondary,
+    secondaryContainer = AmoledSecondaryContainer,
+    onSecondaryContainer = AmoledOnSecondaryContainer,
+    tertiary = AmoledTertiary,
+    onTertiary = AmoledOnTertiary,
+    tertiaryContainer = AmoledTertiaryContainer,
+    onTertiaryContainer = AmoledOnTertiaryContainer,
     background = AmoledBackground,
-    onBackground = Color(0xFFEDEDF2),
+    onBackground = Color(0xFFF4F4F5),
     surface = AmoledSurface,
-    onSurface = Color(0xFFEDEDF2),
+    onSurface = Color(0xFFF4F4F5),
     surfaceVariant = AmoledSurfaceContainerHigh,
-    onSurfaceVariant = Color(0xFFC7C5D0),
+    onSurfaceVariant = Color(0xFFA1A1AA),
     surfaceDim = AmoledSurfaceContainerLowest,
     surfaceBright = AmoledSurfaceContainerHighest,
     surfaceContainerLowest = AmoledSurfaceContainerLowest,
@@ -118,35 +118,13 @@ fun MihometTheme(
 ) {
     val context = LocalContext.current
 
-    val baseColorScheme = when {
+    val finalColorScheme = when {
+        darkTheme && amoledBlack -> ExpressiveAmoledColorScheme
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         darkTheme -> ExpressiveDarkColorScheme
         else -> ExpressiveLightColorScheme
-    }
-
-    val finalColorScheme = if (darkTheme && amoledBlack) {
-        if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            baseColorScheme.copy(
-                background = AmoledBackground,
-                surface = AmoledSurface,
-                surfaceDim = AmoledSurfaceContainerLowest,
-                surfaceBright = AmoledSurfaceContainerHighest,
-                surfaceVariant = AmoledSurfaceContainerHigh,
-                surfaceContainerLowest = AmoledSurfaceContainerLowest,
-                surfaceContainerLow = AmoledSurfaceContainerLow,
-                surfaceContainer = AmoledSurfaceContainer,
-                surfaceContainerHigh = AmoledSurfaceContainerHigh,
-                surfaceContainerHighest = AmoledSurfaceContainerHighest,
-                outline = AmoledOutline,
-                outlineVariant = AmoledOutlineVariant
-            )
-        } else {
-            ExpressiveAmoledColorScheme
-        }
-    } else {
-        baseColorScheme
     }
 
     MaterialTheme(
