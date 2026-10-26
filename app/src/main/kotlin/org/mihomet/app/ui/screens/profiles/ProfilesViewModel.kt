@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import org.mihomet.app.core.config.UniversalConfigConverter
 import org.mihomet.app.data.db.ProfileDao
 import org.mihomet.app.data.db.ProfileEntity
 import org.mihomet.app.data.db.ProfileType
@@ -91,6 +92,92 @@ class ProfilesViewModel(
         }
     }
 
+    fun importFromClipboard(
+        text: String,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val trimmed = text.trim()
+        if (trimmed.isBlank()) {
+            onError("Буфер обмена пуст")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                if (trimmed.startsWith("http://", ignoreCase = true) || trimmed.startsWith("https://", ignoreCase = true)) {
+                    val url = trimmed.lines().first { it.isNotBlank() }.trim()
+                    val host = runCatching { java.net.URI(url).host }.getOrNull()?.removePrefix("www.") ?: ""
+                    val autoName = if (host.isNotBlank()) "Подписка $host" else "Подписка из буфера"
+
+                    val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
+                    val content = downloadProfileContent(url)
+                    val file = File(profileDir, "profile_${System.currentTimeMillis()}.yaml")
+                    file.writeText(content)
+
+                    val isFirst = profileDao.getSelectedProfile() == null
+                    val entity = ProfileEntity(
+                        name = autoName,
+                        type = ProfileType.REMOTE,
+                        url = url,
+                        filePath = file.absolutePath,
+                        isSelected = isFirst
+                    )
+                    val newId = profileDao.insertProfile(entity)
+                    if (isFirst) {
+                        profileDao.selectProfile(newId)
+                    }
+                    onSuccess("Подписка «$autoName» успешно добавлена")
+                } else {
+                    val convertedYaml = withContext(Dispatchers.Default) {
+                        UniversalConfigConverter.convertToMihomoYaml(trimmed)
+                    }
+
+                    val yaml = Yaml()
+                    val parsed = runCatching { yaml.load<Map<String, Any>>(convertedYaml) }.getOrNull()
+                    val proxies = (parsed?.get("proxies") as? List<*>) ?: emptyList<Any>()
+
+                    if (proxies.isEmpty() && !convertedYaml.contains("proxies:")) {
+                        onError("Не удалось распознать формат узлов в буфере обмена")
+                        return@launch
+                    }
+
+                    val firstMap = proxies.firstOrNull() as? Map<*, *>
+                    val firstName = firstMap?.get("name")?.toString()
+                    val autoName = if (proxies.size == 1 && !firstName.isNullOrBlank()) {
+                        firstName
+                    } else if (proxies.isNotEmpty()) {
+                        "Импорт (${proxies.size} узлов)"
+                    } else {
+                        "Импортированная конфигурация"
+                    }
+
+                    val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
+                    val file = File(profileDir, "profile_${System.currentTimeMillis()}.yaml")
+                    file.writeText(convertedYaml)
+
+                    val isFirst = profileDao.getSelectedProfile() == null
+                    val entity = ProfileEntity(
+                        name = autoName,
+                        type = ProfileType.LOCAL,
+                        filePath = file.absolutePath,
+                        isSelected = isFirst
+                    )
+                    val newId = profileDao.insertProfile(entity)
+                    if (isFirst) {
+                        profileDao.selectProfile(newId)
+                    }
+                    onSuccess(
+                        if (proxies.isNotEmpty()) "Импортировано $autoName" else "Конфигурация успешно добавлена"
+                    )
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onError("Ошибка импорта: ${e.localizedMessage ?: e.message}")
+            }
+        }
+    }
+
     fun updateProfile(profile: ProfileEntity) {
         if (profile.type != ProfileType.REMOTE || profile.url.isBlank()) return
         viewModelScope.launch {
@@ -135,28 +222,75 @@ class ProfilesViewModel(
             Json.decodeFromString<Map<String, String>>(headersJson)
         }.getOrDefault(emptyMap())
 
-        val responseText: String = httpClient.get(url) {
-            header("User-Agent", parsedHeaders["User-Agent"] ?: "ClashMeta; mihomo/1.19.33")
-            parsedHeaders.forEach { (k, v) ->
-                if (!k.equals("User-Agent", ignoreCase = true)) {
-                    header(k, v)
+        val customUa = parsedHeaders["User-Agent"]
+        val userAgentsToTry = if (!customUa.isNullOrBlank()) {
+            listOf(customUa)
+        } else {
+            listOf(
+                "Happ/3.6.0 (Android; Xray)",
+                "sing-box/1.10.0 (Android)",
+                "ClashMeta/1.18.0",
+                "v2rayNG/1.8.19"
+            )
+        }
+
+        var responseText = ""
+        var lastException: Exception? = null
+
+        for (ua in userAgentsToTry) {
+            try {
+                val resp = httpClient.get(url) {
+                    header("User-Agent", ua)
+                    parsedHeaders.forEach { (k, v) ->
+                        if (!k.equals("User-Agent", ignoreCase = true)) {
+                            header(k, v)
+                        }
+                    }
                 }
+                if (resp.status.value in 200..299) {
+                    val body: String = resp.body()
+                    if (body.isNotBlank()) {
+                        responseText = body
+                        break
+                    }
+                }
+            } catch (e: Exception) {
+                lastException = e
             }
-        }.body()
+        }
+
+        if (responseText.isBlank()) {
+            if (lastException != null) throw lastException
+            throw IllegalStateException("Empty or unsuccessful response from subscription URL")
+        }
 
         // If Base64 encoded subscription, decode it
         val trimmed = responseText.trim()
-        if (!trimmed.startsWith("port:") &&
+        val decoded = if (!trimmed.startsWith("port:") &&
             !trimmed.startsWith("mixed-port:") &&
             !trimmed.startsWith("proxies:") &&
+            !trimmed.startsWith("{") &&
+            !trimmed.startsWith("[") &&
             !trimmed.startsWith("#")
         ) {
             runCatching {
-                val decoded = Base64.getDecoder().decode(trimmed)
-                String(decoded)
+                val clean = trimmed.replace("\n", "").replace("\r", "").replace(" ", "").trim()
+                val padded = when (clean.length % 4) {
+                    2 -> "$clean=="
+                    3 -> "$clean="
+                    else -> clean
+                }
+                val bytes = try {
+                    Base64.getDecoder().decode(padded)
+                } catch (e: Exception) {
+                    Base64.getUrlDecoder().decode(padded)
+                }
+                String(bytes, java.nio.charset.StandardCharsets.UTF_8)
             }.getOrDefault(responseText)
         } else {
             responseText
         }
+
+        UniversalConfigConverter.convertToMihomoYaml(decoded)
     }
 }

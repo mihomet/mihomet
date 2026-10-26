@@ -1,5 +1,10 @@
 package org.mihomet.app.ui.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -27,7 +32,31 @@ fun AppNavGraph(
     NavHost(
         navController = navController,
         startDestination = Screen.Dashboard.route,
-        modifier = Modifier.padding(paddingValues)
+        modifier = Modifier.padding(paddingValues),
+        enterTransition = {
+            fadeIn(animationSpec = tween(220)) + scaleIn(
+                initialScale = 0.96f,
+                animationSpec = tween(220)
+            )
+        },
+        exitTransition = {
+            fadeOut(animationSpec = tween(180)) + scaleOut(
+                targetScale = 0.96f,
+                animationSpec = tween(180)
+            )
+        },
+        popEnterTransition = {
+            fadeIn(animationSpec = tween(220)) + scaleIn(
+                initialScale = 0.96f,
+                animationSpec = tween(220)
+            )
+        },
+        popExitTransition = {
+            fadeOut(animationSpec = tween(180)) + scaleOut(
+                targetScale = 0.96f,
+                animationSpec = tween(180)
+            )
+        }
     ) {
         composable(Screen.Dashboard.route) {
             DashboardScreen(

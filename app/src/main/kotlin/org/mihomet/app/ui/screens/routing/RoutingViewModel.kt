@@ -19,13 +19,15 @@ data class AppItem(
     val label: String,
     val packageName: String,
     val uid: Int,
-    val icon: Drawable? = null
+    val icon: Drawable? = null,
+    val isSystem: Boolean = false
 )
 
 data class RoutingUiState(
     val settings: AppSettings = AppSettings(),
     val installedApps: List<AppItem> = emptyList(),
     val appSearchQuery: String = "",
+    val showSystemApps: Boolean = false,
     val isLoadingApps: Boolean = false
 )
 
@@ -50,19 +52,22 @@ class RoutingViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingApps = true) }
             val apps = withContext(Dispatchers.IO) {
-                val pm = context.packageManager
-                val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-                packages
-                    .filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 || it.packageName == "com.android.chrome" }
-                    .map { appInfo ->
+                try {
+                    val pm = context.packageManager
+                    val rawApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+                    rawApps.map { appInfo ->
+                        val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
                         AppItem(
                             label = pm.getApplicationLabel(appInfo).toString(),
                             packageName = appInfo.packageName,
                             uid = appInfo.uid,
-                            icon = runCatching { pm.getApplicationIcon(appInfo) }.getOrNull()
+                            icon = runCatching { pm.getApplicationIcon(appInfo) }.getOrNull(),
+                            isSystem = isSystem
                         )
-                    }
-                    .sortedBy { it.label.lowercase() }
+                    }.sortedWith(compareBy({ it.isSystem }, { it.label.lowercase() }))
+                } catch (e: Exception) {
+                    emptyList()
+                }
             }
             _uiState.update { it.copy(installedApps = apps, isLoadingApps = false) }
         }
@@ -100,6 +105,10 @@ class RoutingViewModel(
         _uiState.update { it.copy(appSearchQuery = query) }
     }
 
+    fun toggleShowSystemApps() {
+        _uiState.update { it.copy(showSystemApps = !it.showSystemApps) }
+    }
+
     fun clearAllSelectedApps() {
         viewModelScope.launch {
             settingsRepository.updateSelectedAppUids(emptySet())
@@ -108,8 +117,11 @@ class RoutingViewModel(
 
     fun selectAllApps() {
         viewModelScope.launch {
-            val allUids = _uiState.value.installedApps.map { it.uid }.toSet()
-            settingsRepository.updateSelectedAppUids(allUids)
+            val visibleApps = _uiState.value.installedApps.filter {
+                _uiState.value.showSystemApps || !it.isSystem || it.packageName == "com.android.chrome"
+            }
+            val uids = visibleApps.map { it.uid }.toSet()
+            settingsRepository.updateSelectedAppUids(uids)
         }
     }
 }

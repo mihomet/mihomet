@@ -59,8 +59,43 @@ class SubscriptionTest {
         assertEquals("0.0.0.0:1053", (runtimeParsed["dns"] as Map<String, Any>)["listen"])
 
         val runtimeProxies = runtimeParsed["proxies"] as List<Map<String, Any>>
-        assertEquals(proxies.size + 1, runtimeProxies.size)
-        assertTrue(runtimeProxies.any { it["name"] == "dns-out" })
+        assertEquals(proxies.size, runtimeProxies.size)
         println("Successfully imported ${runtimeProxies.size} nodes from subscription!")
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test user subscription download with Happ Xray UA and dynamic balancer conversion`() = runBlocking {
+        val testUrl = "https://sub.meow.ac/REDACTED-TOKEN"
+        val hwid = "00000000-1111-2222-3333-444444444444"
+
+        val client = HttpClient()
+        val rawResponse: String = try {
+            client.get(testUrl) {
+                header("User-Agent", "Happ/3.6.0 (Android; Xray)")
+                header("x-hwid", hwid)
+            }.body()
+        } catch (e: Exception) {
+            println("Network unavailable in test environment, skipping remote fetch: ${e.message}")
+            return@runBlocking
+        }
+
+        assertTrue("Expected JSON response for Happ/Xray", rawResponse.trim().startsWith("["))
+
+        val convertedYaml = org.mihomet.app.core.config.UniversalConfigConverter.convertToMihomoYaml(rawResponse)
+        val yaml = Yaml()
+        val parsed = yaml.load<Map<String, Any>>(convertedYaml)
+
+        val proxies = parsed["proxies"] as List<Map<String, Any>>
+        assertTrue("Expected at least 20 proxy nodes", proxies.size >= 20)
+
+        val groups = parsed["proxy-groups"] as List<Map<String, Any>>
+        val balancer = groups.firstOrNull { it["type"] == "url-test" }
+        assertNotNull("Expected dynamic url-test balancer from Xray config", balancer)
+        assertNotNull(balancer!!["name"])
+        println("Dynamic balancer name from subscription: ${balancer["name"]}")
+        println("Dynamic balancer URL: ${balancer["url"]}")
+        println("Dynamic balancer interval: ${balancer["interval"]}")
+        assertTrue("Balancer must have proxies", (balancer["proxies"] as List<*>).isNotEmpty())
     }
 }

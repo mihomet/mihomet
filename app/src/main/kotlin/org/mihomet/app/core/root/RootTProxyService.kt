@@ -54,6 +54,11 @@ class RootTProxyService : Service(), KoinComponent {
             }
             context.startService(intent)
         }
+
+        fun restart(context: Context) {
+            stop(context)
+            start(context)
+        }
     }
 
     private val profileDao: ProfileDao by inject()
@@ -122,8 +127,14 @@ class RootTProxyService : Service(), KoinComponent {
 
             // Write to /data/adb/mihomet/run/config.yaml via root
             val writeCmd = "cat << 'EOF' > ${CoreManager.ROOT_CONFIG_PATH}\n$runtimeYaml\nEOF"
+            coreManager.ensureGeoDatabases(filesDir)
+            val appGeoip = File(filesDir, "geoip.metadb")
+            val appGeosite = File(filesDir, "geosite.dat")
             Shell.cmd(
                 "mkdir -p ${CoreManager.ROOT_RUN_DIR}",
+                "if [ ! -f ${CoreManager.ROOT_RUN_DIR}/geoip.metadb ] || [ ! -s ${CoreManager.ROOT_RUN_DIR}/geoip.metadb ]; then cp \"${appGeoip.absolutePath}\" ${CoreManager.ROOT_RUN_DIR}/geoip.metadb; fi",
+                "if [ ! -f ${CoreManager.ROOT_RUN_DIR}/geosite.dat ] || [ ! -s ${CoreManager.ROOT_RUN_DIR}/geosite.dat ]; then cp \"${appGeosite.absolutePath}\" ${CoreManager.ROOT_RUN_DIR}/geosite.dat; fi",
+                "chmod 644 ${CoreManager.ROOT_RUN_DIR}/geoip.metadb ${CoreManager.ROOT_RUN_DIR}/geosite.dat 2>/dev/null || true",
                 writeCmd
             ).exec()
 
@@ -140,10 +151,10 @@ class RootTProxyService : Service(), KoinComponent {
                 ipv6Enabled = settings.ipv6Enabled
             ).getOrThrow()
 
-            ServiceState.setRunning(true)
+            ServiceState.setRunning(org.mihomet.app.core.RunningService.ROOT)
             updateNotification("Running (${selectedProfile?.name ?: "Default"})")
         } catch (e: Exception) {
-            ServiceState.setRunning(false)
+            ServiceState.stopService(org.mihomet.app.core.RunningService.ROOT)
             updateNotification("Error: ${e.message}")
             e.printStackTrace()
         }
@@ -153,12 +164,11 @@ class RootTProxyService : Service(), KoinComponent {
         val settings = settingsRepository.settingsFlow.first()
         firewallManager.teardown(settings.ipv6Enabled)
         RootShellManager.stopDaemon()
-        ServiceState.setRunning(false)
+        ServiceState.stopService(org.mihomet.app.core.RunningService.ROOT)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        ServiceState.setRunning(false)
         serviceScope.launch {
             stopProxy()
         }

@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -17,8 +18,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import org.koin.android.ext.android.inject
 import org.mihomet.app.data.preferences.SettingsRepository
+import org.mihomet.app.ui.components.ExpressiveNavigationBar
 import org.mihomet.app.ui.navigation.AppNavGraph
-import org.mihomet.app.ui.navigation.Screen
 import org.mihomet.app.ui.navigation.bottomNavItems
 import org.mihomet.app.ui.theme.MihometTheme
 
@@ -58,40 +59,20 @@ class MainActivity : ComponentActivity() {
                     containerColor = MaterialTheme.colorScheme.background,
                     bottomBar = {
                         if (showBottomBar) {
-                            NavigationBar {
-                                bottomNavItems.forEach { screen ->
-                                    val isSelected = currentRoute == screen.route
-                                    NavigationBarItem(
-                                        icon = { Icon(screen.icon, contentDescription = screen.title) },
-                                        label = { Text(screen.title) },
-                                        selected = isSelected,
-                                        onClick = {
-                                            if (!isSelected) {
-                                                if (screen.route == Screen.Dashboard.route) {
-                                                    val popped = navController.popBackStack(Screen.Dashboard.route, inclusive = false)
-                                                    if (!popped) {
-                                                        navController.navigate(Screen.Dashboard.route) {
-                                                            popUpTo(navController.graph.findStartDestination().id) {
-                                                                saveState = true
-                                                            }
-                                                            launchSingleTop = true
-                                                            restoreState = true
-                                                        }
-                                                    }
-                                                } else {
-                                                    navController.navigate(screen.route) {
-                                                        popUpTo(navController.graph.findStartDestination().id) {
-                                                            saveState = true
-                                                        }
-                                                        launchSingleTop = true
-                                                        restoreState = true
-                                                    }
-                                                }
-                                            }
+                            ExpressiveNavigationBar(
+                                items = bottomNavItems,
+                                currentRoute = currentRoute,
+                                onItemSelected = { screen ->
+                                    navController.navigate(screen.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
                                         }
-                                    )
-                                }
-                            }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
+                                modifier = Modifier.navigationBarsPadding()
+                            )
                         }
                     }
                 ) { innerPadding ->

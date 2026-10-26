@@ -22,8 +22,19 @@ object ConfigGenerator {
 
         // Standard ports & controllers
         configMap["mixed-port"] = settings.mixedPort
-        configMap["tproxy-port"] = settings.tproxyPort
-        configMap["redir-port"] = 7892
+        configMap.remove("port")
+        configMap.remove("socks-port")
+        if (tunFd == null || tunFd < 0) {
+            // Root mode can use TProxy and Redir, and SO_MARK for iptables loop prevention
+            configMap["tproxy-port"] = settings.tproxyPort
+            configMap["redir-port"] = 7892
+            configMap["routing-mark"] = 666
+        } else {
+            // Non-root VPN mode: SO_MARK and TProxy/Redir require CAP_NET_ADMIN (not available in non-root)
+            configMap.remove("tproxy-port")
+            configMap.remove("redir-port")
+            configMap.remove("routing-mark")
+        }
         configMap["allow-lan"] = true
         configMap["bind-address"] = "*"
         configMap["mode"] = settings.proxyMode.apiValue
@@ -31,9 +42,6 @@ object ConfigGenerator {
         configMap["ipv6"] = settings.ipv6Enabled
         configMap["external-controller"] = "127.0.0.1:${settings.controllerPort}"
         configMap["secret"] = settings.controllerSecret
-
-        // Loop prevention mark (CRITICAL for root netfilter bypass)
-        configMap["routing-mark"] = 666
 
         // DNS configuration
         val existingDns = (configMap["dns"] as? Map<String, Any>)?.toMutableMap() ?: mutableMapOf()
@@ -44,28 +52,50 @@ object ConfigGenerator {
             existingDns["enhanced-mode"] = "fake-ip"
             existingDns["fake-ip-range"] = "198.18.0.1/16"
         }
-        if (!existingDns.containsKey("default-nameserver")) {
-            existingDns["default-nameserver"] = listOf(
-                "8.8.8.8",
-                "1.1.1.1",
-                "77.88.8.8"
+        // Direct nameserver resolves proxy server hostnames; prepend reliable uncensored resolvers
+        existingDns["direct-nameserver"] = listOf(
+            "77.88.8.8",
+            "77.88.8.1",
+            "1.1.1.1"
+        )
+        val userDefaultDns = (existingDns["default-nameserver"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+        val reliableDns = listOf("77.88.8.8", "77.88.8.1", "1.1.1.1", "8.8.8.8")
+        existingDns["default-nameserver"] = (reliableDns.take(2) + userDefaultDns).distinct()
+        val userNameserver = (existingDns["nameserver"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+        val antiCensorshipNameservers = listOf("77.88.8.8", "https://77.88.8.8/dns-query", "1.1.1.1")
+        existingDns["nameserver"] = if (userNameserver.isEmpty()) {
+            listOf(
+                "https://77.88.8.8/dns-query",
+                "77.88.8.8",
+                "https://1.1.1.1/dns-query",
+                "1.1.1.1"
             )
-        }
-        if (!existingDns.containsKey("nameserver")) {
-            existingDns["nameserver"] = listOf(
-                "8.8.8.8",
-                "1.1.1.1",
-                "77.88.8.8"
-            )
+        } else {
+            (userNameserver + antiCensorshipNameservers).distinct()
         }
         configMap["dns"] = existingDns
 
-        // Built-in DNS outbound proxy and rule for transparent DNS hijacking
+        // Sniffer for domain restoration on TLS/HTTP
+        configMap["sniffer"] = mapOf(
+            "enable" to true,
+            "sniff" to mapOf(
+                "TLS" to mapOf("ports" to listOf(443, 8443)),
+                "HTTP" to mapOf("ports" to listOf(80, "8080-8880"))
+            )
+        )
+
+        // Extract real proxies (exclude reserved built-in proxy names) and ensure UDP is active
         val rawProxies = configMap["proxies"] as? List<*>
-        val proxiesList = rawProxies?.filterIsInstance<Map<String, Any>>()?.map { it.toMutableMap() }?.toMutableList() ?: mutableListOf()
-        if (proxiesList.none { it["name"] == "dns-out" }) {
-            proxiesList.add(0, mutableMapOf("name" to "dns-out", "type" to "dns"))
-        }
+        val proxiesList = rawProxies?.filterIsInstance<Map<String, Any>>()
+            ?.filter {
+                val name = it["name"]?.toString() ?: ""
+                name != "DIRECT" && name != "REJECT" && name != "GLOBAL" && name != "COMPATIBLE" && name != "dns-out"
+            }
+            ?.map {
+                val p = it.toMutableMap()
+                p["udp"] = true // Force UDP enabled for Telegram MTProto, gaming, and QUIC
+                p
+            }?.toMutableList() ?: mutableListOf()
         configMap["proxies"] = proxiesList
 
         // Preserve subscription proxy-groups if present, otherwise create defaults
@@ -74,32 +104,25 @@ object ConfigGenerator {
             .filter { it != "dns-out" && it != "DIRECT" && it != "REJECT" && it != "COMPATIBLE" }
 
         val rawGroups = configMap["proxy-groups"] as? List<*>
-        val groupsList = rawGroups?.filterIsInstance<Map<String, Any>>()?.map { it.toMutableMap() }?.toMutableList() ?: mutableListOf()
+        val groupsList = rawGroups?.filterIsInstance<Map<String, Any>>()?.map {
+            val g = it.toMutableMap()
+            g["udp"] = true // Force UDP enabled on all proxy groups
+            g
+        }?.toMutableList() ?: mutableListOf()
 
         if (groupsList.isEmpty() && realProxyNames.isNotEmpty()) {
-            val autoGroup = mutableMapOf<String, Any>(
-                "name" to "AUTO",
-                "type" to "url-test",
-                "url" to "http://www.gstatic.com/generate_204",
-                "interval" to 300,
-                "tolerance" to 50,
+            val mainGroup = mutableMapOf<String, Any>(
+                "name" to "PROXY",
+                "type" to "select",
+                "udp" to true,
                 "proxies" to realProxyNames
             )
-            val mainGroup = mutableMapOf<String, Any>(
-                "name" to "GLOBAL",
-                "type" to "select",
-                "proxies" to listOf("AUTO") + realProxyNames + listOf("DIRECT")
-            )
-            groupsList.add(autoGroup)
             groupsList.add(mainGroup)
         }
         configMap["proxy-groups"] = groupsList
 
         val rawRules = configMap["rules"] as? List<*>
         val rulesList = rawRules?.filterIsInstance<String>()?.toMutableList() ?: mutableListOf()
-        if (rulesList.none { it.contains("53,dns-out") }) {
-            rulesList.add(0, "DST-PORT,53,dns-out")
-        }
         if (groupsList.isNotEmpty() && rulesList.none { it.startsWith("MATCH,") }) {
             val defaultTarget = groupsList.firstOrNull { it["type"] == "select" }?.get("name")?.toString()
                 ?: groupsList.firstOrNull()?.get("name")?.toString()
@@ -115,13 +138,9 @@ object ConfigGenerator {
                 "stack" to "gvisor",
                 "file-descriptor" to tunFd,
                 "auto-route" to false,
-                "auto-detect-interface" to false,
-                "dns-hijack" to listOf("any:53", "tcp://any:53"),
-                "inet4-address" to listOf("172.19.0.2/30")
+                "auto-detect-interface" to false, // Must be false in non-root: Netlink route monitor blocked by Android SELinux
+                "dns-hijack" to listOf("any:53", "tcp://any:53")
             )
-            if (settings.ipv6Enabled) {
-                tunMap["inet6-address"] = listOf("fdfe:dcba:9876::2/126")
-            }
             configMap["tun"] = tunMap
         }
 

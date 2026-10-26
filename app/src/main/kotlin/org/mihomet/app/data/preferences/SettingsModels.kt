@@ -19,7 +19,7 @@ enum class ProxyMode(val apiValue: String) {
 }
 
 data class AppSettings(
-    val isRootMode: Boolean = true,
+    val isRootMode: Boolean = false,
     val firewallEngine: FirewallEngineType = FirewallEngineType.AUTO,
     val perAppMode: PerAppMode = PerAppMode.ALL,
     val selectedAppUids: Set<Int> = emptySet(),
@@ -34,5 +34,7 @@ data class AppSettings(
     val darkTheme: Boolean = true,
     val amoledBlack: Boolean = false,
     val showSpeedInNotification: Boolean = true,
-    val controllerSecret: String = "mihomet_secret_token"
+    val controllerSecret: String = "mihomet_secret_token",
+    val testUrl: String = "http://www.gstatic.com/generate_204",
+    val testTimeoutMs: Int = 5000
 )

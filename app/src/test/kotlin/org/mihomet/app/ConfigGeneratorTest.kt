@@ -60,8 +60,7 @@ class ConfigGeneratorTest {
         assertEquals("0.0.0.0:1053", dns["listen"])
 
         val proxies = parsed["proxies"] as List<Map<String, Any>>
-        assertEquals(2, proxies.size)
-        assertTrue(proxies.any { it["name"] == "dns-out" })
+        assertEquals(1, proxies.size)
         assertTrue(proxies.any { it["name"] == "TestNode" })
     }
 
@@ -86,7 +85,16 @@ class ConfigGeneratorTest {
         assertEquals(42, tun["file-descriptor"])
         assertEquals("gvisor", tun["stack"])
         assertEquals(listOf("any:53", "tcp://any:53"), tun["dns-hijack"])
-        assertEquals(listOf("172.19.0.2/30"), tun["inet4-address"])
+        assertEquals(false, tun["auto-detect-interface"])
+
+        val dns = parsed["dns"] as Map<String, Any>
+        assertEquals(listOf("77.88.8.8", "77.88.8.1", "1.1.1.1"), dns["direct-nameserver"])
+
+        val proxies = parsed["proxies"] as List<Map<String, Any>>
+        assertEquals(true, proxies[0]["udp"])
+
+        val groups = parsed["proxy-groups"] as List<Map<String, Any>>
+        assertEquals(true, groups[0]["udp"])
     }
 
     @Test

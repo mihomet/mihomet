@@ -1,12 +1,13 @@
 package org.mihomet.app.ui.screens.routing
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
@@ -18,7 +19,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -26,6 +30,9 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.data.preferences.PerAppMode
+import org.mihomet.app.ui.theme.AppHaptics
+import org.mihomet.app.ui.theme.ExpressiveShapes
+import org.mihomet.app.ui.theme.HapticType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,18 +42,37 @@ fun RoutingScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val settings = state.settings
+    val context = LocalContext.current
+    val view = LocalView.current
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Исключения приложений", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = "Исключения приложений",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Black
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад"
-                        )
+                    Surface(
+                        shape = ExpressiveShapes.Small,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.padding(start = 12.dp, end = 6.dp)
+                    ) {
+                        IconButton(
+                            onClick = onNavigateBack,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Назад",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             )
@@ -58,16 +84,15 @@ fun RoutingScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)
+            contentPadding = PaddingValues(top = 8.dp, bottom = 32.dp)
         ) {
             // Mode Selector Card
             item {
-                Card(
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    )
+                    shape = ExpressiveShapes.Large,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -82,36 +107,49 @@ fun RoutingScreen(
                         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                             SegmentedButton(
                                 selected = settings.perAppMode == PerAppMode.ALL,
-                                onClick = { viewModel.updatePerAppMode(PerAppMode.ALL) },
-                                shape = SegmentedButtonDefaults.itemShape(0, 3)
+                                onClick = {
+                                    AppHaptics.perform(context, HapticType.CLICK, view)
+                                    viewModel.updatePerAppMode(PerAppMode.ALL)
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(0, 3),
+                                icon = {}
                             ) {
-                                Text("Все", fontSize = 13.sp)
+                                Text("Все", fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                             }
                             SegmentedButton(
                                 selected = settings.perAppMode == PerAppMode.WHITELIST,
-                                onClick = { viewModel.updatePerAppMode(PerAppMode.WHITELIST) },
-                                shape = SegmentedButtonDefaults.itemShape(1, 3)
+                                onClick = {
+                                    AppHaptics.perform(context, HapticType.CLICK, view)
+                                    viewModel.updatePerAppMode(PerAppMode.WHITELIST)
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(1, 3),
+                                icon = {}
                             ) {
-                                Text("Белый список", fontSize = 13.sp)
+                                Text("Только они", fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                             }
                             SegmentedButton(
                                 selected = settings.perAppMode == PerAppMode.BLACKLIST,
-                                onClick = { viewModel.updatePerAppMode(PerAppMode.BLACKLIST) },
-                                shape = SegmentedButtonDefaults.itemShape(2, 3)
+                                onClick = {
+                                    AppHaptics.perform(context, HapticType.CLICK, view)
+                                    viewModel.updatePerAppMode(PerAppMode.BLACKLIST)
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(2, 3),
+                                icon = {}
                             ) {
-                                Text("Черный список", fontSize = 13.sp)
+                                Text("Исключить", fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                             }
                         }
 
                         val modeDescription = when (settings.perAppMode) {
                             PerAppMode.ALL -> "Трафик всех приложений устройства направляется через прокси."
-                            PerAppMode.WHITELIST -> "Только отмеченные приложения направляются через прокси. Остальные приложения работают напрямую."
-                            PerAppMode.BLACKLIST -> "Все приложения работают через прокси, кроме отмеченных (например, российские банки, Госуслуги)."
+                            PerAppMode.WHITELIST -> "Только отмеченные приложения направляются через прокси. Остальные работают напрямую."
+                            PerAppMode.BLACKLIST -> "Все приложения работают через прокси, кроме отмеченных (например, банки, Госуслуги)."
                         }
 
                         Text(
                             text = modeDescription,
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -122,29 +160,67 @@ fun RoutingScreen(
             if (settings.perAppMode != PerAppMode.ALL) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        // Search bar
-                        OutlinedTextField(
-                            value = state.appSearchQuery,
-                            onValueChange = { viewModel.updateSearchQuery(it) },
-                            placeholder = { Text("Поиск по названию или пакету...") },
-                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                            trailingIcon = {
+                        // Expressive Capsule Search Bar
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+
+                                Spacer(modifier = Modifier.width(10.dp))
+
+                                TextField(
+                                    value = state.appSearchQuery,
+                                    onValueChange = { viewModel.updateSearchQuery(it) },
+                                    placeholder = {
+                                        Text(
+                                            "Поиск по названию или пакету...",
+                                            fontSize = 13.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    },
+                                    singleLine = true,
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent,
+                                        disabledContainerColor = Color.Transparent,
+                                        focusedIndicatorColor = Color.Transparent,
+                                        unfocusedIndicatorColor = Color.Transparent
+                                    ),
+                                    modifier = Modifier.weight(1f)
+                                )
+
                                 if (state.appSearchQuery.isNotBlank()) {
-                                    IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                                        Icon(Icons.Default.Clear, contentDescription = "Очистить")
+                                    IconButton(
+                                        onClick = { viewModel.updateSearchQuery("") },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Clear,
+                                            contentDescription = "Очистить",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(18.dp)
+                                        )
                                     }
                                 }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
-                            )
-                        )
+                            }
+                        }
 
-                        // Quick action bar (Selected count & buttons)
+                        val visibleApps = state.installedApps.filter {
+                            state.showSystemApps || !it.isSystem || it.packageName == "com.android.chrome"
+                        }
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -153,31 +229,73 @@ fun RoutingScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Выбрано: ${settings.selectedAppUids.size} из ${state.installedApps.size}",
+                                text = "Выбрано: ${settings.selectedAppUids.size} из ${visibleApps.size}",
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
+                                fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
 
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                TextButton(
-                                    onClick = { viewModel.selectAllApps() },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (state.showSystemApps) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .clickable { viewModel.toggleShowSystemApps() }
                                 ) {
-                                    Text("Все", fontSize = 12.sp)
+                                    Text(
+                                        text = "Системные",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (state.showSystemApps) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                    )
                                 }
-                                TextButton(
-                                    onClick = { viewModel.clearAllSelectedApps() },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .clickable { viewModel.selectAllApps() }
                                 ) {
-                                    Text("Сбросить", fontSize = 12.sp)
+                                    Text(
+                                        text = "Все",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                    )
+                                }
+
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .clickable { viewModel.clearAllSelectedApps() }
+                                ) {
+                                    Text(
+                                        text = "Сброс",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                    )
                                 }
                             }
                         }
                     }
                 }
 
-                val filteredApps = state.installedApps.filter {
+                val visibleApps = state.installedApps.filter {
+                    state.showSystemApps || !it.isSystem || it.packageName == "com.android.chrome"
+                }
+                val filteredApps = visibleApps.filter {
                     state.appSearchQuery.isBlank() ||
                             it.label.contains(state.appSearchQuery, ignoreCase = true) ||
                             it.packageName.contains(state.appSearchQuery, ignoreCase = true)
@@ -191,7 +309,7 @@ fun RoutingScreen(
                                 .padding(40.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator()
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 } else if (filteredApps.isEmpty()) {
@@ -215,14 +333,21 @@ fun RoutingScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(16.dp))
-                                .clickable { viewModel.toggleAppUid(app.uid) },
-                            shape = RoundedCornerShape(16.dp),
+                                .clip(ExpressiveShapes.Medium)
+                                .clickable {
+                                    AppHaptics.perform(context, HapticType.CLICK, view)
+                                    viewModel.toggleAppUid(app.uid)
+                                },
+                            shape = ExpressiveShapes.Medium,
                             color = if (isChecked) {
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                             } else {
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                            }
+                                MaterialTheme.colorScheme.surfaceContainerHigh
+                            },
+                            border = BorderStroke(
+                                1.dp,
+                                if (isChecked) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                            )
                         ) {
                             Row(
                                 modifier = Modifier
@@ -241,36 +366,59 @@ fun RoutingScreen(
                                             contentDescription = null,
                                             modifier = Modifier
                                                 .size(40.dp)
-                                                .clip(RoundedCornerShape(10.dp))
+                                                .clip(ExpressiveShapes.Small)
                                         )
                                     } else {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(40.dp)
-                                                .clip(RoundedCornerShape(10.dp))
-                                        )
+                                        Surface(
+                                            shape = ExpressiveShapes.Small,
+                                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                            modifier = Modifier.size(40.dp)
+                                        ) {}
                                     }
+
                                     Spacer(modifier = Modifier.width(12.dp))
+
                                     Column {
-                                        Text(
-                                            text = app.label,
-                                            fontWeight = FontWeight.SemiBold,
-                                            fontSize = 15.sp,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = app.label,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 15.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            if (app.isSystem) {
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Surface(
+                                                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                                    shape = CircleShape
+                                                ) {
+                                                    Text(
+                                                        text = "Система",
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
                                         Text(
                                             text = app.packageName,
-                                            fontSize = 12.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
                                     }
                                 }
+
                                 Checkbox(
                                     checked = isChecked,
-                                    onCheckedChange = { viewModel.toggleAppUid(app.uid) }
+                                    onCheckedChange = {
+                                        AppHaptics.perform(context, HapticType.CLICK, view)
+                                        viewModel.toggleAppUid(app.uid)
+                                    }
                                 )
                             }
                         }

@@ -28,8 +28,8 @@ data class DashboardUiState(
     val currentTraffic: TrafficSample = TrafficSample(),
     val trafficHistory: List<TrafficSample> = emptyList(),
     val activeMode: ProxyMode = ProxyMode.RULE,
-    val primaryGroup: String = "GLOBAL",
-    val selectedNode: String = "Автовыбор",
+    val primaryGroup: String = "",
+    val selectedNode: String = "",
     val selectedNodeDelay: Long = 0,
     val isConnecting: Boolean = false
 )
@@ -73,6 +73,7 @@ class DashboardViewModel(
         // Track running status from ServiceState
         viewModelScope.launch {
             ServiceState.isRunning.collect { running ->
+                android.util.Log.d("MihometVpn", "DashboardViewModel received ServiceState.isRunning = $running")
                 _uiState.update { it.copy(isRunning = running, isConnecting = false) }
                 if (running) {
                     startTrafficMonitor()
@@ -99,18 +100,24 @@ class DashboardViewModel(
 
     fun startProxy() {
         val isRoot = _uiState.value.isRootMode
+        android.util.Log.d("MihometVpn", "DashboardViewModel.startProxy() called, isRoot=$isRoot")
         _uiState.update { it.copy(isConnecting = true) }
         if (isRoot) {
-            MihometVpnService.stop(context)
+            if (org.mihomet.app.core.ServiceState.runningService.value == org.mihomet.app.core.RunningService.VPN) {
+                MihometVpnService.stop(context)
+            }
             RootTProxyService.start(context)
         } else {
-            RootTProxyService.stop(context)
+            if (org.mihomet.app.core.ServiceState.runningService.value == org.mihomet.app.core.RunningService.ROOT) {
+                RootTProxyService.stop(context)
+            }
             MihometVpnService.start(context)
         }
     }
 
     fun stopProxy() {
         val isRoot = _uiState.value.isRootMode
+        android.util.Log.d("MihometVpn", "DashboardViewModel.stopProxy() called, isRoot=$isRoot")
         if (isRoot) {
             RootTProxyService.stop(context)
         } else {
@@ -168,6 +175,9 @@ class DashboardViewModel(
             delay(1000) // wait for external controller to initialize
             apiClient.getProxies().onSuccess { response ->
                 val primaryGroup = response.proxies.values.firstOrNull {
+                    (it.type.equals("Selector", ignoreCase = true) || it.type.equals("select", ignoreCase = true)) &&
+                    !it.name.equals("GLOBAL", ignoreCase = true)
+                } ?: response.proxies.values.firstOrNull {
                     it.type.equals("Selector", ignoreCase = true) || it.type.equals("select", ignoreCase = true)
                 }
                 if (primaryGroup != null) {
@@ -181,10 +191,18 @@ class DashboardViewModel(
                         }
                         currentSelected
                     } else {
-                        primaryGroup.now ?: "Автовыбор"
+                        primaryGroup.now ?: primaryGroup.all?.firstOrNull() ?: ""
                     }
 
-                    val delay = response.proxies[targetNode]?.history?.lastOrNull()?.delay?.toLong()
+                    val targetProxy = response.proxies[targetNode]
+                    val activeNodeName = if (targetProxy?.type.equals("URLTest", ignoreCase = true)) {
+                        targetProxy?.now ?: targetNode
+                    } else {
+                        targetNode
+                    }
+
+                    val delay = response.proxies[activeNodeName]?.history?.lastOrNull()?.delay?.toLong()
+                        ?: targetProxy?.history?.lastOrNull()?.delay?.toLong()
                         ?: primaryGroup.history.lastOrNull()?.delay?.toLong()
                         ?: 0L
 

@@ -44,6 +44,11 @@ class MihomoApiClient(
             json(json)
         }
         install(WebSockets)
+        install(io.ktor.client.plugins.HttpTimeout) {
+            requestTimeoutMillis = 15000
+            connectTimeoutMillis = 5000
+            socketTimeoutMillis = 15000
+        }
     }
 
     private val baseUrl = "http://$host:$port"
@@ -76,18 +81,41 @@ class MihomoApiClient(
         }
     }
 
+    suspend fun testGroupDelay(
+        groupName: String,
+        testUrl: String = "http://www.gstatic.com/generate_204",
+        timeoutMs: Int = 5000
+    ): Result<Map<String, Int>> = runCatching {
+        val encodedGroup = groupName.encodeURLPathPart()
+        val response = httpClient.get("$baseUrl/group/$encodedGroup/delay") {
+            applyAuth()
+            parameter("url", testUrl)
+            parameter("timeout", timeoutMs)
+        }
+        if (response.status.value in 200..299) {
+            response.body()
+        } else {
+            emptyMap()
+        }
+    }
+
     suspend fun testNodeDelay(
         nodeName: String,
         testUrl: String = "http://www.gstatic.com/generate_204",
         timeoutMs: Int = 5000
     ): Result<Int> = runCatching {
         val encodedNode = nodeName.encodeURLPathPart()
-        val response: DelayResponse = httpClient.get("$baseUrl/proxies/$encodedNode/delay") {
+        val response = httpClient.get("$baseUrl/proxies/$encodedNode/delay") {
             applyAuth()
             parameter("url", testUrl)
             parameter("timeout", timeoutMs)
-        }.body()
-        response.delay
+        }
+        if (response.status.value in 200..299) {
+            val delayResp: DelayResponse = response.body()
+            delayResp.delay
+        } else {
+            -1
+        }
     }
 
     suspend fun getConnections(): Result<ConnectionsResponse> = runCatching {

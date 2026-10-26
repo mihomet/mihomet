@@ -11,8 +11,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import org.mihomet.app.core.CoreManager
 import org.mihomet.app.core.ServiceState
+import org.mihomet.app.core.config.ConfigGenerator
+import org.mihomet.app.core.network.ConnectionTestResult
 import org.mihomet.app.core.network.NodePingTester
+import org.mihomet.app.core.network.PingProtocol
 import org.mihomet.app.core.network.ProxyNodeInfo
 import org.mihomet.app.data.api.MihomoApiClient
 import org.mihomet.app.data.db.ProfileDao
@@ -20,9 +25,10 @@ import org.mihomet.app.data.preferences.SettingsRepository
 import org.yaml.snakeyaml.Yaml
 import java.io.File
 
-enum class PingMode(val label: String, val shortLabel: String) {
-    HTTP("HTTP (204)", "HTTP"),
-    TCP("TCP (Сокет)", "TCP")
+enum class ServerSortOrder(val title: String) {
+    DEFAULT("По порядку"),
+    BY_PING("По задержке"),
+    BY_NAME("По имени")
 }
 
 data class ServerNodeItem(
@@ -31,7 +37,6 @@ data class ServerNodeItem(
     val server: String = "",
     val port: Int = 0,
     val delayMs: Long = 0, // 0 = not tested, -1 = timeout, >0 = latency ms
-    val isTesting: Boolean = false,
     val isAutoSelect: Boolean = false
 )
 
@@ -45,11 +50,16 @@ data class ProxyGroupUiModel(
 data class ProxiesUiState(
     val isLoading: Boolean = false,
     val isTestingAll: Boolean = false,
-    val pingMode: PingMode = PingMode.HTTP,
+    val testingNodeNames: Set<String> = emptySet(),
+    val isTestingCurrentConnection: Boolean = false,
+    val currentConnectionResult: ConnectionTestResult? = null,
+    val pingProtocol: PingProtocol = PingProtocol.HTTP_GET,
+    val sortOrder: ServerSortOrder = ServerSortOrder.DEFAULT,
     val groups: List<ProxyGroupUiModel> = emptyList(),
     val selectedGroupName: String = "",
     val selectedNodeName: String = "",
     val allServers: List<ServerNodeItem> = emptyList(),
+    val rawConfigYaml: String = "",
     val searchQuery: String = "",
     val error: String? = null,
     val statusMessage: String? = null
@@ -57,6 +67,7 @@ data class ProxiesUiState(
 
 class ProxiesViewModel(
     private val apiClient: MihomoApiClient,
+    private val coreManager: CoreManager,
     private val settingsRepository: SettingsRepository,
     private val profileDao: ProfileDao,
     private val context: Context
@@ -66,14 +77,18 @@ class ProxiesViewModel(
     val uiState: StateFlow<ProxiesUiState> = _uiState.asStateFlow()
 
     private var parsedNodes: List<ProxyNodeInfo> = emptyList()
+    private var currentTestUrl = "http://www.gstatic.com/generate_204"
+    private var currentTestTimeoutMs = 5000
 
     init {
-        // Collect selected node preference
+        // Collect selected node preference and test URL
         viewModelScope.launch {
             settingsRepository.settingsFlow.collect { settings ->
                 if (settings.selectedNodeName.isNotBlank()) {
                     _uiState.update { it.copy(selectedNodeName = settings.selectedNodeName) }
                 }
+                currentTestUrl = settings.testUrl
+                currentTestTimeoutMs = settings.testTimeoutMs
             }
         }
 
@@ -98,8 +113,12 @@ class ProxiesViewModel(
         _uiState.update { it.copy(searchQuery = query) }
     }
 
-    fun setPingMode(mode: PingMode) {
-        _uiState.update { it.copy(pingMode = mode) }
+    fun setPingProtocol(protocol: PingProtocol) {
+        _uiState.update { it.copy(pingProtocol = protocol) }
+    }
+
+    fun setSortOrder(order: ServerSortOrder) {
+        _uiState.update { it.copy(sortOrder = order) }
     }
 
     fun selectGroup(groupName: String) {
@@ -125,6 +144,7 @@ class ProxiesViewModel(
 
                 // 1. Parse offline nodes
                 parsedNodes = NodePingTester.parseNodesFromYaml(rawYaml)
+                val nodeMap = parsedNodes.associateBy { it.name }
 
                 // 2. Parse YAML groups
                 val yaml = Yaml()
@@ -132,7 +152,7 @@ class ProxiesViewModel(
                 val rawGroups = parsed?.get("proxy-groups") as? List<*>
 
                 val groupsList = mutableListOf<ProxyGroupUiModel>()
-                val autoGroupNames = mutableSetOf<String>()
+                val autoGroupSet = mutableSetOf<String>()
 
                 rawGroups?.filterIsInstance<Map<String, Any>>()?.forEach { gMap ->
                     val gName = gMap["name"]?.toString() ?: return@forEach
@@ -140,7 +160,7 @@ class ProxiesViewModel(
                     val proxies = (gMap["proxies"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
                     val isAuto = gType == "url-test" || gType == "fallback" || gType == "load-balance"
                     if (isAuto) {
-                        autoGroupNames.add(gName)
+                        autoGroupSet.add(gName)
                     }
                     groupsList.add(
                         ProxyGroupUiModel(
@@ -152,12 +172,12 @@ class ProxiesViewModel(
                     )
                 }
 
-                // Fallback: If no groups in YAML, create GLOBAL group with all nodes
+                // Fallback: If no groups in YAML, create default group with all parsed nodes
                 if (groupsList.isEmpty()) {
                     val allNames = parsedNodes.map { it.name }
                     groupsList.add(
                         ProxyGroupUiModel(
-                            name = "GLOBAL",
+                            name = "PROXY",
                             type = "select",
                             selectedNode = allNames.firstOrNull() ?: "",
                             nodeNames = allNames
@@ -165,11 +185,11 @@ class ProxiesViewModel(
                     )
                 }
 
-                // Create list of all server items (including auto-select groups from subscription)
+                // 3. Create items list containing only legitimate nodes and auto-select groups
                 val serverItems = mutableListOf<ServerNodeItem>()
 
-                // Add auto groups as ServerNodeItem
-                autoGroupNames.forEach { autoName ->
+                // Auto-groups defined by subscription or synthesized
+                autoGroupSet.forEach { autoName ->
                     serverItems.add(
                         ServerNodeItem(
                             name = autoName,
@@ -179,7 +199,7 @@ class ProxiesViewModel(
                     )
                 }
 
-                // Add proxy nodes
+                // Regular proxy nodes
                 parsedNodes.forEach { node ->
                     serverItems.add(
                         ServerNodeItem(
@@ -191,16 +211,7 @@ class ProxiesViewModel(
                     )
                 }
 
-                // Add DIRECT or REJECT if referenced by any group
-                val allReferenced = groupsList.flatMap { it.nodeNames }.toSet()
-                if (allReferenced.contains("DIRECT") && serverItems.none { it.name == "DIRECT" }) {
-                    serverItems.add(ServerNodeItem(name = "DIRECT", type = "DIRECT"))
-                }
-                if (allReferenced.contains("REJECT") && serverItems.none { it.name == "REJECT" }) {
-                    serverItems.add(ServerNodeItem(name = "REJECT", type = "REJECT"))
-                }
-
-                // Initial selected group: first selector group or first group
+                // Initial selected group: selector group
                 val defaultGroup = groupsList.firstOrNull { it.type == "select" || it.type == "selector" }
                     ?: groupsList.first()
 
@@ -210,20 +221,24 @@ class ProxiesViewModel(
                     } else {
                         defaultGroup.name
                     }
+                    val currentGroupObj = groupsList.find { it.name == selGroup }
                     val selNode = state.selectedNodeName.ifBlank {
-                        groupsList.find { it.name == selGroup }?.selectedNode ?: ""
+                        currentGroupObj?.selectedNode ?: currentGroupObj?.nodeNames?.firstOrNull() ?: ""
                     }
                     state.copy(
                         isLoading = false,
                         groups = groupsList,
                         selectedGroupName = selGroup,
                         selectedNodeName = selNode,
-                        allServers = serverItems
+                        allServers = serverItems,
+                        rawConfigYaml = rawYaml
                     )
                 }
 
-                // 3. If core running, sync live controller status & delays
-                syncLiveControllerStatus()
+                // 4. Sync with live core if running
+                if (ServiceState.isRunning.value) {
+                    syncLiveControllerStatus()
+                }
 
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, error = e.message) }
@@ -264,70 +279,219 @@ class ProxiesViewModel(
 
     fun selectServer(groupName: String, node: ServerNodeItem) {
         viewModelScope.launch {
+            val targetGroup = groupName.ifBlank {
+                _uiState.value.selectedGroupName.ifBlank {
+                    _uiState.value.groups.firstOrNull { it.type.equals("select", ignoreCase = true) }?.name ?: ""
+                }
+            }
+
             _uiState.update { state ->
                 val updatedGroups = state.groups.map { g ->
-                    if (g.name == groupName) g.copy(selectedNode = node.name) else g
+                    if (g.name == targetGroup || g.type.equals("select", ignoreCase = true)) {
+                        g.copy(selectedNode = node.name)
+                    } else g
                 }
                 state.copy(
+                    selectedGroupName = targetGroup,
                     selectedNodeName = node.name,
                     groups = updatedGroups
                 )
             }
             settingsRepository.updateSelectedNodeName(node.name)
 
-            // Send selection to Mihomo core
-            val actualGroupName = groupName.ifBlank { _uiState.value.selectedGroupName }
-            apiClient.selectProxyNode(actualGroupName, node.name).onFailure { e ->
-                android.util.Log.e("ProxiesVM", "Failed to select node ${node.name} in group $actualGroupName", e)
+            // 1. Send selection to all active selector groups in the running Mihomo core
+            val liveProxies = apiClient.getProxies().getOrNull()?.proxies ?: emptyMap()
+            val selectorGroups = liveProxies.filter { (_, proxy) ->
+                proxy.type.equals("Selector", ignoreCase = true) || proxy.type.equals("select", ignoreCase = true)
+            }
+
+            if (selectorGroups.isNotEmpty()) {
+                selectorGroups.forEach { (name, proxy) ->
+                    if (proxy.all?.contains(node.name) == true || proxy.all.isNullOrEmpty()) {
+                        apiClient.selectProxyNode(name, node.name).onFailure { e ->
+                            android.util.Log.e("ProxiesVM", "Failed to select node ${node.name} in group $name", e)
+                        }
+                    }
+                }
+            } else if (targetGroup.isNotBlank()) {
+                apiClient.selectProxyNode(targetGroup, node.name).onFailure { e ->
+                    android.util.Log.e("ProxiesVM", "Failed to select node ${node.name} in group $targetGroup", e)
+                }
+            }
+
+            // 2. Immediately close all connections so active traffic switches to new proxy without delay
+            apiClient.closeAllConnections()
+        }
+    }
+
+    fun testCurrentConnection() {
+        if (_uiState.value.isTestingCurrentConnection) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isTestingCurrentConnection = true) }
+            val result = NodePingTester.testCurrentConnection(timeoutMs = 3500)
+            _uiState.update {
+                it.copy(
+                    isTestingCurrentConnection = false,
+                    currentConnectionResult = result
+                )
+            }
+        }
+    }
+
+    fun testSingleServer(node: ServerNodeItem) {
+        if (_uiState.value.testingNodeNames.contains(node.name)) return
+        val protocol = _uiState.value.pingProtocol
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(testingNodeNames = it.testingNodeNames + node.name) }
+            val isCoreOnline = apiClient.getVersion().isSuccess || ServiceState.isRunning.value
+            val rawTestUrl = if (protocol == PingProtocol.HTTP_HEAD) {
+                "http://cp.cloudflare.com/generate_204"
+            } else {
+                currentTestUrl.ifBlank { "http://www.gstatic.com/generate_204" }
+            }
+            val testUrl = if (rawTestUrl.startsWith("https://cp.cloudflare.com")) {
+                rawTestUrl.replace("https://", "http://")
+            } else rawTestUrl
+            val timeout = currentTestTimeoutMs
+
+            val delay = when (protocol) {
+                PingProtocol.TCP -> {
+                    NodePingTester.testTcpPing(node.server, node.port, 2500)
+                }
+                PingProtocol.ICMP -> {
+                    NodePingTester.testIcmpPing(node.server, 2500)
+                }
+                PingProtocol.HTTP_GET, PingProtocol.HTTP_HEAD -> {
+                    if (isCoreOnline) {
+                        val res = apiClient.testNodeDelay(node.name, testUrl, timeout).getOrDefault(-1)
+                        if (res > 0) res.toLong() else -1L
+                    } else {
+                        val probeRes = coreManager.runTemporaryCoreProbe(_uiState.value.rawConfigYaml) { probeClient ->
+                            val r = probeClient.testNodeDelay(node.name, testUrl, timeout).getOrDefault(-1)
+                            if (r > 0) r.toLong() else -1L
+                        }.getOrNull()
+                        probeRes ?: NodePingTester.testTlsPing(node.server, node.port, 2500)
+                    }
+                }
+            }
+
+            _uiState.update { state ->
+                val updated = state.allServers.map { item ->
+                    if (item.name == node.name) item.copy(delayMs = delay) else item
+                }
+                state.copy(
+                    testingNodeNames = state.testingNodeNames - node.name,
+                    allServers = updated
+                )
             }
         }
     }
 
     fun testAllServers() {
         if (_uiState.value.isTestingAll) return
-        val currentPingMode = _uiState.value.pingMode
-        val isCoreRunning = ServiceState.isRunning.value
+        val currentProtocol = _uiState.value.pingProtocol
 
         viewModelScope.launch {
             _uiState.update { it.copy(isTestingAll = true, statusMessage = null) }
 
-            if (currentPingMode == PingMode.HTTP && !isCoreRunning) {
-                _uiState.update {
-                    it.copy(statusMessage = "Прокси выключен: выполнен прямой TCP-тест сокетов")
+            val isCoreOnline = apiClient.getVersion().isSuccess || ServiceState.isRunning.value
+
+            if (currentProtocol == PingProtocol.HTTP_GET || currentProtocol == PingProtocol.HTTP_HEAD) {
+                if (isCoreOnline) {
+                    runHttpApiTestAll(currentProtocol, apiClient)
+                } else {
+                    // Core is not running: launch lightweight background core probe
+                    val probeResult = coreManager.runTemporaryCoreProbe(_uiState.value.rawConfigYaml) { probeClient ->
+                        runHttpApiTestAll(currentProtocol, probeClient)
+                    }
+                    if (probeResult.isFailure) {
+                        runDirectNetworkTestAll(
+                            protocol = currentProtocol,
+                            notice = "Ядро остановлено: выполнен прямой TLS/TCP опрос"
+                        )
+                    }
                 }
-                runTcpTestAll()
-            } else if (currentPingMode == PingMode.HTTP && isCoreRunning) {
-                runHttpTestAll()
             } else {
-                runTcpTestAll()
+                runDirectNetworkTestAll(currentProtocol)
             }
         }
     }
 
-    private suspend fun runHttpTestAll() = withContext(Dispatchers.IO) {
-        val serversToTest = _uiState.value.allServers
-        val semaphore = Semaphore(6)
-        val deferred = serversToTest.map { node ->
-            async {
-                semaphore.withPermit {
-                    val delay = apiClient.testNodeDelay(node.name, timeoutMs = 3000).getOrDefault(-1)
-                    node.name to delay.toLong()
+    private suspend fun runHttpApiTestAll(
+        protocol: PingProtocol,
+        client: MihomoApiClient = apiClient
+    ) = withContext(Dispatchers.IO) {
+        val rawTestUrl = if (protocol == PingProtocol.HTTP_HEAD) {
+            "http://cp.cloudflare.com/generate_204"
+        } else {
+            currentTestUrl.ifBlank { "http://www.gstatic.com/generate_204" }
+        }
+        val testUrl = if (rawTestUrl.startsWith("https://cp.cloudflare.com")) {
+            rawTestUrl.replace("https://", "http://")
+        } else rawTestUrl
+        val timeout = currentTestTimeoutMs
+
+        val groupResults = mutableMapOf<String, Long>()
+
+        // 1. Group delay test via Mihomo core (GLOBAL and current selected group)
+        client.testGroupDelay("GLOBAL", testUrl, timeout).onSuccess { map ->
+            map.forEach { (name, delay) ->
+                if (delay > 0) groupResults[name] = delay.toLong()
+            }
+        }
+
+        val activeGroup = _uiState.value.selectedGroupName
+        if (activeGroup.isNotBlank() && !activeGroup.equals("GLOBAL", ignoreCase = true)) {
+            client.testGroupDelay(activeGroup, testUrl, timeout).onSuccess { map ->
+                map.forEach { (name, delay) ->
+                    if (delay > 0) groupResults[name] = delay.toLong()
                 }
             }
         }
-        val results = deferred.awaitAll().toMap()
+
+        // 2. Individual delay test for remaining proxies not returned in group delay
+        val unmeasured = _uiState.value.allServers.filter { !it.isAutoSelect && !groupResults.containsKey(it.name) }
+        if (unmeasured.isNotEmpty()) {
+            val semaphore = Semaphore(6)
+            val deferred = unmeasured.map { node ->
+                async {
+                    semaphore.withPermit {
+                        val apiDelay = client.testNodeDelay(node.name, testUrl, timeout).getOrDefault(-1)
+                        node.name to (if (apiDelay > 0) apiDelay.toLong() else -1L)
+                    }
+                }
+            }
+            deferred.awaitAll().forEach { (name, delay) ->
+                groupResults[name] = delay
+            }
+        }
+
+        val bestDelay = groupResults.values.filter { it > 0 }.minOrNull() ?: -1L
 
         _uiState.update { state ->
             val updated = state.allServers.map { item ->
-                val delay = results[item.name] ?: item.delayMs
+                val delay = if (item.isAutoSelect) {
+                    bestDelay
+                } else {
+                    groupResults[item.name] ?: -1L
+                }
                 item.copy(delayMs = delay)
             }
-            state.copy(isTestingAll = false, allServers = updated)
+            val protocolName = if (protocol == PingProtocol.HTTP_HEAD) "HTTP HEAD" else "HTTP GET"
+            state.copy(
+                isTestingAll = false,
+                allServers = updated,
+                statusMessage = if (bestDelay > 0) "$protocolName тест завершен (лучший: ${bestDelay} ms)" else "$protocolName: серверы недоступны"
+            )
         }
     }
 
-    private suspend fun runTcpTestAll() = withContext(Dispatchers.IO) {
-        val results = NodePingTester.testAllNodes(parsedNodes, timeoutMs = 2500)
+    private suspend fun runDirectNetworkTestAll(
+        protocol: PingProtocol,
+        notice: String? = null
+    ) = withContext(Dispatchers.IO) {
+        val results = NodePingTester.testAllNodes(parsedNodes, protocol = protocol, timeoutMs = 2500)
         val bestDelay = results.values.filter { it > 0 }.minOrNull() ?: -1L
 
         _uiState.update { state ->
@@ -339,42 +503,30 @@ class ProxiesViewModel(
                     item.copy(delayMs = if (latency != 0L) latency else item.delayMs)
                 }
             }
-            state.copy(isTestingAll = false, allServers = updated)
+            val desc = notice ?: when (protocol) {
+                PingProtocol.TCP -> "TCP пинг завершен"
+                PingProtocol.ICMP -> "ICMP пинг завершен"
+                else -> "${protocol.shortName} пинг завершен"
+            }
+            state.copy(
+                isTestingAll = false,
+                allServers = updated,
+                statusMessage = if (bestDelay > 0) "$desc (мин. ${bestDelay} ms)" else desc
+            )
         }
     }
 
-    fun testSingleServer(node: ServerNodeItem) {
-        val currentPingMode = _uiState.value.pingMode
-        val isCoreRunning = ServiceState.isRunning.value
-
-        viewModelScope.launch {
-            _uiState.update { state ->
-                state.copy(
-                    statusMessage = if (currentPingMode == PingMode.HTTP && !isCoreRunning) {
-                        "Прокси не запущен: для проверки HTTP включите прокси или переключитесь на TCP"
-                    } else null,
-                    allServers = state.allServers.map {
-                        if (it.name == node.name) it.copy(isTesting = true) else it
-                    }
-                )
-            }
-
-            val latency: Long = if (currentPingMode == PingMode.HTTP && isCoreRunning) {
-                apiClient.testNodeDelay(node.name, timeoutMs = 3500).getOrDefault(-1).toLong()
+    fun getConfigAsFormattedJson(): String {
+        return try {
+            val yaml = Yaml()
+            val loaded = yaml.load<Any>(_uiState.value.rawConfigYaml)
+            if (loaded is Map<*, *>) {
+                JSONObject(loaded as Map<Any, Any>).toString(2)
             } else {
-                if (node.isAutoSelect || node.server.isBlank()) {
-                    val results = NodePingTester.testAllNodes(parsedNodes, timeoutMs = 2000)
-                    results.values.filter { it > 0 }.minOrNull() ?: -1L
-                } else {
-                    NodePingTester.testTcpPing(node.server, node.port, timeoutMs = 2000)
-                }
+                _uiState.value.rawConfigYaml
             }
-
-            _uiState.update { state ->
-                state.copy(allServers = state.allServers.map {
-                    if (it.name == node.name) it.copy(delayMs = latency, isTesting = false) else it
-                })
-            }
+        } catch (e: Exception) {
+            _uiState.value.rawConfigYaml
         }
     }
 }

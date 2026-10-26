@@ -1,5 +1,6 @@
 package org.mihomet.app.service
 
+import android.app.PendingIntent
 import android.content.Intent
 import android.net.VpnService
 import android.os.Build
@@ -8,11 +9,13 @@ import android.service.quicksettings.TileService
 import androidx.annotation.RequiresApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import org.mihomet.app.core.root.RootShellManager
+import org.mihomet.app.core.RunningService
+import org.mihomet.app.core.ServiceState
 import org.mihomet.app.core.root.RootTProxyService
 import org.mihomet.app.core.vpn.MihometVpnService
 import org.mihomet.app.data.preferences.SettingsRepository
@@ -23,40 +26,56 @@ class MihometTileService : TileService(), KoinComponent {
 
     private val settingsRepository: SettingsRepository by inject()
     private val scope = CoroutineScope(Dispatchers.Main)
+    private var listenJob: Job? = null
 
     override fun onStartListening() {
         super.onStartListening()
-        updateTileState()
+        listenJob?.cancel()
+        listenJob = scope.launch {
+            ServiceState.isRunning.collect { running ->
+                updateTileState(running)
+            }
+        }
+    }
+
+    override fun onStopListening() {
+        super.onStopListening()
+        listenJob?.cancel()
+        listenJob = null
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        listenJob?.cancel()
     }
 
     override fun onClick() {
         super.onClick()
         scope.launch {
             val settings = settingsRepository.settingsFlow.first()
-            val isRunning = RootShellManager.isDaemonRunning()
+            val isRunning = ServiceState.isRunning.value
 
-            if (settings.isRootMode) {
-                if (isRunning) {
+            if (isRunning) {
+                if (settings.isRootMode || ServiceState.runningService.value == RunningService.ROOT) {
                     RootTProxyService.stop(this@MihometTileService)
                 } else {
-                    RootTProxyService.start(this@MihometTileService)
+                    MihometVpnService.stop(this@MihometTileService)
                 }
             } else {
-                if (isRunning) {
-                    MihometVpnService.stop(this@MihometTileService)
+                if (settings.isRootMode) {
+                    RootTProxyService.start(this@MihometTileService)
                 } else {
                     val vpnIntent = VpnService.prepare(this@MihometTileService)
                     if (vpnIntent != null) {
-                        // Needs user approval in UI
                         val activityIntent = Intent(this@MihometTileService, MainActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         }
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                            val pendingIntent = android.app.PendingIntent.getActivity(
+                            val pendingIntent = PendingIntent.getActivity(
                                 this@MihometTileService,
                                 0,
                                 activityIntent,
-                                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
+                                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
                             )
                             startActivityAndCollapse(pendingIntent)
                         } else {
@@ -68,16 +87,17 @@ class MihometTileService : TileService(), KoinComponent {
                     MihometVpnService.start(this@MihometTileService)
                 }
             }
-            updateTileState()
+            updateTileState(!isRunning)
         }
     }
 
-    private fun updateTileState() {
+    private fun updateTileState(isRunning: Boolean = ServiceState.isRunning.value) {
         val tile = qsTile ?: return
-        val isRunning = RootShellManager.isDaemonRunning()
-
         tile.state = if (isRunning) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-        tile.label = if (isRunning) "Mihomet (Active)" else "Mihomet"
+        tile.label = "Mihomet"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            tile.subtitle = if (isRunning) "Подключено" else "Отключено"
+        }
         tile.updateTile()
     }
 }

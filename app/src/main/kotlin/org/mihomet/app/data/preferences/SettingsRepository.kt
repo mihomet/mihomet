@@ -30,6 +30,8 @@ class SettingsRepository(private val context: Context) {
         val SELECTED_NODE_NAME = stringPreferencesKey("selected_node_name")
         val SHOW_SPEED_NOTIFICATION = booleanPreferencesKey("show_speed_notification")
         val CONTROLLER_SECRET = stringPreferencesKey("controller_secret")
+        val TEST_URL = stringPreferencesKey("test_url")
+        val TEST_TIMEOUT_MS = intPreferencesKey("test_timeout_ms")
     }
 
     val settingsFlow: Flow<AppSettings> = context.dataStore.data
@@ -42,7 +44,7 @@ class SettingsRepository(private val context: Context) {
         }
         .map { preferences ->
             AppSettings(
-                isRootMode = preferences[PreferencesKeys.IS_ROOT_MODE] ?: true,
+                isRootMode = preferences[PreferencesKeys.IS_ROOT_MODE] ?: false,
                 firewallEngine = runCatching {
                     FirewallEngineType.valueOf(preferences[PreferencesKeys.FIREWALL_ENGINE] ?: FirewallEngineType.AUTO.name)
                 }.getOrDefault(FirewallEngineType.AUTO),
@@ -53,7 +55,7 @@ class SettingsRepository(private val context: Context) {
                 proxyMode = runCatching {
                     ProxyMode.valueOf(preferences[PreferencesKeys.PROXY_MODE] ?: ProxyMode.RULE.name)
                 }.getOrDefault(ProxyMode.RULE),
-                selectedNodeName = preferences[PreferencesKeys.SELECTED_NODE_NAME] ?: "⚡ Автовыбор",
+                selectedNodeName = preferences[PreferencesKeys.SELECTED_NODE_NAME] ?: "",
                 mixedPort = preferences[PreferencesKeys.MIXED_PORT] ?: 7890,
                 tproxyPort = preferences[PreferencesKeys.TPROXY_PORT] ?: 7893,
                 dnsPort = preferences[PreferencesKeys.DNS_PORT] ?: 1053,
@@ -63,7 +65,13 @@ class SettingsRepository(private val context: Context) {
                 darkTheme = preferences[PreferencesKeys.DARK_THEME] ?: true,
                 amoledBlack = preferences[PreferencesKeys.AMOLED_BLACK] ?: false,
                 showSpeedInNotification = preferences[PreferencesKeys.SHOW_SPEED_NOTIFICATION] ?: true,
-                controllerSecret = preferences[PreferencesKeys.CONTROLLER_SECRET] ?: "mihomet_secret_token"
+                controllerSecret = preferences[PreferencesKeys.CONTROLLER_SECRET] ?: "mihomet_secret_token",
+                testUrl = preferences[PreferencesKeys.TEST_URL]?.let { stored ->
+                    if (stored.startsWith("https://cp.cloudflare.com")) {
+                        stored.replace("https://", "http://")
+                    } else stored
+                } ?: "http://www.gstatic.com/generate_204",
+                testTimeoutMs = preferences[PreferencesKeys.TEST_TIMEOUT_MS] ?: 5000
             )
         }
 
@@ -114,5 +122,16 @@ class SettingsRepository(private val context: Context) {
             it[PreferencesKeys.DARK_THEME] = dark
             it[PreferencesKeys.AMOLED_BLACK] = amoled
         }
+    }
+
+    suspend fun updateTestUrl(url: String) {
+        val sanitized = if (url.startsWith("https://cp.cloudflare.com")) {
+            url.replace("https://", "http://")
+        } else url
+        context.dataStore.edit { it[PreferencesKeys.TEST_URL] = sanitized }
+    }
+
+    suspend fun updateTestTimeout(timeoutMs: Int) {
+        context.dataStore.edit { it[PreferencesKeys.TEST_TIMEOUT_MS] = timeoutMs }
     }
 }

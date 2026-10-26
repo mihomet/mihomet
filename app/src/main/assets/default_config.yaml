@@ -1,9 +1,7 @@
 # Default Mihomet Profile
-port: 7890
-socks-port: 7891
+mixed-port: 7890
 redir-port: 7892
 tproxy-port: 7893
-mixed-port: 7890
 allow-lan: false
 mode: rule
 log-level: info
@@ -22,10 +20,7 @@ dns:
     - 1.1.1.1
     - 77.88.8.8
 
-proxies:
-  - name: "DIRECT"
-    type: direct
-    udp: true
+proxies: []
 
 proxy-groups:
   - name: "PROXY"

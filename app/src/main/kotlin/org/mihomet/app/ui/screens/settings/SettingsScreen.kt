@@ -1,10 +1,11 @@
 package org.mihomet.app.ui.screens.settings
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -13,13 +14,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
-import org.mihomet.app.data.preferences.FirewallEngineType
 import org.mihomet.app.data.preferences.ProxyMode
+import org.mihomet.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,15 +35,24 @@ fun SettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val settings = state.settings
+    val context = LocalContext.current
+    val view = LocalView.current
 
     var showPortsDialog by remember { mutableStateOf(false) }
+    var showLatencyDialog by remember { mutableStateOf(false) }
     var isAdvancedExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Настройки", fontWeight = FontWeight.Bold) }
+                title = {
+                    Text(
+                        text = "Настройки",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Black
+                    )
+                }
             )
         }
     ) { innerPadding ->
@@ -49,34 +62,48 @@ fun SettingsScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
+            contentPadding = PaddingValues(top = 10.dp, bottom = 100.dp)
         ) {
-            // 1. Connection Mode Card
+            // 1. Connection Mode Grouped Card
             item {
                 SettingsSectionTitle("Режим подключения")
                 Spacer(modifier = Modifier.height(6.dp))
-                Card(
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    )
+                    shape = ExpressiveShapes.Large,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                 ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        ModeSelectRow(
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        ExpressiveModeSelectRow(
+                            icon = Icons.Default.VpnKey,
+                            iconBg = MaterialTheme.colorScheme.primaryContainer,
+                            iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
                             title = "Без Root (VPN)",
                             description = "Стандартный безопасный режим VPN для любых устройств Android. Не требует root-прав.",
                             selected = !settings.isRootMode,
-                            onSelect = { viewModel.updateRootMode(false) }
+                            onSelect = {
+                                AppHaptics.perform(context, HapticType.CLICK, view)
+                                viewModel.updateRootMode(false)
+                            }
                         )
 
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
-                        ModeSelectRow(
+                        ExpressiveModeSelectRow(
+                            icon = Icons.Default.AdminPanelSettings,
+                            iconBg = AccentOrangeContainer,
+                            iconTint = AccentOrange,
                             title = "Root (TProxy)",
-                            description = "Прозрачное проксирование сетевого стека через netfilter (nftables/iptables). Требует Magisk/KernelSU.",
+                            description = "Прозрачное проксирование сетевого стека через netfilter (nftables/iptables). Требует KernelSU или Magisk.",
                             selected = settings.isRootMode,
-                            onSelect = { viewModel.updateRootMode(true) }
+                            onSelect = {
+                                AppHaptics.perform(context, HapticType.CLICK, view)
+                                viewModel.updateRootMode(true)
+                            }
                         )
                     }
                 }
@@ -84,54 +111,68 @@ fun SettingsScreen(
 
             // 2. Routing & App Rules Card
             item {
-                SettingsSectionTitle("Маршрутизация и приложения")
+                SettingsSectionTitle("Маршрутизация и правила")
                 Spacer(modifier = Modifier.height(6.dp))
-                Card(
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    )
+                    shape = ExpressiveShapes.Large,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                 ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
                         Text(
                             text = "Режим проксирования",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
                         )
 
                         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                             SegmentedButton(
                                 selected = settings.proxyMode == ProxyMode.RULE,
-                                onClick = { viewModel.updateProxyMode(ProxyMode.RULE) },
+                                onClick = {
+                                    AppHaptics.perform(context, HapticType.CLICK, view)
+                                    viewModel.updateProxyMode(ProxyMode.RULE)
+                                },
                                 shape = SegmentedButtonDefaults.itemShape(0, 3)
                             ) {
-                                Text("Умный", fontSize = 12.sp)
+                                Text("Умный", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                             SegmentedButton(
                                 selected = settings.proxyMode == ProxyMode.GLOBAL,
-                                onClick = { viewModel.updateProxyMode(ProxyMode.GLOBAL) },
+                                onClick = {
+                                    AppHaptics.perform(context, HapticType.CLICK, view)
+                                    viewModel.updateProxyMode(ProxyMode.GLOBAL)
+                                },
                                 shape = SegmentedButtonDefaults.itemShape(1, 3)
                             ) {
-                                Text("Все сайты", fontSize = 12.sp)
+                                Text("Все сайты", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                             SegmentedButton(
                                 selected = settings.proxyMode == ProxyMode.DIRECT,
-                                onClick = { viewModel.updateProxyMode(ProxyMode.DIRECT) },
+                                onClick = {
+                                    AppHaptics.perform(context, HapticType.CLICK, view)
+                                    viewModel.updateProxyMode(ProxyMode.DIRECT)
+                                },
                                 shape = SegmentedButtonDefaults.itemShape(2, 3)
                             ) {
-                                Text("Прямой", fontSize = 12.sp)
+                                Text("Прямой", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
 
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
                         // App Exclusions Clickable Row
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { onNavigateToRouting() }
+                                .clip(ExpressiveShapes.Medium)
+                                .clickable {
+                                    AppHaptics.perform(context, HapticType.CLICK, view)
+                                    onNavigateToRouting()
+                                }
                                 .padding(vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -140,81 +181,125 @@ fun SettingsScreen(
                                 modifier = Modifier.weight(1f),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    Icons.Default.Apps,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
+                                Surface(
+                                    shape = ExpressiveShapes.Small,
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    modifier = Modifier.size(38.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.Default.Apps,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+
                                 Spacer(modifier = Modifier.width(14.dp))
+
                                 Column {
                                     Text(
                                         text = "Исключения приложений",
-                                        fontWeight = FontWeight.SemiBold,
+                                        fontWeight = FontWeight.Bold,
                                         fontSize = 15.sp
                                     )
                                     Text(
-                                        text = "Пускать выбранные приложения в обход прокси (банки, госуслуги)",
+                                        text = "Выбрать приложения в обход прокси (банки, Госуслуги)",
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
-                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }
             }
 
-            // 3. Notifications Explanation Banner
+            // 3. Notifications Card
             item {
-                SettingsSectionTitle("Уведомления службы")
+                SettingsSectionTitle("Уведомления")
                 Spacer(modifier = Modifier.height(6.dp))
-                Card(
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-                    )
+                    shape = ExpressiveShapes.Large,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Outlined.Info,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Зачем приложению нужны уведомления?",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "Операционная система Android требует постоянное уведомление для работы служб VPN и TProxy. Это гарантирует, что система не остановит соединение при блокировке экрана, в фоне или при экономии заряда.",
-                            fontSize = 12.sp,
-                            lineHeight = 17.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(
-                                text = "Показывать скорость в уведомлении",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
-                            )
+                            Row(
+                                modifier = Modifier.weight(1f).padding(end = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = ExpressiveShapes.Small,
+                                    color = AccentGreenContainer,
+                                    modifier = Modifier.size(38.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.Default.NotificationsActive,
+                                            contentDescription = null,
+                                            tint = AccentGreenLight,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(14.dp))
+
+                                Column {
+                                    Text(
+                                        text = "Скорость в уведомлении",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Отображать текущую скорость передачи данных",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
                             Switch(
                                 checked = settings.showSpeedInNotification,
-                                onCheckedChange = { viewModel.updateShowSpeedInNotification(it) }
+                                onCheckedChange = {
+                                    AppHaptics.perform(context, HapticType.CLICK, view)
+                                    viewModel.updateShowSpeedInNotification(it)
+                                }
+                            )
+                        }
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                        Row(verticalAlignment = Alignment.Top) {
+                            Icon(
+                                Icons.Outlined.Info,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp).padding(top = 2.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Android требует постоянное фоновое уведомление для непрерывной работы VPN без выгрузки системой из памяти.",
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -225,59 +310,59 @@ fun SettingsScreen(
             item {
                 SettingsSectionTitle("Оформление")
                 Spacer(modifier = Modifier.height(6.dp))
-                Card(
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    )
+                    shape = ExpressiveShapes.Large,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                 ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Цвета Material You", fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                                Text("Адаптивные цвета обоев Android", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        ExpressiveSwitchRow(
+                            icon = Icons.Default.Palette,
+                            iconBg = MaterialTheme.colorScheme.primaryContainer,
+                            iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            title = "Динамические цвета Material You",
+                            subtitle = "Цвета адаптируются под обои рабочего стола",
+                            checked = settings.dynamicColor,
+                            onCheckedChange = {
+                                AppHaptics.perform(context, HapticType.CLICK, view)
+                                viewModel.updateTheme(it, settings.darkTheme, settings.amoledBlack)
                             }
-                            Switch(
-                                checked = settings.dynamicColor,
-                                onCheckedChange = { viewModel.updateTheme(it, settings.darkTheme, settings.amoledBlack) }
-                            )
-                        }
+                        )
 
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Темная тема", fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                            Switch(
-                                checked = settings.darkTheme,
-                                onCheckedChange = { viewModel.updateTheme(settings.dynamicColor, it, settings.amoledBlack) }
-                            )
-                        }
+                        ExpressiveSwitchRow(
+                            icon = Icons.Default.DarkMode,
+                            iconBg = SecondaryContainerDark,
+                            iconTint = SecondaryDark,
+                            title = "Темная тема",
+                            subtitle = "Комфортный режим для темного времени суток",
+                            checked = settings.darkTheme,
+                            onCheckedChange = {
+                                AppHaptics.perform(context, HapticType.CLICK, view)
+                                viewModel.updateTheme(settings.dynamicColor, it, settings.amoledBlack)
+                            }
+                        )
 
                         if (settings.darkTheme) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("Глубокий черный (AMOLED)", fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                                    Text("Экономит заряд на OLED-экранах", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                            ExpressiveSwitchRow(
+                                icon = Icons.Default.Brightness2,
+                                iconBg = DarkSurfaceContainerHighest,
+                                iconTint = Color.White,
+                                title = "Глубокий черный (AMOLED)",
+                                subtitle = "Идеальный черный цвет и экономия батареи",
+                                checked = settings.amoledBlack,
+                                onCheckedChange = {
+                                    AppHaptics.perform(context, HapticType.CLICK, view)
+                                    viewModel.updateTheme(settings.dynamicColor, settings.darkTheme, it)
                                 }
-                                Switch(
-                                    checked = settings.amoledBlack,
-                                    onCheckedChange = { viewModel.updateTheme(settings.dynamicColor, settings.darkTheme, it) }
-                                )
-                            }
+                            )
                         }
                     }
                 }
@@ -285,28 +370,44 @@ fun SettingsScreen(
 
             // 5. Advanced Settings (Expandable)
             item {
-                Card(
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                    )
+                    shape = ExpressiveShapes.Large,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { isAdvancedExpanded = !isAdvancedExpanded }
+                                .clip(ExpressiveShapes.Medium)
+                                .clickable {
+                                    AppHaptics.perform(context, HapticType.CLICK, view)
+                                    isAdvancedExpanded = !isAdvancedExpanded
+                                }
                                 .padding(vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Tune, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                Spacer(modifier = Modifier.width(12.dp))
+                                Surface(
+                                    shape = ExpressiveShapes.Small,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    modifier = Modifier.size(38.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.Default.Tune,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(14.dp))
                                 Text("Продвинутые настройки", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             }
+
                             Icon(
                                 if (isAdvancedExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                                 contentDescription = null,
@@ -316,21 +417,24 @@ fun SettingsScreen(
 
                         AnimatedVisibility(visible = isAdvancedExpanded) {
                             Column(
-                                modifier = Modifier.padding(top = 14.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                                modifier = Modifier.padding(top = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
                                 // Port Configuration
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .clickable { showPortsDialog = true }
-                                        .padding(vertical = 6.dp),
+                                        .clip(ExpressiveShapes.Small)
+                                        .clickable {
+                                            AppHaptics.perform(context, HapticType.CLICK, view)
+                                            showPortsDialog = true
+                                        }
+                                        .padding(vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Column {
-                                        Text("Сетевые порты", fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                                        Text("Сетевые порты", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                         Text(
                                             "Mixed: ${settings.mixedPort} • TProxy: ${settings.tproxyPort} • DNS: ${settings.dnsPort}",
                                             fontSize = 12.sp,
@@ -340,7 +444,38 @@ fun SettingsScreen(
                                     Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
                                 }
 
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                                // Latency Test Configuration
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(ExpressiveShapes.Small)
+                                        .clickable {
+                                            AppHaptics.perform(context, HapticType.CLICK, view)
+                                            showLatencyDialog = true
+                                        }
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                        Text("Проверка задержки узлов (Ping)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                        val shortUrl = when (settings.testUrl) {
+                                            "http://www.gstatic.com/generate_204" -> "Google (204)"
+                                            "http://cp.cloudflare.com/generate_204", "https://cp.cloudflare.com/generate_204" -> "Cloudflare (204)"
+                                            else -> settings.testUrl
+                                        }
+                                        Text(
+                                            "URL: $shortUrl • Таймаут: ${settings.testTimeoutMs / 1000} сек.",
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Icon(Icons.Default.Speed, contentDescription = null, modifier = Modifier.size(18.dp))
+                                }
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
                                 // IPv6
                                 Row(
@@ -348,14 +483,17 @@ fun SettingsScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("Поддержка IPv6", fontSize = 14.sp)
+                                    Text("Поддержка IPv6", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                                     Switch(
                                         checked = settings.ipv6Enabled,
-                                        onCheckedChange = { viewModel.updateIpv6Enabled(it) }
+                                        onCheckedChange = {
+                                            AppHaptics.perform(context, HapticType.CLICK, view)
+                                            viewModel.updateIpv6Enabled(it)
+                                        }
                                     )
                                 }
 
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
                                 // Mihomo Core Section
                                 Row(
@@ -364,31 +502,55 @@ fun SettingsScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Column {
-                                        Text("Ядро Mihomo", fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                                        Text("Ядро Mihomo", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                         Text("Версия: ${state.coreVersion}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     FilledTonalButton(
-                                        onClick = { viewModel.checkForCoreUpdate() },
-                                        enabled = !state.isCheckingUpdate && !state.isDownloadingUpdate
+                                        onClick = {
+                                            AppHaptics.perform(context, HapticType.CLICK, view)
+                                            viewModel.checkForCoreUpdate()
+                                        },
+                                        enabled = !state.isCheckingUpdate && !state.isDownloadingUpdate,
+                                        shape = ExpressiveShapes.Small
                                     ) {
                                         if (state.isCheckingUpdate) {
                                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                                         } else {
-                                            Text("Проверить", fontSize = 12.sp)
+                                            Text("Проверить", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
 
                                 if (state.latestRelease != null && state.latestRelease?.tag_name != state.coreVersion) {
                                     Button(
-                                        onClick = { viewModel.installCoreUpdate() },
+                                        onClick = {
+                                            AppHaptics.perform(context, HapticType.CLICK, view)
+                                            viewModel.installCoreUpdate()
+                                        },
                                         modifier = Modifier.fillMaxWidth(),
-                                        enabled = !state.isDownloadingUpdate
+                                        enabled = !state.isDownloadingUpdate,
+                                        shape = ExpressiveShapes.Medium
                                     ) {
                                         if (state.isDownloadingUpdate) {
                                             CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary)
                                         } else {
-                                            Text("Обновить ядро до ${state.latestRelease?.tag_name}")
+                                            Text("Обновить ядро до ${state.latestRelease?.tag_name}", fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                } else if (state.latestRelease != null) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            AppHaptics.perform(context, HapticType.CLICK, view)
+                                            viewModel.installCoreUpdate()
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        enabled = !state.isDownloadingUpdate,
+                                        shape = ExpressiveShapes.Medium
+                                    ) {
+                                        if (state.isDownloadingUpdate) {
+                                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                        } else {
+                                            Text("Переустановить ядро (${state.latestRelease?.tag_name})", fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -401,16 +563,17 @@ fun SettingsScreen(
                                     )
                                 }
 
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
                                 // Logs button
                                 OutlinedButton(
                                     onClick = onNavigateToLogs,
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = ExpressiveShapes.Medium
                                 ) {
                                     Icon(Icons.Default.Terminal, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Открыть системный журнал (Logs)")
+                                    Text("Открыть системный журнал (Logs)", fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         }
@@ -420,19 +583,44 @@ fun SettingsScreen(
 
             // 6. About App Card
             item {
-                Card(
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    )
+                    shape = ExpressiveShapes.Large,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Mihomet v1.0", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Spacer(modifier = Modifier.height(2.dp))
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Surface(
+                                shape = ExpressiveShapes.Small,
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Default.Shield,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            Column {
+                                Text("Mihomet v1.0", fontWeight = FontWeight.Black, fontSize = 15.sp)
+                                Text("Material 3 Expressive Edition", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
                         Text(
-                            "Клиент прокси нового поколения на базе ядра Mihomo с поддержкой Root TProxy, Non-Root VPN и Material 3.",
+                            text = "Высокоскоростной прокси-клиент на базе ядра Mihomo с поддержкой Root TProxy, Non-Root VPN Service, VLESS Reality и Hysteria 2.",
                             fontSize = 12.sp,
+                            lineHeight = 17.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -450,6 +638,19 @@ fun SettingsScreen(
                 }
             )
         }
+
+        if (showLatencyDialog) {
+            LatencyTestConfigDialog(
+                currentUrl = settings.testUrl,
+                currentTimeoutMs = settings.testTimeoutMs,
+                onDismiss = { showLatencyDialog = false },
+                onSave = { url, timeout ->
+                    viewModel.updateTestUrl(url)
+                    viewModel.updateTestTimeout(timeout)
+                    showLatencyDialog = false
+                }
+            )
+        }
     }
 }
 
@@ -457,15 +658,18 @@ fun SettingsScreen(
 fun SettingsSectionTitle(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Black,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+        modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
     )
 }
 
 @Composable
-fun ModeSelectRow(
+fun ExpressiveModeSelectRow(
+    icon: ImageVector,
+    iconBg: Color,
+    iconTint: Color,
     title: String,
     description: String,
     selected: Boolean,
@@ -474,29 +678,116 @@ fun ModeSelectRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(ExpressiveShapes.Medium)
             .clickable { onSelect() }
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RadioButton(
-            selected = selected,
-            onClick = onSelect
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Column {
+        Surface(
+            shape = ExpressiveShapes.Small,
+            color = iconBg,
+            modifier = Modifier.size(40.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 fontSize = 15.sp
             )
             Text(
                 text = description,
                 fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 16.sp
+                lineHeight = 16.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        if (selected) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        } else {
+            Surface(
+                shape = CircleShape,
+                color = Color.Transparent,
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.size(20.dp)
+            ) {}
+        }
+    }
+}
+
+@Composable
+fun ExpressiveSwitchRow(
+    icon: ImageVector,
+    iconBg: Color,
+    iconTint: Color,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            modifier = Modifier.weight(1f).padding(end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = ExpressiveShapes.Small,
+                color = iconBg,
+                modifier = Modifier.size(38.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column {
+                Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
     }
 }
 
@@ -513,47 +804,129 @@ fun PortsConfigDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Настройка сетевых портов") },
+        title = { Text("Настройка сетевых портов", fontWeight = FontWeight.Black) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = mixedPort,
                     onValueChange = { mixedPort = it },
-                    label = { Text("Mixed Port (HTTP/SOCKS5)") },
-                    singleLine = true
+                    label = { Text("Mixed Port (HTTP + SOCKS5)") },
+                    shape = ExpressiveShapes.Small,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = tproxyPort,
                     onValueChange = { tproxyPort = it },
-                    label = { Text("TProxy Port (TCP/UDP)") },
-                    singleLine = true
+                    label = { Text("TProxy Port (Root Mode)") },
+                    shape = ExpressiveShapes.Small,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = dnsPort,
                     onValueChange = { dnsPort = it },
-                    label = { Text("DNS Listen Port") },
-                    singleLine = true
+                    label = { Text("DNS Port") },
+                    shape = ExpressiveShapes.Small,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = controllerPort,
                     onValueChange = { controllerPort = it },
-                    label = { Text("REST API Controller Port") },
-                    singleLine = true
+                    label = { Text("Mihomo API Controller Port") },
+                    shape = ExpressiveShapes.Small,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    onSave(
-                        mixedPort.toIntOrNull() ?: currentSettings.mixedPort,
-                        tproxyPort.toIntOrNull() ?: currentSettings.tproxyPort,
-                        dnsPort.toIntOrNull() ?: currentSettings.dnsPort,
-                        controllerPort.toIntOrNull() ?: currentSettings.controllerPort
-                    )
-                }
+                    val m = mixedPort.toIntOrNull() ?: currentSettings.mixedPort
+                    val t = tproxyPort.toIntOrNull() ?: currentSettings.tproxyPort
+                    val d = dnsPort.toIntOrNull() ?: currentSettings.dnsPort
+                    val c = controllerPort.toIntOrNull() ?: currentSettings.controllerPort
+                    onSave(m, t, d, c)
+                },
+                shape = ExpressiveShapes.Small
             ) {
-                Text("Сохранить")
+                Text("Сохранить", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена")
+            }
+        }
+    )
+}
+
+@Composable
+fun LatencyTestConfigDialog(
+    currentUrl: String,
+    currentTimeoutMs: Int,
+    onDismiss: () -> Unit,
+    onSave: (String, Int) -> Unit
+) {
+    var url by remember { mutableStateOf(currentUrl) }
+    var timeoutSec by remember { mutableStateOf((currentTimeoutMs / 1000).toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Проверка задержки (Ping)", fontWeight = FontWeight.Black) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("URL проверки (204 No Content)") },
+                    placeholder = { Text("http://www.gstatic.com/generate_204") },
+                    shape = ExpressiveShapes.Small,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = timeoutSec,
+                    onValueChange = { timeoutSec = it },
+                    label = { Text("Таймаут (секунды)") },
+                    shape = ExpressiveShapes.Small,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilledTonalButton(
+                        onClick = { url = "http://www.gstatic.com/generate_204" },
+                        modifier = Modifier.weight(1f),
+                        shape = ExpressiveShapes.Small
+                    ) {
+                        Text("Google", fontSize = 11.sp)
+                    }
+                    FilledTonalButton(
+                        onClick = { url = "http://cp.cloudflare.com/generate_204" },
+                        modifier = Modifier.weight(1f),
+                        shape = ExpressiveShapes.Small
+                    ) {
+                        Text("Cloudflare", fontSize = 11.sp)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val t = (timeoutSec.toIntOrNull() ?: 5) * 1000
+                    onSave(url, t)
+                },
+                shape = ExpressiveShapes.Small
+            ) {
+                Text("Сохранить", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

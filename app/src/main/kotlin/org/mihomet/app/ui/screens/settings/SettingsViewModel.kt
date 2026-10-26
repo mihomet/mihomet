@@ -80,11 +80,18 @@ class SettingsViewModel(
             _uiState.update { it.copy(isCheckingUpdate = true, updateMessage = null) }
             coreManager.checkLatestRelease()
                 .onSuccess { release ->
+                    val cleanLatest = release.tag_name.trim().removePrefix("v")
+                    val cleanCurrent = _uiState.value.coreVersion.trim().removePrefix("v")
+                    val isNewer = cleanLatest.isNotBlank() && cleanLatest != cleanCurrent
                     _uiState.update {
                         it.copy(
                             isCheckingUpdate = false,
                             latestRelease = release,
-                            updateMessage = "Найдена новая версия: ${release.tag_name}"
+                            updateMessage = if (isNewer) {
+                                "Доступна новая версия: ${release.tag_name}"
+                            } else {
+                                "У вас установлена актуальная версия ядра (${release.tag_name})"
+                            }
                         )
                     }
                 }
@@ -133,6 +140,18 @@ class SettingsViewModel(
     fun updateTheme(dynamic: Boolean, dark: Boolean, amoled: Boolean) {
         viewModelScope.launch {
             settingsRepository.updateTheme(dynamic, dark, amoled)
+        }
+    }
+
+    fun updateTestUrl(url: String) {
+        viewModelScope.launch {
+            settingsRepository.updateTestUrl(url)
+        }
+    }
+
+    fun updateTestTimeout(timeoutMs: Int) {
+        viewModelScope.launch {
+            settingsRepository.updateTestTimeout(timeoutMs)
         }
     }
 }

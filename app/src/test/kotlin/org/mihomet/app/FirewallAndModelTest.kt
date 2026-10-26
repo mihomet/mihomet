@@ -103,7 +103,7 @@ class FirewallAndModelTest {
 
     @Test
     fun `test proxy and group names url encoding for api client`() {
-        val groupName = "→ Remnawave"
+        val groupName = "⚡️ Основной Выбор"
         val nodeName = "🇷🇺 Russia 01"
         val autoGroupName = "⚡ Автовыбор"
 
