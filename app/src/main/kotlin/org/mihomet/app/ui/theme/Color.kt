@@ -31,12 +31,14 @@ val DarkOutlineVariant = Color(0xFF2E2D38)
 
 // Tonal Surface Containers - AMOLED Mode
 val AmoledBackground = Color(0xFF000000)
-val AmoledSurface = Color(0xFF08080A)
+val AmoledSurface = Color(0xFF101015)
 val AmoledSurfaceContainerLowest = Color(0xFF000000)
-val AmoledSurfaceContainerLow = Color(0xFF0E0E12)
-val AmoledSurfaceContainer = Color(0xFF14141A)
-val AmoledSurfaceContainerHigh = Color(0xFF1E1E26)
-val AmoledSurfaceContainerHighest = Color(0xFF2A2A34)
+val AmoledSurfaceContainerLow = Color(0xFF16161F)
+val AmoledSurfaceContainer = Color(0xFF1E1E28)
+val AmoledSurfaceContainerHigh = Color(0xFF282836)
+val AmoledSurfaceContainerHighest = Color(0xFF343444)
+val AmoledOutline = Color(0xFF565568)
+val AmoledOutlineVariant = Color(0xFF323140)
 
 // Tonal Surface Containers - Light Mode
 val LightBackground = Color(0xFFFBF8FD)

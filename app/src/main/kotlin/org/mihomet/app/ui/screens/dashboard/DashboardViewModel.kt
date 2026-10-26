@@ -31,7 +31,8 @@ data class DashboardUiState(
     val primaryGroup: String = "",
     val selectedNode: String = "",
     val selectedNodeDelay: Long = 0,
-    val isConnecting: Boolean = false
+    val isConnecting: Boolean = false,
+    val isDisconnecting: Boolean = false
 )
 
 class DashboardViewModel(
@@ -74,7 +75,10 @@ class DashboardViewModel(
         viewModelScope.launch {
             ServiceState.isRunning.collect { running ->
                 android.util.Log.d("MihometVpn", "DashboardViewModel received ServiceState.isRunning = $running")
-                _uiState.update { it.copy(isRunning = running, isConnecting = false) }
+                if (!running && _uiState.value.isDisconnecting) {
+                    delay(350) // Graceful completion of spin-down animation
+                }
+                _uiState.update { it.copy(isRunning = running, isConnecting = false, isDisconnecting = false) }
                 if (running) {
                     startTrafficMonitor()
                     syncActiveProxy()
@@ -101,7 +105,7 @@ class DashboardViewModel(
     fun startProxy() {
         val isRoot = _uiState.value.isRootMode
         android.util.Log.d("MihometVpn", "DashboardViewModel.startProxy() called, isRoot=$isRoot")
-        _uiState.update { it.copy(isConnecting = true) }
+        _uiState.update { it.copy(isConnecting = true, isDisconnecting = false) }
         if (isRoot) {
             if (org.mihomet.app.core.ServiceState.runningService.value == org.mihomet.app.core.RunningService.VPN) {
                 MihometVpnService.stop(context)
@@ -118,10 +122,13 @@ class DashboardViewModel(
     fun stopProxy() {
         val isRoot = _uiState.value.isRootMode
         android.util.Log.d("MihometVpn", "DashboardViewModel.stopProxy() called, isRoot=$isRoot")
-        if (isRoot) {
-            RootTProxyService.stop(context)
-        } else {
-            MihometVpnService.stop(context)
+        _uiState.update { it.copy(isDisconnecting = true, isConnecting = false) }
+        viewModelScope.launch {
+            if (isRoot) {
+                RootTProxyService.stop(context)
+            } else {
+                MihometVpnService.stop(context)
+            }
         }
     }
 

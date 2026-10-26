@@ -1,14 +1,15 @@
 package org.mihomet.app.ui.navigation
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -24,6 +25,25 @@ import org.mihomet.app.ui.screens.proxies.ProxiesScreen
 import org.mihomet.app.ui.screens.routing.RoutingScreen
 import org.mihomet.app.ui.screens.settings.SettingsScreen
 
+private fun getNavTabOrder(route: String?): Int {
+    return when (route) {
+        Screen.Dashboard.route -> 0
+        Screen.Proxies.route -> 1
+        Screen.Profiles.route -> 2
+        Screen.Settings.route -> 3
+        else -> -1
+    }
+}
+
+private fun isDetailRoute(route: String?): Boolean {
+    return route != null && (
+        route == Screen.Routing.route ||
+        route == Screen.Connections.route ||
+        route == Screen.Logs.route ||
+        route.startsWith("yaml_editor")
+    )
+}
+
 @Composable
 fun AppNavGraph(
     navController: NavHostController,
@@ -34,28 +54,76 @@ fun AppNavGraph(
         startDestination = Screen.Dashboard.route,
         modifier = Modifier.padding(paddingValues),
         enterTransition = {
-            fadeIn(animationSpec = tween(220)) + scaleIn(
-                initialScale = 0.96f,
-                animationSpec = tween(220)
-            )
+            val initialRoute = initialState.destination.route
+            val targetRoute = targetState.destination.route
+            if (isDetailRoute(targetRoute)) {
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = tween(340, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(280))
+            } else {
+                val fromIndex = getNavTabOrder(initialRoute)
+                val toIndex = getNavTabOrder(targetRoute)
+                val direction = if (toIndex >= fromIndex) 1 else -1
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth -> (fullWidth * 0.22f * direction).toInt() },
+                    animationSpec = tween(320, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing))
+            }
         },
         exitTransition = {
-            fadeOut(animationSpec = tween(180)) + scaleOut(
-                targetScale = 0.96f,
-                animationSpec = tween(180)
-            )
+            val initialRoute = initialState.destination.route
+            val targetRoute = targetState.destination.route
+            if (isDetailRoute(targetRoute)) {
+                slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> (-fullWidth * 0.25f).toInt() },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing))
+            } else {
+                val fromIndex = getNavTabOrder(initialRoute)
+                val toIndex = getNavTabOrder(targetRoute)
+                val direction = if (toIndex >= fromIndex) -1 else 1
+                slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> (fullWidth * 0.22f * direction).toInt() },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = tween(220, easing = FastOutLinearInEasing))
+            }
         },
         popEnterTransition = {
-            fadeIn(animationSpec = tween(220)) + scaleIn(
-                initialScale = 0.96f,
-                animationSpec = tween(220)
-            )
+            val initialRoute = initialState.destination.route
+            val targetRoute = targetState.destination.route
+            if (isDetailRoute(initialRoute)) {
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth -> (-fullWidth * 0.25f).toInt() },
+                    animationSpec = tween(320, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing))
+            } else {
+                val fromIndex = getNavTabOrder(initialRoute)
+                val toIndex = getNavTabOrder(targetRoute)
+                val direction = if (toIndex >= fromIndex) 1 else -1
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth -> (fullWidth * 0.22f * direction).toInt() },
+                    animationSpec = tween(320, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing))
+            }
         },
         popExitTransition = {
-            fadeOut(animationSpec = tween(180)) + scaleOut(
-                targetScale = 0.96f,
-                animationSpec = tween(180)
-            )
+            val initialRoute = initialState.destination.route
+            if (isDetailRoute(initialRoute)) {
+                slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = tween(220, easing = FastOutLinearInEasing))
+            } else {
+                val targetRoute = targetState.destination.route
+                val fromIndex = getNavTabOrder(initialRoute)
+                val toIndex = getNavTabOrder(targetRoute)
+                val direction = if (toIndex >= fromIndex) -1 else 1
+                slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> (fullWidth * 0.22f * direction).toInt() },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing))
+            }
         }
     ) {
         composable(Screen.Dashboard.route) {

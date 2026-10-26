@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.mihomet.app.core.config.UniversalConfigConverter
 import org.mihomet.app.data.db.ProfileDao
@@ -43,11 +44,29 @@ class ProfilesViewModel(
         }
     }
 
+    private fun normalizeHeadersJson(raw: String): String {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return "{}"
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            return trimmed
+        }
+        val map = trimmed.lines()
+            .map { it.trim() }
+            .filter { it.contains(":") || it.contains("=") }
+            .associate { line ->
+                val delimiter = if (line.contains(":")) ":" else "="
+                val parts = line.split(delimiter, limit = 2)
+                parts[0].trim() to parts.getOrElse(1) { "" }.trim()
+            }
+        return Json.encodeToString(map)
+    }
+
     fun addRemoteProfile(name: String, url: String, customHeaders: String = "{}") {
         viewModelScope.launch {
             try {
                 val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
-                val content = downloadProfileContent(url, customHeaders)
+                val normalizedHeaders = normalizeHeadersJson(customHeaders)
+                val content = downloadProfileContent(url, normalizedHeaders)
 
                 val file = File(profileDir, "profile_${System.currentTimeMillis()}.yaml")
                 file.writeText(content)
@@ -58,7 +77,7 @@ class ProfilesViewModel(
                     type = ProfileType.REMOTE,
                     url = url,
                     filePath = file.absolutePath,
-                    customHeaders = customHeaders,
+                    customHeaders = normalizedHeaders,
                     isSelected = isFirst
                 )
                 val newId = profileDao.insertProfile(entity)
@@ -220,7 +239,16 @@ class ProfilesViewModel(
     suspend fun downloadProfileContent(url: String, headersJson: String = "{}"): String = withContext(Dispatchers.IO) {
         val parsedHeaders = runCatching {
             Json.decodeFromString<Map<String, String>>(headersJson)
-        }.getOrDefault(emptyMap())
+        }.getOrElse {
+            headersJson.lines()
+                .map { it.trim() }
+                .filter { it.contains(":") || it.contains("=") }
+                .associate { line ->
+                    val delimiter = if (line.contains(":")) ":" else "="
+                    val parts = line.split(delimiter, limit = 2)
+                    parts[0].trim() to parts.getOrElse(1) { "" }.trim()
+                }
+        }
 
         val customUa = parsedHeaders["User-Agent"]
         val userAgentsToTry = if (!customUa.isNullOrBlank()) {

@@ -7,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -441,7 +443,10 @@ fun AddProfileDialog(
         onDismissRequest = onDismiss,
         title = { Text("Добавить подписку", fontWeight = FontWeight.Black) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         selected = isRemote,
@@ -498,10 +503,22 @@ fun AddProfileDialog(
                     OutlinedTextField(
                         value = customHeaders,
                         onValueChange = { customHeaders = it },
-                        label = { Text("Заголовки (JSON)") },
-                        placeholder = { Text("{\"x-hwid\": \"...\"}") },
+                        label = { Text("Заголовки (JSON или Ключ: Значение)") },
+                        placeholder = { Text("User-Agent: Happ/3.6.0\nx-hwid: 12345\n(или JSON)") },
                         shape = ExpressiveShapes.Small,
-                        singleLine = true,
+                        singleLine = false,
+                        minLines = 1,
+                        maxLines = 5,
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                val clip = clipboardManager.getText()?.text?.trim() ?: ""
+                                if (clip.isNotBlank()) {
+                                    customHeaders = clip
+                                }
+                            }) {
+                                Icon(Icons.Default.ContentPaste, contentDescription = "Вставить заголовки")
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }

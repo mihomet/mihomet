@@ -163,9 +163,10 @@ fun DashboardScreen(
             ExpressiveHeroConnect(
                 isRunning = state.isRunning,
                 isConnecting = state.isConnecting,
+                isDisconnecting = state.isDisconnecting,
                 onClick = {
                     AppHaptics.perform(context, HapticType.HEAVY, view)
-                    if (state.isRunning) {
+                    if (state.isRunning || state.isDisconnecting) {
                         viewModel.stopProxy()
                     } else {
                         if (state.isRootMode) {
@@ -287,21 +288,22 @@ fun DashboardScreen(
 }
 
 /**
- * Material 3 Expressive Hero Connect Widget with tactile morphing squircle and breathing aura.
+ * Material 3 Expressive Hero Connect Widget with tactile morphing squircle, dynamic containers, and breathing aura.
  */
 @Composable
 fun ExpressiveHeroConnect(
     isRunning: Boolean,
     isConnecting: Boolean,
+    isDisconnecting: Boolean,
     onClick: () -> Unit
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulseHalo")
 
     val outerRingScale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = if (isRunning || isConnecting) 1.18f else 1f,
+        targetValue = if (isRunning || isConnecting) 1.18f else if (isDisconnecting) 1.08f else 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1600, easing = FastOutSlowInEasing),
+            animation = tween(if (isDisconnecting) 800 else 1600, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "outerRingScale"
@@ -309,30 +311,44 @@ fun ExpressiveHeroConnect(
 
     val innerRingScale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = if (isRunning || isConnecting) 1.09f else 1f,
+        targetValue = if (isRunning || isConnecting) 1.09f else if (isDisconnecting) 1.04f else 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
+            animation = tween(if (isDisconnecting) 600 else 1200, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "innerRingScale"
     )
 
+    val targetButtonColor = when {
+        isRunning -> AccentGreen
+        isConnecting -> AccentOrange
+        isDisconnecting -> Color(0xFFEA580C)
+        else -> MaterialTheme.colorScheme.surfaceContainerHighest
+    }
+
     val buttonColor by animateColorAsState(
-        targetValue = when {
-            isRunning -> AccentGreen
-            isConnecting -> AccentOrange
-            else -> PrimaryDark
-        },
+        targetValue = targetButtonColor,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
         label = "heroButtonColor"
     )
 
-    val buttonGlowColor by animateColorAsState(
+    val iconTint by animateColorAsState(
         targetValue = when {
-            isRunning -> AccentGreen.copy(alpha = 0.28f)
-            isConnecting -> AccentOrange.copy(alpha = 0.28f)
-            else -> PrimaryDark.copy(alpha = 0.15f)
+            isRunning || isConnecting || isDisconnecting -> Color.White
+            else -> MaterialTheme.colorScheme.primary
         },
+        label = "heroIconTint"
+    )
+
+    val targetGlowColor = when {
+        isRunning -> AccentGreen.copy(alpha = 0.28f)
+        isConnecting -> AccentOrange.copy(alpha = 0.28f)
+        isDisconnecting -> Color(0xFFEA580C).copy(alpha = 0.22f)
+        else -> Color.Transparent
+    }
+
+    val buttonGlowColor by animateColorAsState(
+        targetValue = targetGlowColor,
         label = "heroGlowColor"
     )
 
@@ -352,7 +368,7 @@ fun ExpressiveHeroConnect(
             modifier = Modifier.size(190.dp)
         ) {
             // Outer Ambient Pulse Ring
-            if (isRunning || isConnecting) {
+            if (isRunning || isConnecting || isDisconnecting) {
                 Box(
                     modifier = Modifier
                         .size(185.dp)
@@ -375,7 +391,14 @@ fun ExpressiveHeroConnect(
             Surface(
                 shape = ExpressiveShapes.Hero,
                 color = buttonColor,
-                shadowElevation = if (isRunning) 14.dp else 6.dp,
+                border = if (!isRunning && !isConnecting && !isDisconnecting) {
+                    BorderStroke(1.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                } else null,
+                shadowElevation = when {
+                    isRunning -> 14.dp
+                    isConnecting || isDisconnecting -> 8.dp
+                    else -> 4.dp
+                },
                 modifier = Modifier
                     .size(138.dp)
                     .scale(pressScale)
@@ -390,7 +413,7 @@ fun ExpressiveHeroConnect(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    if (isConnecting) {
+                    if (isConnecting || isDisconnecting) {
                         CircularProgressIndicator(
                             color = Color.White,
                             modifier = Modifier.size(52.dp),
@@ -400,7 +423,7 @@ fun ExpressiveHeroConnect(
                         Icon(
                             imageVector = if (isRunning) Icons.Default.Shield else Icons.Default.PowerSettingsNew,
                             contentDescription = "Подключение",
-                            tint = Color.White,
+                            tint = iconTint,
                             modifier = Modifier.size(56.dp)
                         )
                     }
@@ -426,11 +449,11 @@ fun ExpressiveHeroConnect(
                 PulsingStatusDot(
                     color = when {
                         isRunning -> AccentGreen
-                        isConnecting -> AccentOrange
+                        isConnecting || isDisconnecting -> AccentOrange
                         else -> MaterialTheme.colorScheme.outline
                     },
                     size = 7.dp,
-                    pulsing = isRunning || isConnecting
+                    pulsing = isRunning || isConnecting || isDisconnecting
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -438,6 +461,7 @@ fun ExpressiveHeroConnect(
                 Text(
                     text = when {
                         isConnecting -> "ПОДКЛЮЧЕНИЕ..."
+                        isDisconnecting -> "ОТКЛЮЧЕНИЕ..."
                         isRunning -> "ЗАЩИЩЕНО"
                         else -> "НЕ ПОДКЛЮЧЕНО"
                     },
@@ -446,7 +470,7 @@ fun ExpressiveHeroConnect(
                     letterSpacing = 0.8.sp,
                     color = when {
                         isRunning -> AccentGreen
-                        isConnecting -> AccentOrange
+                        isConnecting || isDisconnecting -> AccentOrange
                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                     }
                 )

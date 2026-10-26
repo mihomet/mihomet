@@ -67,8 +67,8 @@ private val ExpressiveAmoledColorScheme = darkColorScheme(
     surfaceContainer = AmoledSurfaceContainer,
     surfaceContainerHigh = AmoledSurfaceContainerHigh,
     surfaceContainerHighest = AmoledSurfaceContainerHighest,
-    outline = Color(0xFF43424E),
-    outlineVariant = Color(0xFF282830),
+    outline = AmoledOutline,
+    outlineVariant = AmoledOutlineVariant,
     error = AccentRed,
     onError = Color.White,
     errorContainer = AccentRedContainer,
@@ -131,11 +131,16 @@ fun MihometTheme(
             baseColorScheme.copy(
                 background = AmoledBackground,
                 surface = AmoledSurface,
+                surfaceDim = AmoledSurfaceContainerLowest,
+                surfaceBright = AmoledSurfaceContainerHighest,
+                surfaceVariant = AmoledSurfaceContainerHigh,
                 surfaceContainerLowest = AmoledSurfaceContainerLowest,
                 surfaceContainerLow = AmoledSurfaceContainerLow,
                 surfaceContainer = AmoledSurfaceContainer,
                 surfaceContainerHigh = AmoledSurfaceContainerHigh,
-                surfaceContainerHighest = AmoledSurfaceContainerHighest
+                surfaceContainerHighest = AmoledSurfaceContainerHighest,
+                outline = AmoledOutline,
+                outlineVariant = AmoledOutlineVariant
             )
         } else {
             ExpressiveAmoledColorScheme

@@ -408,7 +408,7 @@ class ProxiesViewModel(
                     if (probeResult.isFailure) {
                         runDirectNetworkTestAll(
                             protocol = currentProtocol,
-                            notice = "Ядро остановлено: выполнен прямой TLS/TCP опрос"
+                            notice = null
                         )
                     }
                 }
