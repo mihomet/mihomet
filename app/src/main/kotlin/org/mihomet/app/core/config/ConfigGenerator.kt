@@ -52,27 +52,36 @@ object ConfigGenerator {
             existingDns["enhanced-mode"] = "fake-ip"
             existingDns["fake-ip-range"] = "198.18.0.1/16"
         }
-        // Direct nameserver resolves proxy server hostnames; prepend reliable uncensored resolvers
-        existingDns["direct-nameserver"] = listOf(
-            "77.88.8.8",
-            "77.88.8.1",
-            "1.1.1.1"
+        // 1. Direct bootstrap DNS: Used exclusively to resolve DoH hostnames and proxy server hostnames.
+        // MUST NEVER contain 1.1.1.1 or 8.8.8.8 over plain UDP 53 because Russian TSPU blocks them!
+        // Yandex DNS (77.88.8.8 / 77.88.8.1) and system (local Wi-Fi / mobile carrier) are 100% accessible.
+        val unblockedBootstrap = listOf("77.88.8.8", "77.88.8.1", "system")
+
+        // 2. default-nameserver: Used by Mihomo to bootstrap DNS servers. Must only be reachable direct IPs / system.
+        existingDns["default-nameserver"] = unblockedBootstrap
+
+        // 3. proxy-server-nameserver: The CRITICAL setting Mihomo uses to resolve proxy server hostnames (e.g. lv-*.meow.ac).
+        // Without this, Mihomo falls back to default-nameserver or nameserver.
+        existingDns["proxy-server-nameserver"] = unblockedBootstrap
+
+        // 4. direct-nameserver: Used for direct connections.
+        existingDns["direct-nameserver"] = unblockedBootstrap
+
+        // 5. nameserver: Used for routed app traffic.
+        // Use Encrypted DNS over HTTPS (DoH) which works everywhere and bypasses ISP censorship,
+        // plus Yandex fallback. Remove plain UDP 1.1.1.1 / 8.8.8.8 / 114.114.114.114.
+        val userNameserver = (existingDns["nameserver"] as? List<*>)
+            ?.mapNotNull { it?.toString() }
+            ?.filter { it != "1.1.1.1" && it != "1.0.0.1" && it != "8.8.8.8" && it != "8.8.4.4" && it != "114.114.114.114" }
+            ?: emptyList()
+
+        val primaryDoH = listOf(
+            "https://77.88.8.8/dns-query",
+            "https://1.1.1.1/dns-query",
+            "https://dns.google/dns-query",
+            "77.88.8.8"
         )
-        val userDefaultDns = (existingDns["default-nameserver"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
-        val reliableDns = listOf("77.88.8.8", "77.88.8.1", "1.1.1.1", "8.8.8.8")
-        existingDns["default-nameserver"] = (reliableDns.take(2) + userDefaultDns).distinct()
-        val userNameserver = (existingDns["nameserver"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
-        val antiCensorshipNameservers = listOf("77.88.8.8", "https://77.88.8.8/dns-query", "1.1.1.1")
-        existingDns["nameserver"] = if (userNameserver.isEmpty()) {
-            listOf(
-                "https://77.88.8.8/dns-query",
-                "77.88.8.8",
-                "https://1.1.1.1/dns-query",
-                "1.1.1.1"
-            )
-        } else {
-            (userNameserver + antiCensorshipNameservers).distinct()
-        }
+        existingDns["nameserver"] = (primaryDoH + userNameserver).distinct()
         configMap["dns"] = existingDns
 
         // Sniffer for domain restoration on TLS/HTTP

@@ -88,7 +88,7 @@ class ConfigGeneratorTest {
         assertEquals(false, tun["auto-detect-interface"])
 
         val dns = parsed["dns"] as Map<String, Any>
-        assertEquals(listOf("77.88.8.8", "77.88.8.1", "1.1.1.1"), dns["direct-nameserver"])
+        assertEquals(listOf("77.88.8.8", "77.88.8.1", "system"), dns["direct-nameserver"])
 
         val proxies = parsed["proxies"] as List<Map<String, Any>>
         assertEquals(true, proxies[0]["udp"])

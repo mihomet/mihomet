@@ -143,6 +143,15 @@ class ConfigGeneratorStrictTest {
         assertEquals("0.0.0.0:1053", dns["listen"])
         assertEquals("fake-ip", dns["enhanced-mode"])
 
+        val proxyServerDns = dns["proxy-server-nameserver"] as List<String>
+        assertTrue("Must contain 77.88.8.8", proxyServerDns.contains("77.88.8.8"))
+        assertTrue("Must contain system", proxyServerDns.contains("system"))
+        assertFalse("Must not contain blocked 1.1.1.1", proxyServerDns.contains("1.1.1.1"))
+
+        val defaultDns = dns["default-nameserver"] as List<String>
+        assertTrue("Must contain 77.88.8.8", defaultDns.contains("77.88.8.8"))
+        assertFalse("Must not contain blocked 1.1.1.1", defaultDns.contains("1.1.1.1"))
+
         val sniffer = parsed["sniffer"] as Map<String, Any>
         assertEquals(true, sniffer["enable"])
         assertNotNull(sniffer["sniff"])
