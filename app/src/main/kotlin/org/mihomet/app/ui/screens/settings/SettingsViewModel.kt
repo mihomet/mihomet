@@ -154,4 +154,10 @@ class SettingsViewModel(
             settingsRepository.updateTestTimeout(timeoutMs)
         }
     }
+
+    fun updateCustomDns(dns: String) {
+        viewModelScope.launch {
+            settingsRepository.updateCustomDns(dns)
+        }
+    }
 }

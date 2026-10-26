@@ -156,4 +156,24 @@ class ConfigGeneratorStrictTest {
         assertEquals(true, sniffer["enable"])
         assertNotNull(sniffer["sniff"])
     }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test custom dns is prepended at top priority in nameserver`() {
+        val customDnsUrl = "https://dns.adguard-dns.com/dns-query"
+        val settings = AppSettings(customDns = customDnsUrl)
+        val configYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = sampleProfile,
+            settings = settings,
+            tunFd = null
+        )
+
+        val yaml = Yaml()
+        val parsed = yaml.load<Map<String, Any>>(configYaml)
+
+        val dns = parsed["dns"] as Map<String, Any>
+        val nameserver = dns["nameserver"] as List<String>
+        assertTrue("Nameserver must not be empty", nameserver.isNotEmpty())
+        assertEquals("Custom DNS must be the first (highest priority) nameserver", customDnsUrl, nameserver[0])
+    }
 }

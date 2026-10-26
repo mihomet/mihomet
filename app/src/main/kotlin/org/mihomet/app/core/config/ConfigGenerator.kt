@@ -68,6 +68,10 @@ object ConfigGenerator {
         existingDns["direct-nameserver"] = unblockedBootstrap
 
         // 5. nameserver: Used for routed app traffic.
+        // If user defined a custom DNS (e.g. AdGuard, NextDNS, custom DoH or IP), place it at top priority.
+        val customDns = settings.customDns.trim()
+        val customList = if (customDns.isNotBlank()) listOf(customDns) else emptyList()
+
         // Use Encrypted DNS over HTTPS (DoH) which works everywhere and bypasses ISP censorship,
         // plus Yandex fallback. Remove plain UDP 1.1.1.1 / 8.8.8.8 / 114.114.114.114.
         val userNameserver = (existingDns["nameserver"] as? List<*>)
@@ -81,7 +85,7 @@ object ConfigGenerator {
             "https://dns.google/dns-query",
             "77.88.8.8"
         )
-        existingDns["nameserver"] = (primaryDoH + userNameserver).distinct()
+        existingDns["nameserver"] = (customList + primaryDoH + userNameserver).distinct()
         configMap["dns"] = existingDns
 
         // Sniffer for domain restoration on TLS/HTTP

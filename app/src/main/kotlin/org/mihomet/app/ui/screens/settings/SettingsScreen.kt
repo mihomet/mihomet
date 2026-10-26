@@ -5,7 +5,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -16,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -40,6 +43,7 @@ fun SettingsScreen(
 
     var showPortsDialog by remember { mutableStateOf(false) }
     var showLatencyDialog by remember { mutableStateOf(false) }
+    var showDnsDialog by remember { mutableStateOf(false) }
     var isAdvancedExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -477,6 +481,42 @@ fun SettingsScreen(
 
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
+                                // Custom DNS Configuration
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(ExpressiveShapes.Small)
+                                        .clickable {
+                                            AppHaptics.perform(context, HapticType.CLICK, view)
+                                            showDnsDialog = true
+                                        }
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                        Text("DNS-сервер", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                        val dnsSubtitle = when {
+                                            settings.customDns.isBlank() -> "По умолчанию (Smart DoH + Bypass)"
+                                            settings.customDns == "https://dns.adguard-dns.com/dns-query" -> "AdGuard DNS (Блокировка рекламы)"
+                                            settings.customDns == "https://cloudflare-dns.com/dns-query" -> "Cloudflare DoH (1.1.1.1)"
+                                            settings.customDns == "https://dns.google/dns-query" -> "Google DoH (8.8.8.8)"
+                                            settings.customDns == "https://common.dot.dns.yandex.net/dns-query" -> "Яндекс DNS DoH"
+                                            settings.customDns == "https://dns.comss.one/dns-query" -> "Comss.one DoH"
+                                            settings.customDns == "https://dns.quad9.net/dns-query" -> "Quad9 DoH"
+                                            else -> settings.customDns
+                                        }
+                                        Text(
+                                            dnsSubtitle,
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Icon(Icons.Default.Dns, contentDescription = null, modifier = Modifier.size(18.dp))
+                                }
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
                                 // IPv6
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -648,6 +688,17 @@ fun SettingsScreen(
                     viewModel.updateTestUrl(url)
                     viewModel.updateTestTimeout(timeout)
                     showLatencyDialog = false
+                }
+            )
+        }
+
+        if (showDnsDialog) {
+            CustomDnsDialog(
+                currentDns = settings.customDns,
+                onDismiss = { showDnsDialog = false },
+                onSave = { selectedDns ->
+                    viewModel.updateCustomDns(selectedDns)
+                    showDnsDialog = false
                 }
             )
         }
@@ -924,6 +975,171 @@ fun LatencyTestConfigDialog(
                     val t = (timeoutSec.toIntOrNull() ?: 5) * 1000
                     onSave(url, t)
                 },
+                shape = ExpressiveShapes.Small
+            ) {
+                Text("Сохранить", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена")
+            }
+        }
+    )
+}
+
+@Composable
+fun CustomDnsDialog(
+    currentDns: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var dnsInput by remember { mutableStateOf(currentDns) }
+    val clipboardManager = LocalClipboardManager.current
+    val scrollState = rememberScrollState()
+
+    val presets = listOf(
+        "По умолчанию (Smart DoH)" to "",
+        "AdGuard DNS (Антиреклама)" to "https://dns.adguard-dns.com/dns-query",
+        "Cloudflare DoH" to "https://cloudflare-dns.com/dns-query",
+        "Google DoH" to "https://dns.google/dns-query",
+        "Яндекс DoH (Россия)" to "https://common.dot.dns.yandex.net/dns-query",
+        "Comss.one DoH" to "https://dns.comss.one/dns-query",
+        "Quad9 DoH (Безопасность)" to "https://dns.quad9.net/dns-query"
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Пользовательский DNS", fontWeight = FontWeight.Black)
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Задает первичный DNS-сервер для разрешения доменов через ядро Mihomo. Поддерживаются DoH (https://...), DoT (tls://...), UDP/TCP IP-адреса.",
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                OutlinedTextField(
+                    value = dnsInput,
+                    onValueChange = { dnsInput = it },
+                    label = { Text("URL или IP DNS-сервера") },
+                    placeholder = { Text("https://dns.adguard-dns.com/dns-query") },
+                    shape = ExpressiveShapes.Small,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (dnsInput.isNotBlank()) {
+                                IconButton(onClick = { dnsInput = "" }) {
+                                    Icon(
+                                        Icons.Default.Clear,
+                                        contentDescription = "Очистить",
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                            IconButton(onClick = {
+                                clipboardManager.getText()?.text?.let { text ->
+                                    dnsInput = text.trim()
+                                }
+                            }) {
+                                Icon(
+                                    Icons.Default.ContentPaste,
+                                    contentDescription = "Вставить",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                )
+
+                Text(
+                    text = "Популярные пресеты:",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+
+                presets.forEach { (name, url) ->
+                    val isSelected = (dnsInput.trim() == url)
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(ExpressiveShapes.Small)
+                            .clickable { dnsInput = url },
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f)
+                        },
+                        shape = ExpressiveShapes.Small,
+                        border = if (isSelected) {
+                            BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+                        } else null
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                Text(
+                                    text = name,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                    fontSize = 13.sp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                )
+                                if (url.isNotBlank()) {
+                                    Text(
+                                        text = url,
+                                        fontSize = 11.sp,
+                                        color = if (isSelected) {
+                                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                        maxLines = 1
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Встроенный быстрый DoH пул с защитой от блокировок",
+                                        fontSize = 11.sp,
+                                        color = if (isSelected) {
+                                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        }
+                                    )
+                                }
+                            }
+
+                            if (isSelected) {
+                                Icon(
+                                    Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(dnsInput.trim()) },
                 shape = ExpressiveShapes.Small
             ) {
                 Text("Сохранить", fontWeight = FontWeight.Bold)

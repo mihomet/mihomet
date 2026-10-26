@@ -29,6 +29,7 @@ class SettingsRepository(private val context: Context) {
         val AMOLED_BLACK = booleanPreferencesKey("amoled_black")
         val SELECTED_NODE_NAME = stringPreferencesKey("selected_node_name")
         val SHOW_SPEED_NOTIFICATION = booleanPreferencesKey("show_speed_notification")
+        val CUSTOM_DNS = stringPreferencesKey("custom_dns")
         val CONTROLLER_SECRET = stringPreferencesKey("controller_secret")
         val TEST_URL = stringPreferencesKey("test_url")
         val TEST_TIMEOUT_MS = intPreferencesKey("test_timeout_ms")
@@ -65,6 +66,7 @@ class SettingsRepository(private val context: Context) {
                 darkTheme = preferences[PreferencesKeys.DARK_THEME] ?: true,
                 amoledBlack = preferences[PreferencesKeys.AMOLED_BLACK] ?: false,
                 showSpeedInNotification = preferences[PreferencesKeys.SHOW_SPEED_NOTIFICATION] ?: true,
+                customDns = preferences[PreferencesKeys.CUSTOM_DNS] ?: "",
                 controllerSecret = preferences[PreferencesKeys.CONTROLLER_SECRET] ?: "mihomet_secret_token",
                 testUrl = preferences[PreferencesKeys.TEST_URL]?.let { stored ->
                     if (stored.startsWith("https://cp.cloudflare.com")) {
@@ -133,5 +135,9 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun updateTestTimeout(timeoutMs: Int) {
         context.dataStore.edit { it[PreferencesKeys.TEST_TIMEOUT_MS] = timeoutMs }
+    }
+
+    suspend fun updateCustomDns(dns: String) {
+        context.dataStore.edit { it[PreferencesKeys.CUSTOM_DNS] = dns.trim() }
     }
 }

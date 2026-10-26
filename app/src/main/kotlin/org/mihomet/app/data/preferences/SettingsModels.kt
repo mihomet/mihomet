@@ -34,6 +34,7 @@ data class AppSettings(
     val darkTheme: Boolean = true,
     val amoledBlack: Boolean = false,
     val showSpeedInNotification: Boolean = true,
+    val customDns: String = "",
     val controllerSecret: String = "mihomet_secret_token",
     val testUrl: String = "http://www.gstatic.com/generate_204",
     val testTimeoutMs: Int = 5000
