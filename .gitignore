@@ -8,3 +8,17 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+.kotlin/
+
+# Mihomo core artifacts (downloaded at build time, see gradle/mihomo-core.properties)
+.mihomo-core-cache/
+
+# Signing material must never be committed
+*.jks
+*.keystore
+keystore.properties
+
+# Build artifacts
+*.apk
+*.aab
+*.hprof

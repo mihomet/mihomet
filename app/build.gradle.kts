@@ -1,3 +1,7 @@
+import java.security.MessageDigest
+import java.util.Properties
+import java.util.zip.GZIPInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,6 +9,104 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
 }
+
+// Mihomo core is kept out of git and downloaded at build time.
+// Pinned version + sha256 live in gradle/mihomo-core.properties.
+val coreProperties = Properties().apply {
+    val file = rootProject.file("gradle/mihomo-core.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val coreVersion = coreProperties.getProperty("version") ?: "1.19.33"
+val coreCacheDir = rootProject.layout.projectDirectory.dir(".mihomo-core-cache")
+
+val downloadMihomoCore by tasks.registering {
+    group = "build"
+    description = "Downloads the pinned mihomo core binary and geo databases into the app module"
+    doLast {
+        fun sha256(file: File): String =
+            MessageDigest.getInstance("SHA-256").digest(file.readBytes())
+                .joinToString("") { "%02x".format(it) }
+
+        fun download(url: String, dest: File, expectedSha: String?) {
+            logger.lifecycle("Mihomet: downloading ${dest.name}…")
+            dest.parentFile.mkdirs()
+            val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+            connection.connectTimeout = 15000
+            connection.readTimeout = 120000
+            connection.instanceFollowRedirects = true
+            try {
+                connection.inputStream.use { input -> dest.outputStream().use { input.copyTo(it) } }
+            } finally {
+                connection.disconnect()
+            }
+            if (expectedSha != null) {
+                val actual = sha256(dest)
+                if (!actual.equals(expectedSha, ignoreCase = true)) {
+                    dest.delete()
+                    throw GradleException(
+                        "Checksum mismatch for ${dest.name}: expected $expectedSha, got $actual. " +
+                            "If upstream published a new artifact, update gradle/mihomo-core.properties."
+                    )
+                }
+            } else if (dest.length() < 1_000_000) {
+                dest.delete()
+                throw GradleException("Downloaded ${dest.name} looks truncated (${dest.length()} bytes).")
+            }
+        }
+
+        // Core binary: pinned release, verified by sha256 of the .gz artifact
+        val flavorByAbi = mapOf(
+            "arm64-v8a" to "arm64-v8",
+            "armeabi-v7a" to "armv7",
+            "x86_64" to "amd64"
+        )
+        flavorByAbi.forEach { (abi, flavor) ->
+            val target = layout.projectDirectory.file("src/main/jniLibs/$abi/libmihomo.so").asFile
+            val expectedSize = coreProperties.getProperty("size.$abi")?.toLongOrNull()
+            if (target.isFile && expectedSize != null && target.length() == expectedSize) {
+                return@forEach
+            }
+            val gz = coreCacheDir.file("mihomo-android-$flavor-v$coreVersion.gz").asFile
+            val expectedSha = coreProperties.getProperty("checksum.$abi")
+                ?: throw GradleException("gradle/mihomo-core.properties is missing checksum.$abi")
+            if (!gz.isFile || !sha256(gz).equals(expectedSha, ignoreCase = true)) {
+                download(
+                    "https://github.com/MetaCubeX/mihomo/releases/download/v$coreVersion/mihomo-android-$flavor-v$coreVersion.gz",
+                    gz,
+                    expectedSha
+                )
+            }
+            target.parentFile.mkdirs()
+            GZIPInputStream(gz.inputStream()).use { input ->
+                target.outputStream().use { input.copyTo(it) }
+            }
+            logger.lifecycle("Mihomet: extracted libmihomo.so ($abi) from core v$coreVersion")
+        }
+
+        // Geo databases: rolling latest, sanity-checked by size (data, not executed)
+        mapOf("geoip.metadb" to "geoip", "geosite.dat" to "geosite").forEach { (fileName, key) ->
+            val target = layout.projectDirectory.file("src/main/assets/$fileName").asFile
+            val expectedSha = coreProperties.getProperty("checksum.$key")
+            if (target.isFile && expectedSha != null && sha256(target).equals(expectedSha, ignoreCase = true)) {
+                return@forEach
+            }
+            val cached = coreCacheDir.file(fileName).asFile
+            val cachedSha = if (cached.isFile) sha256(cached) else null
+            if (cachedSha == null || expectedSha == null || !cachedSha.equals(expectedSha, ignoreCase = true)) {
+                download(
+                    "https://github.com/MetaCubeX/meta-rules-dat/releases/latest/download/$fileName",
+                    cached,
+                    expectedSha
+                )
+            }
+            target.parentFile.mkdirs()
+            cached.copyTo(target, overwrite = true)
+            logger.lifecycle("Mihomet: updated assets/$fileName")
+        }
+    }
+}
+
+tasks.named("preBuild") { dependsOn(downloadMihomoCore) }
 
 android {
     namespace = "org.mihomet.app"
@@ -26,12 +128,23 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // CI release signing: provided via KEYSTORE_* environment variables.
+            // Local builds without the variables produce an unsigned release APK.
+            val keystoreFile = System.getenv("KEYSTORE_FILE")
+            if (keystoreFile != null) {
+                signingConfig = signingConfigs.create("ciRelease") {
+                    storeFile = file(keystoreFile)
+                    storePassword = System.getenv("KEYSTORE_PASSWORD")
+                    keyAlias = System.getenv("KEY_ALIAS")
+                    keyPassword = System.getenv("KEY_PASSWORD")
+                }
+            }
         }
     }
 
@@ -60,6 +173,7 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
