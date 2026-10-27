@@ -1,0 +1,45 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="240dp"
+    android:height="240dp"
+    android:viewportWidth="240"
+    android:viewportHeight="240">
+    <!-- Splash screen brand glyph (used with windowSplashScreenAnimatedIcon) -->
+    <path
+        android:pathData="M50,190 L85,50 L120,143 L155,50 L190,190"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="17"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="50"
+                android:startY="50"
+                android:endX="190"
+                android:endY="190"
+                android:type="linear">
+                <item
+                    android:offset="0.0"
+                    android:color="#FFA78BFA" />
+                <item
+                    android:offset="1.0"
+                    android:color="#FF8B5CF6" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:fillColor="#FF2DD4BF"
+        android:pathData="M35,190 a15,15 0 1,0 30,0 a15,15 0 1,0 -30,0" />
+    <path
+        android:fillColor="#FFF472B6"
+        android:pathData="M175,190 a15,15 0 1,0 30,0 a15,15 0 1,0 -30,0" />
+    <path
+        android:fillColor="#FFDDD6FE"
+        android:pathData="M75,50 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0" />
+    <path
+        android:fillColor="#FFDDD6FE"
+        android:pathData="M145,50 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0" />
+    <path
+        android:fillColor="#FFDDD6FE"
+        android:pathData="M110,143 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0" />
+</vector>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Variant 4 "Bolt Route": lightning bolt assembled from route segments -->
+  <defs>
+    <linearGradient id="bolt" x1="180" y1="96" x2="340" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A78BFA"/>
+      <stop offset="1" stop-color="#F472B6"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="115" fill="#17131F"/>
+  <path d="M296 84 L172 278 H250 L208 428 L344 218 H266 Z"
+        fill="url(#bolt)" stroke="#17131F" stroke-width="10"
+        stroke-linejoin="round"/>
+  <circle cx="296" cy="84" r="26" fill="#2DD4BF" stroke="#17131F" stroke-width="10"/>
+  <circle cx="208" cy="428" r="26" fill="#2DD4BF" stroke="#17131F" stroke-width="10"/>
+</svg>
