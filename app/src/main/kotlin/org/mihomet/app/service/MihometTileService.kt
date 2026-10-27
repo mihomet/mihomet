@@ -10,6 +10,8 @@ import androidx.annotation.RequiresApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
@@ -25,7 +27,7 @@ import org.mihomet.app.ui.MainActivity
 class MihometTileService : TileService(), KoinComponent {
 
     private val settingsRepository: SettingsRepository by inject()
-    private val scope = CoroutineScope(Dispatchers.Main)
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var listenJob: Job? = null
 
     override fun onStartListening() {
@@ -47,6 +49,7 @@ class MihometTileService : TileService(), KoinComponent {
     override fun onDestroy() {
         super.onDestroy()
         listenJob?.cancel()
+        scope.cancel()
     }
 
     override fun onClick() {

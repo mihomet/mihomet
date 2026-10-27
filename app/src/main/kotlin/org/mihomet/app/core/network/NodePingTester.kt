@@ -3,6 +3,8 @@ package org.mihomet.app.core.network
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.yaml.snakeyaml.Yaml
 import java.net.HttpURLConnection
@@ -85,17 +87,22 @@ object NodePingTester {
 
     suspend fun testHttpPing(server: String, port: Int, method: String = "GET", timeoutMs: Int = 2000): Long = withContext(Dispatchers.IO) {
         val start = System.currentTimeMillis()
+        var conn: HttpURLConnection? = null
         try {
             if (port != 443 && port != 8443) {
                 val url = URL("http://$server:$port")
-                val conn = (url.openConnection() as HttpURLConnection).apply {
+                conn = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = method
                     connectTimeout = timeoutMs
                     readTimeout = timeoutMs
                     instanceFollowRedirects = false
                 }
                 val code = conn.responseCode
-                conn.disconnect()
+                // Drain the body (or error stream) so the socket can be released cleanly
+                try {
+                    (if (code in 200..399) conn.inputStream else conn.errorStream)?.use { it.read() }
+                } catch (_: Exception) {
+                }
                 if (code in 200..399 || code == 404 || code == 405) {
                     return@withContext System.currentTimeMillis() - start
                 }
@@ -104,6 +111,8 @@ object NodePingTester {
             testTlsPing(server, port, timeoutMs)
         } catch (e: Exception) {
             -1L
+        } finally {
+            conn?.disconnect()
         }
     }
 
@@ -138,10 +147,14 @@ object NodePingTester {
         protocol: PingProtocol = PingProtocol.TCP,
         timeoutMs: Int = 2000
     ): Map<String, Long> = withContext(Dispatchers.IO) {
+        // Cap concurrency: large subscriptions would otherwise open hundreds of sockets at once
+        val semaphore = Semaphore(8)
         nodes.map { node ->
             async {
-                val latency = testNode(node, protocol, timeoutMs)
-                node.name to latency
+                semaphore.withPermit {
+                    val latency = testNode(node, protocol, timeoutMs)
+                    node.name to latency
+                }
             }
         }.awaitAll().toMap()
     }

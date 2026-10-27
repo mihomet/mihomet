@@ -22,6 +22,9 @@ import io.ktor.websocket.readText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -145,51 +148,51 @@ class MihomoApiClient(
         }
     }
 
-    fun streamTraffic(): Flow<TrafficSample> = flow {
-        try {
-            httpClient.webSocket(
-                urlString = "$wsUrl/traffic",
-                request = { applyAuth() }
-            ) {
-                while (isActive) {
-                    val frame = incoming.receive()
-                    if (frame is Frame.Text) {
-                        val text = frame.readText()
-                        val sample = json.decodeFromString<TrafficSample>(text)
-                        emit(sample)
+    private companion object {
+        const val WS_RETRY_INITIAL_DELAY_MS = 1_000L
+        const val WS_RETRY_MAX_DELAY_MS = 10_000L
+    }
+
+    /**
+     * Streams decoded [Frame.Text] messages from a Mihomo WebSocket endpoint,
+     * reconnecting with exponential backoff (1s → 10s) until the collector is
+     * cancelled. Without this, a dropped connection silently ends the flow.
+     */
+    private fun <T> streamWebSocket(path: String, decode: (String) -> T): Flow<T> = flow {
+        var retryDelayMs = WS_RETRY_INITIAL_DELAY_MS
+        while (currentCoroutineContext().isActive) {
+            try {
+                httpClient.webSocket(
+                    urlString = "$wsUrl$path",
+                    request = { applyAuth() }
+                ) {
+                    while (isActive) {
+                        val frame = incoming.receive()
+                        if (frame is Frame.Text) {
+                            emit(decode(frame.readText()))
+                        }
                     }
                 }
+                // Session ended normally — start over with the short delay
+                retryDelayMs = WS_RETRY_INITIAL_DELAY_MS
+            } catch (e: ClosedReceiveChannelException) {
+                // WS closed — reconnect
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Connection error or Mihomo not running yet — reconnect
             }
-        } catch (e: ClosedReceiveChannelException) {
-            // WS closed
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            // Connection error or Mihomo not running yet
+            currentCoroutineContext().ensureActive()
+            delay(retryDelayMs)
+            retryDelayMs = (retryDelayMs * 2).coerceAtMost(WS_RETRY_MAX_DELAY_MS)
         }
     }.flowOn(Dispatchers.IO)
 
-    fun streamLogs(): Flow<LogEntry> = flow {
-        try {
-            httpClient.webSocket(
-                urlString = "$wsUrl/logs",
-                request = { applyAuth() }
-            ) {
-                while (isActive) {
-                    val frame = incoming.receive()
-                    if (frame is Frame.Text) {
-                        val text = frame.readText()
-                        val entry = json.decodeFromString<LogEntry>(text)
-                        emit(entry)
-                    }
-                }
-            }
-        } catch (e: ClosedReceiveChannelException) {
-            // WS closed
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            // Connection error
-        }
-    }.flowOn(Dispatchers.IO)
+    fun streamTraffic(): Flow<TrafficSample> = streamWebSocket("/traffic") { text ->
+        json.decodeFromString<TrafficSample>(text)
+    }
+
+    fun streamLogs(): Flow<LogEntry> = streamWebSocket("/logs") { text ->
+        json.decodeFromString<LogEntry>(text)
+    }
 }
