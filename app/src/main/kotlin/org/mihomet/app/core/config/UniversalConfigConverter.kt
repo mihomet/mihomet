@@ -21,8 +21,18 @@ object UniversalConfigConverter {
      * and rules without any hardcoded node or group names.
      */
     fun convertToMihomoYaml(content: String): String {
+        return convertToMihomoYamlWithOutcome(content).yaml
+    }
+
+    /**
+     * Same as [convertToMihomoYaml] but also reports non-fatal problems collected
+     * during conversion so the caller can surface them to the user.
+     */
+    fun convertToMihomoYamlWithOutcome(content: String): ConversionOutcome {
         val trimmed = content.trim()
-        if (trimmed.isBlank()) return content
+        if (trimmed.isBlank()) return ConversionOutcome(content, emptyList())
+
+        val warnings = mutableListOf<String>()
 
         // Check for Base64 encoded payload
         val decoded = if (isLikelyBase64(trimmed)) {
@@ -33,15 +43,19 @@ object UniversalConfigConverter {
             trimmed
         }
 
-        return when {
+        val yaml = when {
             isHappRouting(trimmed) -> convertHappRoutingToMihomoYaml(trimmed)
             isHappRouting(decoded) -> convertHappRoutingToMihomoYaml(decoded)
             isClashYaml(decoded) -> validateAndNormalizeYaml(decoded)
-            isSingBoxJson(decoded) -> convertSingBoxJsonToMihomoYaml(decoded)
-            isXrayJson(decoded) -> convertXrayJsonToMihomoYaml(decoded)
-            isUriList(decoded) -> convertUriListToMihomoYaml(decoded)
-            else -> decoded
+            isSingBoxJson(decoded) -> convertSingBoxJsonToMihomoYaml(decoded, warnings)
+            isXrayJson(decoded) -> convertXrayJsonToMihomoYaml(decoded, warnings)
+            isUriList(decoded) -> convertUriListToMihomoYaml(decoded, warnings)
+            else -> {
+                warnings.add("Не удалось определить формат конфигурации")
+                decoded
+            }
         }
+        return ConversionOutcome(yaml, warnings)
     }
 
     private fun isHappRouting(str: String): Boolean {
@@ -235,7 +249,7 @@ object UniversalConfigConverter {
      * Converts Xray configurations (both JSON array from Happ/Incy/v2rayNG and single JSON object)
      * into Mihomo YAML with all balancers, nodes, and routing rules preserved dynamically.
      */
-    private fun convertXrayJsonToMihomoYaml(jsonStr: String): String {
+    private fun convertXrayJsonToMihomoYaml(jsonStr: String, warnings: MutableList<String>? = null): String {
         try {
             val rootElement = json.parseToJsonElement(jsonStr)
             val items: List<JsonObject> = when (rootElement) {
@@ -309,7 +323,10 @@ object UniversalConfigConverter {
                 }
             }
 
-            if (serverNames.isEmpty()) return jsonStr
+            if (serverNames.isEmpty()) {
+                warnings?.add("В Xray-конфиге не найдено ни одного поддерживаемого узла")
+                return jsonStr
+            }
 
             // 2. Extract Balancers from items
             val proxyGroups = mutableListOf<Map<String, Any>>()
@@ -445,7 +462,7 @@ object UniversalConfigConverter {
 
             val rootConfig = mutableMapOf<String, Any>(
                 "mixed-port" to 7890,
-                "allow-lan" to true,
+                "allow-lan" to false,
                 "mode" to "rule",
                 "log-level" to "info",
                 "proxies" to proxies,
@@ -462,6 +479,7 @@ object UniversalConfigConverter {
             Yaml(dumperOptions).dump(rootConfig, writer)
             return writer.toString()
         } catch (e: Exception) {
+            warnings?.add("Ошибка конвертации Xray JSON: ${e.message ?: "неизвестная ошибка"}")
             return jsonStr
         }
     }
@@ -470,7 +488,7 @@ object UniversalConfigConverter {
      * Converts Sing-Box JSON to Mihomo YAML preserving all dynamic urltest and selector groups
      * and supporting all modern Sing-Box protocols and transports.
      */
-    private fun convertSingBoxJsonToMihomoYaml(jsonStr: String): String {
+    private fun convertSingBoxJsonToMihomoYaml(jsonStr: String, warnings: MutableList<String>? = null): String {
         try {
             val root = json.parseToJsonElement(jsonStr).jsonObject
             val outbounds = root["outbounds"]?.jsonArray ?: return jsonStr
@@ -527,7 +545,10 @@ object UniversalConfigConverter {
                 }
             }
 
-            if (proxies.isEmpty()) return jsonStr
+            if (proxies.isEmpty()) {
+                warnings?.add("В Sing-Box конфиге не найдено ни одного поддерживаемого узла")
+                return jsonStr
+            }
 
             // If no selector group was defined in Sing-Box, create standard selector group
             if (proxyGroups.none { it["type"] == "select" }) {
@@ -599,7 +620,7 @@ object UniversalConfigConverter {
 
             val rootConfig = mutableMapOf<String, Any>(
                 "mixed-port" to 7890,
-                "allow-lan" to true,
+                "allow-lan" to false,
                 "mode" to "rule",
                 "log-level" to "info",
                 "proxies" to proxies,
@@ -616,6 +637,7 @@ object UniversalConfigConverter {
             Yaml(dumperOptions).dump(rootConfig, writer)
             return writer.toString()
         } catch (e: Exception) {
+            warnings?.add("Ошибка конвертации Sing-Box JSON: ${e.message ?: "неизвестная ошибка"}")
             return jsonStr
         }
     }
@@ -1072,23 +1094,26 @@ object UniversalConfigConverter {
         }
     }
 
-    private fun convertUriListToMihomoYaml(uriList: String): String {
+    private fun convertUriListToMihomoYaml(uriList: String, warnings: MutableList<String>? = null): String {
         val proxies = mutableListOf<Map<String, Any>>()
         val names = mutableListOf<String>()
 
         uriList.lineSequence().map { it.trim() }.filter { it.isNotBlank() }.forEach { uriStr ->
-            val proxy = parseUriToMihomoProxy(uriStr)
+            val proxy = parseUriToMihomoProxy(uriStr, warnings)
             if (proxy != null) {
                 proxies.add(proxy)
                 names.add(proxy["name"].toString())
             }
         }
 
-        if (proxies.isEmpty()) return uriList
+        if (proxies.isEmpty()) {
+            warnings?.add("В подписке не найдено ни одного поддерживаемого узла")
+            return uriList
+        }
 
         val root = mutableMapOf<String, Any>(
             "mixed-port" to 7890,
-            "allow-lan" to true,
+            "allow-lan" to false,
             "mode" to "rule",
             "proxies" to proxies,
             "proxy-groups" to listOf(
@@ -1111,7 +1136,7 @@ object UniversalConfigConverter {
         return writer.toString()
     }
 
-    private fun parseUriToMihomoProxy(uri: String): Map<String, Any>? {
+    private fun parseUriToMihomoProxy(uri: String, warnings: MutableList<String>? = null): Map<String, Any>? {
         return try {
             val hashIdx = uri.indexOf('#')
             val rawRemarks = if (hashIdx != -1) uri.substring(hashIdx + 1) else ""
@@ -1124,9 +1149,15 @@ object UniversalConfigConverter {
                 cleanUri.startsWith("trojan://") -> parseTrojanUri(cleanUri, remarks)
                 cleanUri.startsWith("ss://") -> parseShadowsocksUri(cleanUri, remarks)
                 cleanUri.startsWith("hysteria2://") || cleanUri.startsWith("hy2://") -> parseHysteria2Uri(cleanUri, remarks)
-                else -> null
+                cleanUri.startsWith("hysteria://") -> parseHysteriaUri(cleanUri, remarks)
+                cleanUri.startsWith("tuic://") -> parseTuicUri(cleanUri, remarks)
+                else -> {
+                    warnings?.add("Не удалось распознать узел: $uri")
+                    null
+                }
             }
         } catch (e: Exception) {
+            warnings?.add("Ошибка разбора узла: $uri (${e.message ?: "неизвестная ошибка"})")
             null
         }
     }
@@ -1141,15 +1172,10 @@ object UniversalConfigConverter {
         val hostPort = if (qIdx != -1) rest.substring(0, qIdx) else rest
         val query = if (qIdx != -1) rest.substring(qIdx + 1) else ""
 
-        val hpParts = hostPort.split(":")
-        if (hpParts.size != 2) return null
-        val server = hpParts[0]
-        val port = hpParts[1].toIntOrNull() ?: 443
+        val (server, rawPort) = parseHostPort(hostPort) ?: return null
+        val port = rawPort.toIntOrNull() ?: 443
 
-        val params = query.split("&").mapNotNull {
-            val p = it.split("=")
-            if (p.size == 2) p[0] to URLDecoder.decode(p[1], "UTF-8") else null
-        }.toMap()
+        val params = parseQueryParams(query)
 
         val map = mutableMapOf<String, Any>(
             "name" to name,
@@ -1241,15 +1267,10 @@ object UniversalConfigConverter {
         val hostPort = if (qIdx != -1) rest.substring(0, qIdx) else rest
         val query = if (qIdx != -1) rest.substring(qIdx + 1) else ""
 
-        val hpParts = hostPort.split(":")
-        if (hpParts.size != 2) return null
-        val server = hpParts[0]
-        val port = hpParts[1].toIntOrNull() ?: 443
+        val (server, rawPort) = parseHostPort(hostPort) ?: return null
+        val port = rawPort.toIntOrNull() ?: 443
 
-        val params = query.split("&").mapNotNull {
-            val p = it.split("=")
-            if (p.size == 2) p[0] to URLDecoder.decode(p[1], "UTF-8") else null
-        }.toMap()
+        val params = parseQueryParams(query)
 
         val map = mutableMapOf<String, Any>(
             "name" to name,
@@ -1275,13 +1296,12 @@ object UniversalConfigConverter {
             if (upParts.size != 2) return null
             val method = upParts[0]
             val password = upParts[1]
-            val hpParts = rest.split(":")
-            if (hpParts.size != 2) return null
+            val (server, rawPort) = parseHostPort(rest) ?: return null
             mutableMapOf(
                 "name" to name,
                 "type" to "ss",
-                "server" to hpParts[0],
-                "port" to (hpParts[1].toIntOrNull() ?: 8388),
+                "server" to server,
+                "port" to (rawPort.toIntOrNull() ?: 8388),
                 "cipher" to method,
                 "password" to password,
                 "udp" to true
@@ -1293,13 +1313,13 @@ object UniversalConfigConverter {
             val userinfo = decoded.substring(0, atIdx)
             val hp = decoded.substring(atIdx + 1)
             val upParts = userinfo.split(":")
-            val hpParts = hp.split(":")
-            if (upParts.size != 2 || hpParts.size != 2) return null
+            val hostPort = parseHostPort(hp) ?: return null
+            if (upParts.size != 2) return null
             mutableMapOf(
                 "name" to name,
                 "type" to "ss",
-                "server" to hpParts[0],
-                "port" to (hpParts[1].toIntOrNull() ?: 8388),
+                "server" to hostPort.first,
+                "port" to (hostPort.second.toIntOrNull() ?: 8388),
                 "cipher" to upParts[0],
                 "password" to upParts[1]
             )
@@ -1316,17 +1336,11 @@ object UniversalConfigConverter {
         val hostPort = if (qIdx != -1) rest.substring(0, qIdx) else rest
         val query = if (qIdx != -1) rest.substring(qIdx + 1) else ""
 
-        val hpParts = hostPort.split(":")
-        if (hpParts.size != 2) return null
-        val server = hpParts[0]
-        val rawPort = hpParts[1]
+        val (server, rawPort) = parseHostPort(hostPort) ?: return null
 
-        val params = query.split("&").mapNotNull {
-            val p = it.split("=")
-            if (p.size == 2) p[0] to URLDecoder.decode(p[1], "UTF-8") else null
-        }.toMap()
+        val params = parseQueryParams(query)
 
-        val port = rawPort.split("-", ",").firstOrNull()?.toIntOrNull() ?: 443
+        val port = rawPort.split("-", ",").firstOrNull()?.trim()?.toIntOrNull() ?: 443
 
         val map = mutableMapOf<String, Any>(
             "name" to name,
@@ -1370,6 +1384,125 @@ object UniversalConfigConverter {
         params["up"]?.let { map["up"] = it }
         params["down"]?.let { map["down"] = it }
         return map
+    }
+
+    private fun parseHysteriaUri(uri: String, name: String): Map<String, Any>? {
+        val noScheme = uri.removePrefix("hysteria://")
+        // Auth may be either userinfo ("hysteria://auth@host:port") or the "auth" query param.
+        // lastIndexOf keeps bare IPv6 user info from breaking the split.
+        val atIdx = noScheme.lastIndexOf('@')
+        var auth = ""
+        val rest: String
+        if (atIdx != -1 && noScheme.indexOf(':', atIdx + 1) != -1) {
+            auth = noScheme.substring(0, atIdx)
+            rest = noScheme.substring(atIdx + 1)
+        } else {
+            rest = noScheme
+        }
+
+        val qIdx = rest.indexOf('?')
+        val hostPort = if (qIdx != -1) rest.substring(0, qIdx) else rest
+        val query = if (qIdx != -1) rest.substring(qIdx + 1) else ""
+
+        val (server, rawPort) = parseHostPort(hostPort) ?: return null
+        val port = rawPort.toIntOrNull() ?: return null
+
+        val params = parseQueryParams(query)
+        params["auth"]?.takeIf { it.isNotBlank() }?.let { auth = it }
+
+        val map = mutableMapOf<String, Any>(
+            "name" to name,
+            "type" to "hysteria",
+            "server" to server,
+            "port" to port,
+            "udp" to true
+        )
+        if (auth.isNotBlank()) map["auth-str"] = auth
+        params["upmbps"]?.toIntOrNull()?.let { map["up"] = it }
+        params["downmbps"]?.toIntOrNull()?.let { map["down"] = it }
+
+        val sni = params["peer"]?.takeIf { it.isNotBlank() } ?: params["sni"]?.takeIf { it.isNotBlank() }
+        if (sni != null) map["sni"] = sni
+
+        val insecure = params["insecure"] == "1" || params["insecure"].equals("true", ignoreCase = true)
+        if (insecure) map["skip-cert-verify"] = true
+
+        params["obfs"]?.takeIf { it.isNotBlank() }?.let { map["obfs"] = it }
+        params["alpn"]?.takeIf { it.isNotBlank() }?.let { map["alpn"] = it.split(",") }
+        return map
+    }
+
+    private fun parseTuicUri(uri: String, name: String): Map<String, Any>? {
+        val noScheme = uri.removePrefix("tuic://")
+        val atIdx = noScheme.lastIndexOf('@')
+        if (atIdx == -1) return null
+        val userinfo = noScheme.substring(0, atIdx)
+        val rest = noScheme.substring(atIdx + 1)
+
+        val qIdx = rest.indexOf('?')
+        val hostPort = if (qIdx != -1) rest.substring(0, qIdx) else rest
+        val query = if (qIdx != -1) rest.substring(qIdx + 1) else ""
+
+        val uuid = userinfo.substringBefore(':')
+        val password = userinfo.substringAfter(':', missingDelimiterValue = "")
+
+        val (server, rawPort) = parseHostPort(hostPort) ?: return null
+        val port = rawPort.toIntOrNull() ?: return null
+
+        val params = parseQueryParams(query)
+
+        val map = mutableMapOf<String, Any>(
+            "name" to name,
+            "type" to "tuic",
+            "server" to server,
+            "port" to port,
+            "uuid" to uuid,
+            "password" to password,
+            "udp" to true
+        )
+        params["sni"]?.takeIf { it.isNotBlank() }?.let { map["sni"] = it }
+        params["congestion_control"]?.takeIf { it.isNotBlank() }?.let { map["congestion-controller"] = it }
+        params["udp_relay_mode"]?.takeIf { it.isNotBlank() }?.let { map["udp-relay-mode"] = it }
+        params["alpn"]?.takeIf { it.isNotBlank() }?.let { map["alpn"] = it.split(",") }
+
+        val insecure = params["allow_insecure"] == "1" ||
+                params["allow_insecure"].equals("true", ignoreCase = true) ||
+                params["skip_cert_verify"].equals("true", ignoreCase = true) ||
+                params["allowInsecure"] == "1"
+        if (insecure) map["skip-cert-verify"] = true
+
+        if (params["disable_sni"] == "1" || params["disable_sni"].equals("true", ignoreCase = true)) {
+            map["disable-sni"] = true
+        }
+        return map
+    }
+
+    /**
+     * Parses "host:port" tolerating IPv6: "[2001:db8::1]:443" or plain "host:443".
+     * Returns the host and the raw (unparsed) port; null for a bracket-less IPv6
+     * literal (ambiguous without a port) or a malformed bracket form.
+     */
+    private fun parseHostPort(raw: String): Pair<String, String>? {
+        val trimmed = raw.trim()
+        if (trimmed.startsWith("[")) {
+            val close = trimmed.indexOf(']')
+            if (close == -1) return null
+            val host = trimmed.substring(1, close)
+            val rest = trimmed.substring(close + 1)
+            if (!rest.startsWith(":")) return null
+            return host to rest.removePrefix(":")
+        }
+        if (trimmed.count { it == ':' } == 1) {
+            return trimmed.substringBefore(':') to trimmed.substringAfter(':')
+        }
+        return null
+    }
+
+    private fun parseQueryParams(query: String): Map<String, String> {
+        return query.split("&").mapNotNull {
+            val p = it.split("=")
+            if (p.size == 2) p[0] to URLDecoder.decode(p[1], "UTF-8") else null
+        }.toMap()
     }
 
     private fun extractAddressAndPort(protocol: String, settings: JsonObject): Pair<String?, Int?> {

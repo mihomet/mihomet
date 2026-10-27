@@ -325,4 +325,104 @@ class UniversalConfigConverterTest {
         assertEquals(true, node["skip-cert-verify"])
         assertEquals(true, node["udp"])
     }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test TUIC URI converts to tuic proxy with all parameters`() {
+        val uri = "tuic://uuid-abcd:my_secret@tuic.example.com:8443?" +
+                "congestion_control=bbr&alpn=h3&sni=tuic.sni.com&udp_relay_mode=native&allow_insecure=1#TuicNode"
+        val yamlStr = UniversalConfigConverter.convertToMihomoYaml(uri)
+        val yaml = Yaml()
+        val parsed = yaml.load<Map<String, Any>>(yamlStr)
+
+        val proxies = parsed["proxies"] as List<Map<String, Any>>
+        assertEquals(1, proxies.size)
+        val node = proxies[0]
+        assertEquals("TuicNode", node["name"])
+        assertEquals("tuic", node["type"])
+        assertEquals("tuic.example.com", node["server"])
+        assertEquals(8443, node["port"])
+        assertEquals("uuid-abcd", node["uuid"])
+        assertEquals("my_secret", node["password"])
+        assertEquals("bbr", node["congestion-controller"])
+        assertEquals("tuic.sni.com", node["sni"])
+        assertEquals("native", node["udp-relay-mode"])
+        assertEquals(listOf("h3"), node["alpn"])
+        assertEquals(true, node["skip-cert-verify"])
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test Hysteria v1 URI converts to hysteria proxy with auth and bandwidth`() {
+        val uri = "hysteria://auth_str_value@hy1.example.com:443?" +
+                "upmbps=100&downmbps=500&peer=hy1.sni.com&insecure=1&obfs=xplus&alpn=h3#Hy1Node"
+        val yamlStr = UniversalConfigConverter.convertToMihomoYaml(uri)
+        val yaml = Yaml()
+        val parsed = yaml.load<Map<String, Any>>(yamlStr)
+
+        val proxies = parsed["proxies"] as List<Map<String, Any>>
+        assertEquals(1, proxies.size)
+        val node = proxies[0]
+        assertEquals("Hy1Node", node["name"])
+        assertEquals("hysteria", node["type"])
+        assertEquals("hy1.example.com", node["server"])
+        assertEquals(443, node["port"])
+        assertEquals("auth_str_value", node["auth-str"])
+        assertEquals(100, node["up"])
+        assertEquals(500, node["down"])
+        assertEquals("hy1.sni.com", node["sni"])
+        assertEquals(true, node["skip-cert-verify"])
+        assertEquals("xplus", node["obfs"])
+        assertEquals(listOf("h3"), node["alpn"])
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test IPv6 hosts in bracket and plain forms are parsed`() {
+        val uriList = """
+            vless://uuid-v6@[2001:db8::1]:443?security=tls#VlessV6
+            trojan://tjpass@[::1]:9443#TrojanV6
+        """.trimIndent()
+
+        val yamlStr = UniversalConfigConverter.convertToMihomoYaml(uriList)
+        val yaml = Yaml()
+        val parsed = yaml.load<Map<String, Any>>(yamlStr)
+
+        val proxies = parsed["proxies"] as List<Map<String, Any>>
+        assertEquals(2, proxies.size)
+        assertEquals("2001:db8::1", proxies[0]["server"])
+        assertEquals(443, proxies[0]["port"])
+        assertEquals("::1", proxies[1]["server"])
+        assertEquals(9443, proxies[1]["port"])
+    }
+
+    @Test
+    fun `test unrecognized lines produce warnings in outcome without breaking valid nodes`() {
+        val uriList = """
+            vless://uuid-ok@example.com:443#ValidNode
+            junk-protocol://something@nowhere:1#Broken
+        """.trimIndent()
+
+        val outcome = UniversalConfigConverter.convertToMihomoYamlWithOutcome(uriList)
+
+        assertTrue(outcome.warnings.any { it.contains("Не удалось распознать узел") })
+        val yaml = Yaml()
+        val parsed = yaml.load<Map<String, Any>>(outcome.yaml)
+        val proxies = parsed["proxies"] as List<Map<String, Any>>
+        assertEquals(1, proxies.size)
+        assertEquals("ValidNode", proxies[0]["name"])
+    }
+
+    @Test
+    fun `test plain convertToMihomoYaml keeps working and drops unparsable nodes silently`() {
+        val uriList = """
+            vless://uuid-ok@example.com:443#ValidNode
+            junk-protocol://something@nowhere:1#Broken
+        """.trimIndent()
+
+        val yamlStr = UniversalConfigConverter.convertToMihomoYaml(uriList)
+        val parsed = Yaml().load<Map<String, Any>>(yamlStr)
+        val proxies = parsed["proxies"] as List<Map<String, Any>>
+        assertEquals(1, proxies.size)
+    }
 }
