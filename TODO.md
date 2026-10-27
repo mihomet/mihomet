@@ -1,44 +1,53 @@
 # Mihomet — Project Roadmap & TODO
 
-## 🎯 Active Milestone: Docker Test Bench with Real VPN Panels (Option A)
+## 🎯 Active Milestone: Full Panel Compatibility for the Subscription Converter
 
-**Objective**: Deploy popular VPN control panels in Docker with realistic mock node configurations to test and guarantee 100% accurate subscription fetching, format conversion, and proxy group handling in Mihomet.
+**Objective**: Guarantee 100% accurate subscription fetching and format conversion for all popular VPN panels by testing against real Docker deployments and recorded fixtures.
 
----
+### Supported / target panels matrix
 
-### Phase 1: Docker Compose Setup & Deployment
-- [ ] **1.1. Create Testing Directory**: Setup `docker/test-bench/` with modular compose definitions and documentation.
-- [ ] **1.2. 3X-UI Panel Deployment**:
-  - Image: `ghcr.io/mhsanaei/3x-ui:latest` (or `alireza0/x-ui`).
-  - Pre-configure SQLite database with fake test inbounds:
-    - VLESS Reality (with `pbk`, `sid`, `sni`, `fp`).
-    - VMess + WebSocket (`path`, `host`, `tls`).
-    - Shadowsocks (2022-blake3-aes-128-gcm / chacha20-poly1305).
-    - Trojan + gRPC.
-  - Expose subscription endpoint for testing.
-- [ ] **1.3. Marzban Panel Deployment**:
-  - Image: `gozargah/marzban:latest` with Xray core.
-  - Setup test admin & users.
-  - Configure subscription with standard and Clash/Sing-box endpoints.
-  - Verify `Subscription-Userinfo` traffic header emission.
-- [ ] **1.4. Remnawave Panel Deployment**:
-  - Image: Remnawave backend/frontend stack.
-  - Configure HWID enforcement (`x-hwid`) and User-Agent validation.
-  - Test anti-abuse and node balancer grouping.
+| Panel | Status | Notes |
+|---|---|---|
+| Generic (Base64 URI list, Clash YAML, sing-box JSON) | ✅ working | `UniversalConfigConverter` |
+| Share-links (vless/vmess/trojan/ss/hysteria2/hysteria/tuic) | ✅ working | incl. IPv6 hosts |
+| Marzban | ⚠️ partial | endpoints `/sub/{token}/clash`, `/sing-box`, HTML fallback |
+| Remnawave | ⚠️ partial | `x-hwid` header supported; response format snapshots needed |
+| 3X-UI / S-UI | ⚠️ partial | Base64 URI lists, `/sub` endpoints |
+| Marzneshin | ❌ untested | subscription variants + user-info headers |
+| Hiddify Panel | ❌ untested | `sub?...` formats, remote profiles |
+| Sub-Store / subconverter pipelines | ❌ untested | exotic output variants |
 
----
+### Phase 1: Docker test bench
+- [ ] **1.1. Testing directory**: `docker/test-bench/` with modular compose files and docs.
+- [ ] **1.2. 3X-UI deployment** (`ghcr.io/mhsanaei/3x-ui`): pre-configured SQLite with VLESS Reality, VMess+WS, SS-2022, Trojan+gRPC inbounds; exposed subscription endpoint.
+- [ ] **1.3. Marzban deployment** (`gozargah/marzban`): test admin/users, Clash & sing-box subscription endpoints, `Subscription-Userinfo` header verification.
+- [ ] **1.4. Marzneshin deployment**: both subscription formats, user-info headers.
+- [ ] **1.5. Remnawave deployment**: HWID enforcement (`x-hwid`), UA validation, balancer grouping.
+- [ ] **1.6. S-UI and Hiddify deployments**: subscription output snapshots.
 
-### Phase 2: Conversion & Integration Testing in Mihomet
-- [ ] **2.1. Subscription Import Automated Tests**:
-  - Write test cases in `SubscriptionStrictTest` fetching directly from local Docker endpoints (or generated snapshots).
-  - Verify Base64 padding resilience (`RFC 4648` without `=` or URL-safe variants).
-  - Verify Sing-box JSON -> Mihomo YAML conversion via `UniversalConfigConverter`.
-- [ ] **2.2. Header & Traffic Info Support in Mihomet**:
-  - Parse `Subscription-Userinfo` header (Upload, Download, Total, Expiry).
-  - Display quota progress bar & expiry date in `ProfilesScreen` cards.
-  - Retain custom headers (`x-hwid`, custom `User-Agent`) during background profile updates.
-- [ ] **2.3. Proxy Group & Balancer Alignment**:
-  - Verify panel-defined selector and url-test groups import seamlessly into `ProxiesScreen` without conflicts.
+### Phase 2: Converter integration tests
+- [ ] **2.1. Fixture-based unit tests**: record real subscription payloads from every panel into `app/src/test/resources/panels/<panel>/*.txt` and assert full conversion (proxies, groups, no dropped nodes, no warnings).
+- [ ] **2.2. Base64 resilience**: RFC 4648 without padding, URL-safe variants, multi-line payloads.
+- [ ] **2.3. `Subscription-Userinfo` support**: parse Upload/Download/Total/Expiry, show quota bar + expiry in `ProfilesScreen` cards.
+- [ ] **2.4. Header retention**: keep custom headers (`x-hwid`, custom `User-Agent`) during background profile updates.
+- [ ] **2.5. Group alignment**: panel-defined selectors/url-test groups import into `ProxiesScreen` without conflicts.
+
+### Phase 3: Localization RU/EN (in progress — next task)
+- [ ] **3.1.** Extract ~200 hardcoded Russian strings from 7 screens + ViewModel statuses into `res/values/strings.xml` (EN default) and `values-ru/`.
+- [ ] **3.2.** ViewModels emit resource ids (not literals); plurals for node/connection counters.
+- [ ] **3.3.** Update tests asserting on literal strings.
+
+### Deferred audit findings (medium/low)
+- [ ] Room: enable `exportSchema` and write real migrations (currently destructive).
+- [ ] Restore Android Private DNS after a root-daemon crash (currently only on clean stop).
+- [ ] Encrypt subscription URLs and controller secret at rest (Room/DataStore).
+- [ ] Unify duplicated UI pieces: `SearchPill` (3 screens), two latency badges, count badges.
+- [ ] TrafficGraph: upload gradient fill, axis labels, tap tooltip.
+- [ ] Connection screen polling tied to screen visibility instead of VM init.
+- [ ] `DashboardViewModel` root-daemon polling via root shell every 3s → event-based.
+- [ ] YamlEditor: highlight syntax, keep gutter in sync (single scroll), unsaved-changes dialog.
+- [ ] `usesCleartextTraffic` → networkSecurityConfig allowing cleartext only for user-declared http subscription hosts.
+- [ ] CI: release workflow test with a dummy keystore secret.
 
 ---
 
@@ -49,6 +58,9 @@
 - [x] Removal of intrusive "ядро остановлено" snackbars.
 - [x] Shared-axis lateral slide navigation transitions (`NavGraph.kt`).
 - [x] Multi-line auto-expanding custom headers field with internal scrolling (`ProfilesScreen.kt`).
-- [x] Comprehensive developer & AI agent guide (`AGENT_GUIDE.md`).
-- [x] 36/36 Unit Tests Passing (`ThemeStrictTest`, `SubscriptionHeadersStrictTest`, `ConfigGeneratorStrictTest`, `NodePingTesterStrictTest`, `DashboardStateStrictTest`).
-- [x] Verified and signed release APK assembly.
+- [x] Brand logo (M-route monogram), adaptive icon with monochrome layer, splash screen.
+- [x] Core downloaded at build time with pinned sha256 (repo slimmed from 154MB to ~1MB of source).
+- [x] Security hardening: random controller secret, LAN access disabled, allowBackup=false, settings-aware API client.
+- [x] Converter: TUIC / Hysteria v1 / IPv6 parsing + non-silent warnings.
+- [x] WebSocket auto-reconnect, ping concurrency cap, error surfacing in Profiles/Proxies.
+- [x] GPL-3.0 license, GitHub Actions CI + release workflows, SECURITY/CONTRIBUTING docs.
