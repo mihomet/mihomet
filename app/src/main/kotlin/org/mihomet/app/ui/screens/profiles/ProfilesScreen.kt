@@ -51,6 +51,19 @@ fun ProfilesScreen(
     val context = LocalContext.current
     val view = LocalView.current
 
+    LaunchedEffect(state.errorMessage) {
+        state.errorMessage?.let {
+            snackbarHostState.showSnackbar(it, withDismissAction = true)
+            viewModel.clearError()
+        }
+    }
+    LaunchedEffect(state.successMessage) {
+        state.successMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSuccess()
+        }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },

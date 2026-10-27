@@ -288,7 +288,7 @@ class ProxiesViewModel(
 
             _uiState.update { state ->
                 val updatedGroups = state.groups.map { g ->
-                    if (g.name == targetGroup || g.type.equals("select", ignoreCase = true)) {
+                    if (g.name == targetGroup) {
                         g.copy(selectedNode = node.name)
                     } else g
                 }
@@ -300,27 +300,14 @@ class ProxiesViewModel(
             }
             settingsRepository.updateSelectedNodeName(node.name)
 
-            // 1. Send selection to all active selector groups in the running Mihomo core
-            val liveProxies = apiClientProvider.current().getProxies().getOrNull()?.proxies ?: emptyMap()
-            val selectorGroups = liveProxies.filter { (_, proxy) ->
-                proxy.type.equals("Selector", ignoreCase = true) || proxy.type.equals("select", ignoreCase = true)
-            }
-
-            if (selectorGroups.isNotEmpty()) {
-                selectorGroups.forEach { (name, proxy) ->
-                    if (proxy.all?.contains(node.name) == true || proxy.all.isNullOrEmpty()) {
-                        apiClientProvider.current().selectProxyNode(name, node.name).onFailure { e ->
-                            android.util.Log.e("ProxiesVM", "Failed to select node ${node.name} in group $name", e)
-                        }
-                    }
-                }
-            } else if (targetGroup.isNotBlank()) {
+            // Send the selection only to the group the user tapped in
+            if (targetGroup.isNotBlank()) {
                 apiClientProvider.current().selectProxyNode(targetGroup, node.name).onFailure { e ->
                     android.util.Log.e("ProxiesVM", "Failed to select node ${node.name} in group $targetGroup", e)
                 }
             }
 
-            // 2. Immediately close all connections so active traffic switches to new proxy without delay
+            // Immediately close all connections so active traffic switches to new proxy without delay
             apiClientProvider.current().closeAllConnections()
         }
     }

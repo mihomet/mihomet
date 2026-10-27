@@ -21,6 +21,8 @@ import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -64,8 +66,10 @@ class MihometVpnService : VpnService(), KoinComponent {
     private val profileDao: ProfileDao by inject()
     private val settingsRepository: SettingsRepository by inject()
     private val coreManager: CoreManager by inject()
+    private val apiClientProvider: org.mihomet.app.data.api.MihomoApiClientProvider by inject()
 
-    private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var speedJob: Job? = null
     private val vpnMutex = Mutex()
     private var vpnInterface: ParcelFileDescriptor? = null
     private var mihomoProcess: Process? = null
@@ -267,7 +271,20 @@ class MihometVpnService : VpnService(), KoinComponent {
 
             android.util.Log.d("MihometVpn", "Setting ServiceState.setRunning(VPN)")
             ServiceState.setRunning(org.mihomet.app.core.RunningService.VPN)
-            updateNotification("Подключено (${selectedProfile?.name ?: "По умолчанию"})")
+            val baseText = "Подключено (${selectedProfile?.name ?: "По умолчанию"})"
+            updateNotification(baseText)
+
+            // Live speed in the notification (optional toggle in settings)
+            speedJob?.cancel()
+            if (settings.showSpeedInNotification) {
+                speedJob = serviceScope.launch {
+                    apiClientProvider.current().streamTraffic().collect { sample ->
+                        updateNotification(
+                            "$baseText · ↓ ${formatSpeed(sample.down)} ↑ ${formatSpeed(sample.up)}"
+                        )
+                    }
+                }
+            }
         } catch (e: Exception) {
             android.util.Log.e("MihometVpn", "startVpn() exception", e)
             ServiceState.stopService(org.mihomet.app.core.RunningService.VPN)
@@ -328,12 +345,7 @@ class MihometVpnService : VpnService(), KoinComponent {
             // Trigger connection flush so Mihomo drops stale sockets and reconnects on new interface
             serviceScope.launch {
                 runCatching {
-                    val apiClient = org.mihomet.app.data.api.MihomoApiClient(
-                        host = CoreConstants.DEFAULT_CONTROLLER_HOST,
-                        port = settingsRepository.settingsFlow.first().controllerPort,
-                        secret = settingsRepository.settingsFlow.first().controllerSecret
-                    )
-                    apiClient.closeAllConnections()
+                    apiClientProvider.current().closeAllConnections()
                 }
             }
         } catch (e: Exception) {
@@ -371,13 +383,26 @@ class MihometVpnService : VpnService(), KoinComponent {
 
     private fun stopVpn() {
         android.util.Log.d("MihometVpn", "stopVpn() called")
+        speedJob?.cancel()
+        speedJob = null
         cleanupVpnResources()
+    }
+
+    private fun formatSpeed(bytesPerSec: Long): String {
+        val kb = bytesPerSec / 1024.0
+        val mb = kb / 1024.0
+        return when {
+            mb >= 1.0 -> String.format(java.util.Locale.getDefault(), "%.1f МБ/с", mb)
+            kb >= 1.0 -> String.format(java.util.Locale.getDefault(), "%.0f КБ/с", kb)
+            else -> "$bytesPerSec Б/с"
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         android.util.Log.d("MihometVpn", "MihometVpnService onDestroy() called!")
         stopVpn()
+        serviceScope.cancel()
     }
 
     private fun createNotificationChannel() {

@@ -97,6 +97,12 @@ fun ProxiesScreen(
         }
     }
 
+    LaunchedEffect(state.error) {
+        state.error?.let {
+            snackbarHostState.showSnackbar("Ошибка загрузки узлов: $it", withDismissAction = true)
+        }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -876,22 +882,29 @@ fun ConfigViewerDialog(
 }
 
 fun getNodeFlagEmoji(nodeName: String): String {
-    val upper = nodeName.uppercase()
+    val name = nodeName.uppercase()
+    // ISO codes must match as standalone tokens: otherwise "Australia" (AUS) matches "US"
+    fun has(code: String) = Regex("(^|[^A-Z])$code([^A-Z]|$)").containsMatchIn(name)
+    fun hasAny(vararg keys: String) = keys.any { name.contains(it) }
     return when {
-        upper.contains("RU") || upper.contains("РОССИЯ") || upper.contains("RUSSIA") -> "🇷🇺"
-        upper.contains("NL") || upper.contains("НИДЕРЛАНД") || upper.contains("NETHERLAND") -> "🇳🇱"
-        upper.contains("DE") || upper.contains("ГЕРМАНИ") || upper.contains("GERMANY") -> "🇩🇪"
-        upper.contains("US") || upper.contains("США") || upper.contains("AMERICA") -> "🇺🇸"
-        upper.contains("GB") || upper.contains("UK") || upper.contains("АНГЛИ") || upper.contains("LONDON") -> "🇬🇧"
-        upper.contains("FI") || upper.contains("ФИНЛЯНД") || upper.contains("FINLAND") -> "🇫🇮"
-        upper.contains("SE") || upper.contains("ШВЕЦИ") || upper.contains("SWEDEN") -> "🇸🇪"
-        upper.contains("LV") || upper.contains("ЛАТВИ") || upper.contains("LATVIA") -> "🇱🇻"
-        upper.contains("PL") || upper.contains("ПОЛЬШ") || upper.contains("POLAND") -> "🇵🇱"
-        upper.contains("FR") || upper.contains("ФРАНЦИ") || upper.contains("FRANCE") -> "🇫🇷"
-        upper.contains("HK") || upper.contains("ГОНКОНГ") || upper.contains("HONG") -> "🇭🇰"
-        upper.contains("TR") || upper.contains("ТУРЦИ") || upper.contains("TURKEY") -> "🇹🇷"
-        upper.contains("KZ") || upper.contains("КАЗАХ") || upper.contains("KAZAKH") -> "🇰🇿"
-        upper.contains("EU") || upper.contains("ЕВРОП") -> "🇪🇺"
+        has("RU") || hasAny("РОССИЯ", "RUSSIA", "MOSCOW", "МОСКВА") -> "🇷🇺"
+        has("NL") || hasAny("НИДЕРЛАНД", "NETHERLAND", "AMSTERDAM") -> "🇳🇱"
+        has("DE") || hasAny("ГЕРМАНИ", "GERMANY", "FRANKFURT", "БЕРЛИН") -> "🇩🇪"
+        has("US") || hasAny("USA", "США", "AMERICA", "AMERIKA") -> "🇺🇸"
+        has("GB") || has("UK") || hasAny("АНГЛИ", "LONDON", "ENGLAND", "БРИТАН") -> "🇬🇧"
+        has("FI") || hasAny("ФИНЛЯНД", "FINLAND", "HELSINKI") -> "🇫🇮"
+        has("SE") || hasAny("ШВЕЦИ", "SWEDEN", "STOCKHOLM") -> "🇸🇪"
+        has("LV") || hasAny("ЛАТВИ", "LATVIA", "RIGA") -> "🇱🇻"
+        has("PL") || hasAny("ПОЛЬШ", "POLAND", "WARSAW") -> "🇵🇱"
+        has("FR") || hasAny("ФРАНЦИ", "FRANCE", "PARIS") -> "🇫🇷"
+        has("HK") || hasAny("ГОНКОНГ", "HONG KONG", "HONGKONG") -> "🇭🇰"
+        has("TR") || hasAny("ТУРЦИ", "TURKEY", "ISTANBUL") -> "🇹🇷"
+        has("KZ") || hasAny("КАЗАХ", "KAZAKH") -> "🇰🇿"
+        has("JP") || hasAny("ЯПОНИ", "JAPAN", "TOKYO") -> "🇯🇵"
+        has("SG") || hasAny("СИНГАПУР", "SINGAPORE") -> "🇸🇬"
+        has("AU") || hasAny("АВСТРАЛ", "AUSTRALIA", "SYDNEY") -> "🇦🇺"
+        has("CA") || hasAny("КАНАД", "CANADA") -> "🇨🇦"
+        hasAny("ЕВРОП", "EUROPE") || has("EU") -> "🇪🇺"
         else -> "🌐"
     }
 }

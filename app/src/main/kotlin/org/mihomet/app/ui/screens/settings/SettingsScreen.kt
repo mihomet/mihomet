@@ -853,6 +853,27 @@ fun PortsConfigDialog(
     var dnsPort by remember { mutableStateOf(currentSettings.dnsPort.toString()) }
     var controllerPort by remember { mutableStateOf(currentSettings.controllerPort.toString()) }
 
+    fun validate(value: String): String? {
+        val port = value.toIntOrNull() ?: return "Введите число"
+        if (port !in 1024..65535) return "Диапазон 1024–65535"
+        return null
+    }
+
+    val mixedError = validate(mixedPort)
+    val tproxyError = validate(tproxyPort)
+    val dnsError = validate(dnsPort)
+    val controllerError = validate(controllerPort)
+
+    val parsedPorts = listOf(mixedPort, tproxyPort, dnsPort, controllerPort).mapNotNull { it.toIntOrNull() }
+    val duplicateError =
+        if (parsedPorts.size == 4 && parsedPorts.size != parsedPorts.distinct().size) {
+            "Порты не должны повторяться"
+        } else {
+            null
+        }
+    val isValid = mixedError == null && tproxyError == null && dnsError == null &&
+            controllerError == null && duplicateError == null
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Настройка сетевых портов", fontWeight = FontWeight.Black) },
@@ -864,6 +885,8 @@ fun PortsConfigDialog(
                     label = { Text("Mixed Port (HTTP + SOCKS5)") },
                     shape = ExpressiveShapes.Small,
                     singleLine = true,
+                    isError = mixedError != null,
+                    supportingText = { mixedError?.let { Text(it) } },
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
@@ -872,6 +895,8 @@ fun PortsConfigDialog(
                     label = { Text("TProxy Port (Root Mode)") },
                     shape = ExpressiveShapes.Small,
                     singleLine = true,
+                    isError = tproxyError != null,
+                    supportingText = { tproxyError?.let { Text(it) } },
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
@@ -880,6 +905,8 @@ fun PortsConfigDialog(
                     label = { Text("DNS Port") },
                     shape = ExpressiveShapes.Small,
                     singleLine = true,
+                    isError = dnsError != null,
+                    supportingText = { dnsError?.let { Text(it) } },
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
@@ -888,19 +915,25 @@ fun PortsConfigDialog(
                     label = { Text("Mihomo API Controller Port") },
                     shape = ExpressiveShapes.Small,
                     singleLine = true,
+                    isError = controllerError != null,
+                    supportingText = { controllerError?.let { Text(it) } },
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (duplicateError != null) {
+                    Text(
+                        text = duplicateError,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    val m = mixedPort.toIntOrNull() ?: currentSettings.mixedPort
-                    val t = tproxyPort.toIntOrNull() ?: currentSettings.tproxyPort
-                    val d = dnsPort.toIntOrNull() ?: currentSettings.dnsPort
-                    val c = controllerPort.toIntOrNull() ?: currentSettings.controllerPort
-                    onSave(m, t, d, c)
+                    onSave(mixedPort.toInt(), tproxyPort.toInt(), dnsPort.toInt(), controllerPort.toInt())
                 },
+                enabled = isValid,
                 shape = ExpressiveShapes.Small
             ) {
                 Text("Сохранить", fontWeight = FontWeight.Bold)

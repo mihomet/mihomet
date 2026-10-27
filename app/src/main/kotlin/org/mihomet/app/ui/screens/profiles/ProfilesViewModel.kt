@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import kotlinx.coroutines.Dispatchers
@@ -13,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.mihomet.app.core.config.ConversionOutcome
 import org.mihomet.app.core.config.UniversalConfigConverter
 import org.mihomet.app.data.db.ProfileDao
 import org.mihomet.app.data.db.ProfileEntity
@@ -24,7 +26,8 @@ import java.util.Base64
 data class ProfilesUiState(
     val profiles: List<ProfileEntity> = emptyList(),
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val successMessage: String? = null
 )
 
 class ProfilesViewModel(
@@ -32,11 +35,31 @@ class ProfilesViewModel(
     private val profileDao: ProfileDao
 ) : ViewModel() {
 
-    val uiState: StateFlow<ProfilesUiState> = profileDao.getAllProfiles()
-        .map { ProfilesUiState(profiles = it) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProfilesUiState(isLoading = true))
+    private val errorMessageFlow = MutableStateFlow<String?>(null)
+    private val successMessageFlow = MutableStateFlow<String?>(null)
 
-    private val httpClient = HttpClient()
+    val uiState: StateFlow<ProfilesUiState> = combine(
+        profileDao.getAllProfiles(),
+        errorMessageFlow,
+        successMessageFlow
+    ) { profiles, error, success ->
+        ProfilesUiState(profiles = profiles, errorMessage = error, successMessage = success)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProfilesUiState(isLoading = true))
+
+    fun clearError() {
+        errorMessageFlow.value = null
+    }
+
+    fun clearSuccess() {
+        successMessageFlow.value = null
+    }
+
+    private val httpClient = HttpClient {
+        install(HttpTimeout) {
+            connectTimeoutMillis = 15000
+            requestTimeoutMillis = 30000
+        }
+    }
 
     fun selectProfile(id: Long) {
         viewModelScope.launch {
@@ -66,10 +89,10 @@ class ProfilesViewModel(
             try {
                 val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
                 val normalizedHeaders = normalizeHeadersJson(customHeaders)
-                val content = downloadProfileContent(url, normalizedHeaders)
+                val outcome = downloadAndConvertOutcome(url, normalizedHeaders)
 
                 val file = File(profileDir, "profile_${System.currentTimeMillis()}.yaml")
-                file.writeText(content)
+                file.writeText(outcome.yaml)
 
                 val isFirst = profileDao.getSelectedProfile() == null
                 val entity = ProfileEntity(
@@ -84,8 +107,10 @@ class ProfilesViewModel(
                 if (isFirst) {
                     profileDao.selectProfile(newId)
                 }
+                errorMessageFlow.value = null
+                successMessageFlow.value = appendWarnings("Подписка «$name» добавлена", outcome)
             } catch (e: Exception) {
-                e.printStackTrace()
+                errorMessageFlow.value = "Не удалось загрузить подписку: ${e.message ?: "неизвестная ошибка"}"
             }
         }
     }
@@ -148,9 +173,10 @@ class ProfilesViewModel(
                     }
                     onSuccess("Подписка «$autoName» успешно добавлена")
                 } else {
-                    val convertedYaml = withContext(Dispatchers.Default) {
-                        UniversalConfigConverter.convertToMihomoYaml(trimmed)
+                    val outcome = withContext(Dispatchers.Default) {
+                        UniversalConfigConverter.convertToMihomoYamlWithOutcome(trimmed)
                     }
+                    val convertedYaml = outcome.yaml
 
                     val yaml = Yaml()
                     val parsed = runCatching { yaml.load<Map<String, Any>>(convertedYaml) }.getOrNull()
@@ -187,7 +213,11 @@ class ProfilesViewModel(
                         profileDao.selectProfile(newId)
                     }
                     onSuccess(
-                        if (proxies.isNotEmpty()) "Импортировано $autoName" else "Конфигурация успешно добавлена"
+                        if (proxies.isNotEmpty()) {
+                            appendWarnings("Импортировано $autoName", outcome)
+                        } else {
+                            "Конфигурация успешно добавлена"
+                        }
                     )
                 }
             } catch (e: Exception) {
@@ -201,12 +231,23 @@ class ProfilesViewModel(
         if (profile.type != ProfileType.REMOTE || profile.url.isBlank()) return
         viewModelScope.launch {
             try {
-                val content = downloadProfileContent(profile.url, profile.customHeaders)
-                File(profile.filePath).writeText(content)
+                val outcome = downloadAndConvertOutcome(profile.url, profile.customHeaders)
+                File(profile.filePath).writeText(outcome.yaml)
                 profileDao.updateProfile(profile.copy(lastUpdated = System.currentTimeMillis()))
+                errorMessageFlow.value = null
+                successMessageFlow.value = appendWarnings("Подписка обновлена", outcome)
             } catch (e: Exception) {
-                e.printStackTrace()
+                errorMessageFlow.value =
+                    "Не удалось обновить подписку: ${e.message ?: "неизвестная ошибка"}"
             }
+        }
+    }
+
+    private fun appendWarnings(message: String, outcome: ConversionOutcome): String {
+        return if (outcome.warnings.isEmpty()) {
+            message
+        } else {
+            "$message (пропущено элементов: ${outcome.warnings.size})"
         }
     }
 
@@ -236,7 +277,11 @@ class ProfilesViewModel(
         }
     }
 
-    suspend fun downloadProfileContent(url: String, headersJson: String = "{}"): String = withContext(Dispatchers.IO) {
+    suspend fun downloadProfileContent(url: String, headersJson: String = "{}"): String =
+        downloadAndConvertOutcome(url, headersJson).yaml
+
+    private suspend fun downloadAndConvertOutcome(url: String, headersJson: String = "{}"): ConversionOutcome =
+        withContext(Dispatchers.IO) {
         val parsedHeaders = runCatching {
             Json.decodeFromString<Map<String, String>>(headersJson)
         }.getOrElse {
@@ -276,6 +321,10 @@ class ProfilesViewModel(
                     }
                 }
                 if (resp.status.value in 200..299) {
+                    val contentLength = resp.headers["Content-Length"]?.toLongOrNull()
+                    if (contentLength != null && contentLength > MAX_SUBSCRIPTION_BYTES) {
+                        throw IllegalStateException("Ответ подписки слишком большой (>20 МБ)")
+                    }
                     val body: String = resp.body()
                     if (body.isNotBlank()) {
                         responseText = body
@@ -319,6 +368,10 @@ class ProfilesViewModel(
             responseText
         }
 
-        UniversalConfigConverter.convertToMihomoYaml(decoded)
+        UniversalConfigConverter.convertToMihomoYamlWithOutcome(decoded)
+    }
+
+    private companion object {
+        const val MAX_SUBSCRIPTION_BYTES = 20L * 1024 * 1024
     }
 }
