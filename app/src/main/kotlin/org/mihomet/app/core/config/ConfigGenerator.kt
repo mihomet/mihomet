@@ -1,5 +1,6 @@
 package org.mihomet.app.core.config
 
+import org.mihomet.app.core.CoreConstants
 import org.mihomet.app.data.preferences.AppSettings
 import org.yaml.snakeyaml.DumperOptions
 import org.yaml.snakeyaml.Yaml
@@ -27,26 +28,26 @@ object ConfigGenerator {
         if (tunFd == null || tunFd < 0) {
             // Root mode can use TProxy and Redir, and SO_MARK for iptables loop prevention
             configMap["tproxy-port"] = settings.tproxyPort
-            configMap["redir-port"] = 7892
-            configMap["routing-mark"] = 666
+            configMap["redir-port"] = CoreConstants.DEFAULT_REDIR_PORT
+            configMap["routing-mark"] = CoreConstants.CORE_ROUTING_MARK
         } else {
             // Non-root VPN mode: SO_MARK and TProxy/Redir require CAP_NET_ADMIN (not available in non-root)
             configMap.remove("tproxy-port")
             configMap.remove("redir-port")
             configMap.remove("routing-mark")
         }
-        configMap["allow-lan"] = true
-        configMap["bind-address"] = "*"
+        configMap["allow-lan"] = false
+        configMap["bind-address"] = "127.0.0.1"
         configMap["mode"] = settings.proxyMode.apiValue
         configMap["log-level"] = "info"
         configMap["ipv6"] = settings.ipv6Enabled
-        configMap["external-controller"] = "127.0.0.1:${settings.controllerPort}"
-        configMap["secret"] = settings.controllerSecret
+        configMap["external-controller"] = "${CoreConstants.DEFAULT_CONTROLLER_HOST}:${settings.controllerPort}"
+        configMap["secret"] = settings.controllerSecret.ifBlank { CoreConstants.generateRandomHexSecret() }
 
         // DNS configuration
         val existingDns = (configMap["dns"] as? Map<String, Any>)?.toMutableMap() ?: mutableMapOf()
         existingDns["enable"] = true
-        existingDns["listen"] = "0.0.0.0:${settings.dnsPort}"
+        existingDns["listen"] = "${CoreConstants.DEFAULT_CONTROLLER_HOST}:${settings.dnsPort}"
         existingDns["ipv6"] = settings.ipv6Enabled
         if (!existingDns.containsKey("enhanced-mode")) {
             existingDns["enhanced-mode"] = "fake-ip"

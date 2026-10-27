@@ -28,6 +28,7 @@ import kotlinx.coroutines.sync.withLock
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.mihomet.app.R
+import org.mihomet.app.core.CoreConstants
 import org.mihomet.app.core.CoreManager
 import org.mihomet.app.core.ServiceState
 import org.mihomet.app.core.config.ConfigGenerator
@@ -133,16 +134,16 @@ class MihometVpnService : VpnService(), KoinComponent {
             // Build TUN interface with 9000 MTU and non-blocking mode (matches CMFA standard for gVisor)
             val builder = Builder()
                 .setSession("Mihomet")
-                .setMtu(9000)
+                .setMtu(CoreConstants.TUN_MTU)
                 .setBlocking(false)
-                .addAddress("198.18.0.1", 30)
+                .addAddress(CoreConstants.TUN_IPV4_ADDR, CoreConstants.TUN_IPV4_PREFIX)
                 .addRoute("0.0.0.0", 0)
-                .addDnsServer("198.18.0.2")
+                .addDnsServer(CoreConstants.TUN_IPV4_DNS)
 
             // Always trap IPv6 into TUN interface to prevent carrier leakage / Happy Eyeballs hangs in Telegram
-            builder.addAddress("fdfe:dcba:9876::1", 126)
+            builder.addAddress(CoreConstants.TUN_IPV6_ADDR, CoreConstants.TUN_IPV6_PREFIX)
             builder.addRoute("::", 0)
-            builder.addDnsServer("fdfe:dcba:9876::2")
+            builder.addDnsServer(CoreConstants.TUN_IPV6_DNS)
 
             // Per-app split tunneling (VpnService does not allow mixing allowed and disallowed apps)
             val pm = packageManager
@@ -202,7 +203,7 @@ class MihometVpnService : VpnService(), KoinComponent {
             val runtimeYaml = ConfigGenerator.generateRuntimeConfig(
                 profileYamlContent = rawYaml,
                 settings = settings,
-                tunFd = 3
+                tunFd = CoreConstants.TUN_FILE_DESCRIPTOR
             )
 
             val vpnWorkDir = File(filesDir, "vpn_run").apply { mkdirs() }
@@ -216,7 +217,7 @@ class MihometVpnService : VpnService(), KoinComponent {
             val pb = ProcessBuilder(
                 "/system/bin/sh",
                 "-c",
-                "exec \"$binaryPath\" -d \"${vpnWorkDir.absolutePath}\" -f \"${vpnConfigFile.absolutePath}\" 3<&0"
+                "exec \"$binaryPath\" -d \"${vpnWorkDir.absolutePath}\" -f \"${vpnConfigFile.absolutePath}\" ${CoreConstants.TUN_FD_SHELL_REDIRECT}"
             ).redirectInput(ProcessBuilder.Redirect.INHERIT)
              .redirectErrorStream(true)
              .redirectOutput(ProcessBuilder.Redirect.appendTo(vpnLogFile))
@@ -328,7 +329,7 @@ class MihometVpnService : VpnService(), KoinComponent {
             serviceScope.launch {
                 runCatching {
                     val apiClient = org.mihomet.app.data.api.MihomoApiClient(
-                        host = "127.0.0.1",
+                        host = CoreConstants.DEFAULT_CONTROLLER_HOST,
                         port = settingsRepository.settingsFlow.first().controllerPort,
                         secret = settingsRepository.settingsFlow.first().controllerSecret
                     )

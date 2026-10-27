@@ -37,16 +37,6 @@ data class GitHubAsset(
 
 class CoreManager(private val context: Context) {
 
-    companion object {
-        const val ROOT_BASE_DIR = "/data/adb/mihomet"
-        const val ROOT_BIN_DIR = "$ROOT_BASE_DIR/bin"
-        const val ROOT_BIN_PATH = "$ROOT_BIN_DIR/mihomo"
-        const val ROOT_RUN_DIR = "$ROOT_BASE_DIR/run"
-        const val ROOT_PID_FILE = "$ROOT_BASE_DIR/mihomo.pid"
-        const val ROOT_LOG_FILE = "$ROOT_RUN_DIR/mihomo.log"
-        const val ROOT_CONFIG_PATH = "$ROOT_RUN_DIR/config.yaml"
-    }
-
     private val httpClient = HttpClient {
         followRedirects = true
         install(ContentNegotiation) {
@@ -78,17 +68,17 @@ class CoreManager(private val context: Context) {
         runCatching {
             val bundledPath = getBundledLibraryPath()
             val checkResult = Shell.cmd(
-                "if [ ! -f $ROOT_BIN_PATH ] || [ \"\$(stat -c %s $ROOT_BIN_PATH 2>/dev/null)\" != \"\$(stat -c %s \"$bundledPath\" 2>/dev/null)\" ]; then echo UPDATE_NEEDED; else echo UP_TO_DATE; fi"
+                "if [ ! -f ${CoreConstants.ROOT_BIN_PATH} ] || [ \"\$(stat -c %s ${CoreConstants.ROOT_BIN_PATH} 2>/dev/null)\" != \"\$(stat -c %s \"$bundledPath\" 2>/dev/null)\" ]; then echo UPDATE_NEEDED; else echo UP_TO_DATE; fi"
             ).exec()
             val updateNeeded = checkResult.out.any { it.contains("UPDATE_NEEDED") }
 
             if (updateNeeded) {
                 val setupCmds = listOf(
-                    "mkdir -p $ROOT_BIN_DIR",
-                    "mkdir -p $ROOT_RUN_DIR",
-                    "cp \"$bundledPath\" $ROOT_BIN_PATH",
-                    "chmod 755 $ROOT_BIN_PATH",
-                    "chcon u:object_r:system_file:s0 $ROOT_BIN_PATH 2>/dev/null || true"
+                    "mkdir -p ${CoreConstants.ROOT_BIN_DIR}",
+                    "mkdir -p ${CoreConstants.ROOT_RUN_DIR}",
+                    "cp \"$bundledPath\" ${CoreConstants.ROOT_BIN_PATH}",
+                    "chmod 755 ${CoreConstants.ROOT_BIN_PATH}",
+                    "chcon u:object_r:system_file:s0 ${CoreConstants.ROOT_BIN_PATH} 2>/dev/null || true"
                 )
                 val res = Shell.cmd(*setupCmds.toTypedArray()).exec()
                 if (!res.isSuccess) {
@@ -102,20 +92,20 @@ class CoreManager(private val context: Context) {
             val appGeosite = File(context.filesDir, "geosite.dat")
             if (appGeoip.exists() && appGeosite.exists()) {
                 Shell.cmd(
-                    "mkdir -p $ROOT_RUN_DIR",
-                    "if [ ! -f $ROOT_RUN_DIR/geoip.metadb ] || [ ! -s $ROOT_RUN_DIR/geoip.metadb ]; then cp \"${appGeoip.absolutePath}\" $ROOT_RUN_DIR/geoip.metadb; fi",
-                    "if [ ! -f $ROOT_RUN_DIR/geosite.dat ] || [ ! -s $ROOT_RUN_DIR/geosite.dat ]; then cp \"${appGeosite.absolutePath}\" $ROOT_RUN_DIR/geosite.dat; fi",
-                    "chmod 644 $ROOT_RUN_DIR/geoip.metadb $ROOT_RUN_DIR/geosite.dat 2>/dev/null || true"
+                    "mkdir -p ${CoreConstants.ROOT_RUN_DIR}",
+                    "if [ ! -f ${CoreConstants.ROOT_RUN_DIR}/geoip.metadb ] || [ ! -s ${CoreConstants.ROOT_RUN_DIR}/geoip.metadb ]; then cp \"${appGeoip.absolutePath}\" ${CoreConstants.ROOT_RUN_DIR}/geoip.metadb; fi",
+                    "if [ ! -f ${CoreConstants.ROOT_RUN_DIR}/geosite.dat ] || [ ! -s ${CoreConstants.ROOT_RUN_DIR}/geosite.dat ]; then cp \"${appGeosite.absolutePath}\" ${CoreConstants.ROOT_RUN_DIR}/geosite.dat; fi",
+                    "chmod 644 ${CoreConstants.ROOT_RUN_DIR}/geoip.metadb ${CoreConstants.ROOT_RUN_DIR}/geosite.dat 2>/dev/null || true"
                 ).exec()
             }
 
-            ROOT_BIN_PATH
+            CoreConstants.ROOT_BIN_PATH
         }
     }
 
     fun getCoreBinaryPath(isRootMode: Boolean): String {
         return if (isRootMode) {
-            ROOT_BIN_PATH
+            CoreConstants.ROOT_BIN_PATH
         } else {
             getBundledLibraryPath()
         }
@@ -165,10 +155,10 @@ class CoreManager(private val context: Context) {
 
             // Install into /data/adb/mihomet/bin/mihomo via root shell
             val cmds = listOf(
-                "mkdir -p $ROOT_BIN_DIR",
-                "cp \"${tempBinFile.absolutePath}\" $ROOT_BIN_PATH",
-                "chmod 755 $ROOT_BIN_PATH",
-                "chcon u:object_r:system_file:s0 $ROOT_BIN_PATH 2>/dev/null || true"
+                "mkdir -p ${CoreConstants.ROOT_BIN_DIR}",
+                "cp \"${tempBinFile.absolutePath}\" ${CoreConstants.ROOT_BIN_PATH}",
+                "chmod 755 ${CoreConstants.ROOT_BIN_PATH}",
+                "chcon u:object_r:system_file:s0 ${CoreConstants.ROOT_BIN_PATH} 2>/dev/null || true"
             )
             val result = Shell.cmd(*cmds.toTypedArray()).exec()
 
@@ -197,8 +187,8 @@ class CoreManager(private val context: Context) {
                 mkdirs()
             }
 
-            val probePort = 9095
-            val probeSecret = "mihomet_probe_token"
+            val probePort = CoreConstants.PROBE_PORT
+            val probeSecret = CoreConstants.PROBE_SECRET
             val probeConfig = ConfigGenerator.generateRuntimeConfig(
                 profileYamlContent = rawYaml,
                 settings = AppSettings(

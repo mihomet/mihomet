@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.mihomet.app.core.CoreManager
 import org.mihomet.app.core.GitHubRelease
-import org.mihomet.app.data.api.MihomoApiClient
+import org.mihomet.app.data.api.MihomoApiClientProvider
 import org.mihomet.app.data.preferences.AppSettings
 import org.mihomet.app.data.preferences.FirewallEngineType
 import org.mihomet.app.data.preferences.ProxyMode
@@ -24,7 +24,7 @@ data class SettingsUiState(
 class SettingsViewModel(
     private val settingsRepository: SettingsRepository,
     private val coreManager: CoreManager,
-    private val apiClient: MihomoApiClient
+    private val apiClientProvider: MihomoApiClientProvider
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -38,7 +38,7 @@ class SettingsViewModel(
         }
 
         viewModelScope.launch {
-            apiClient.getVersion().onSuccess { version ->
+            apiClientProvider.current().getVersion().onSuccess { version ->
                 _uiState.update { it.copy(coreVersion = version.version) }
             }
         }
@@ -53,7 +53,7 @@ class SettingsViewModel(
     fun updateProxyMode(mode: ProxyMode) {
         viewModelScope.launch {
             settingsRepository.updateProxyMode(mode)
-            apiClient.updateMode(mode.apiValue)
+            apiClientProvider.current().updateMode(mode.apiValue)
         }
     }
 

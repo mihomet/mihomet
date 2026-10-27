@@ -57,7 +57,7 @@ class ConfigGeneratorTest {
 
         val dns = parsed["dns"] as Map<String, Any>
         assertEquals(true, dns["enable"])
-        assertEquals("0.0.0.0:1053", dns["listen"])
+        assertEquals("127.0.0.1:1053", dns["listen"])
 
         val proxies = parsed["proxies"] as List<Map<String, Any>>
         assertEquals(1, proxies.size)

@@ -1,6 +1,7 @@
 package org.mihomet.app.core.firewall
 
 import com.topjohnwu.superuser.Shell
+import org.mihomet.app.core.CoreConstants
 import org.mihomet.app.data.preferences.PerAppMode
 
 class IptablesEngine : FirewallEngine {
@@ -24,18 +25,18 @@ class IptablesEngine : FirewallEngine {
 
         // 2. IP routing rules
         // Critical: Route Mihomo core traffic (fwmark 666) to physical network interface table
-        cmds.add("ip rule add fwmark 666 lookup \$DEFAULT_TABLE pref 100")
+        cmds.add("ip rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup \$DEFAULT_TABLE pref ${CoreConstants.POLICY_RULE_PREF_MAIN}")
         // Route marked packets to local loopback table 2025
-        cmds.add("ip rule add fwmark 20 table 2025 pref 2025")
-        cmds.add("ip route add local 0.0.0.0/0 dev lo table 2025")
+        cmds.add("ip rule add fwmark ${CoreConstants.TPROXY_MARK_IPV4} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL}")
+        cmds.add("ip route add local 0.0.0.0/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE}")
         cmds.add("echo 1 > /proc/sys/net/ipv4/ip_forward")
         cmds.add("echo 2 > /proc/sys/net/ipv4/conf/all/rp_filter 2>/dev/null || true")
         cmds.add("echo 2 > /proc/sys/net/ipv4/conf/default/rp_filter 2>/dev/null || true")
 
         if (ipv6Enabled) {
-            cmds.add("ip -6 rule add fwmark 666 lookup \$DEFAULT_TABLE pref 100 2>/dev/null || true")
-            cmds.add("ip -6 rule add fwmark 25 table 2025 pref 2025 2>/dev/null || true")
-            cmds.add("ip -6 route add local ::/0 dev lo table 2025 2>/dev/null || true")
+            cmds.add("ip -6 rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup \$DEFAULT_TABLE pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null || true")
+            cmds.add("ip -6 rule add fwmark ${CoreConstants.TPROXY_MARK_IPV6} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL} 2>/dev/null || true")
+            cmds.add("ip -6 route add local ::/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE} 2>/dev/null || true")
         }
 
         // 3. Bypass chain: bypass local/private IPs UNLESS destination is port 53 (DNS interception)
@@ -54,7 +55,7 @@ class IptablesEngine : FirewallEngine {
         // 4. Mangle OUTPUT chain (Local application traffic)
         cmds.add("iptables -t mangle -N MIHOMET_OUTPUT 2>/dev/null || iptables -t mangle -F MIHOMET_OUTPUT")
         // Loop prevention: bypass Mihomo core mark (666) and core owner (root:net_admin 3005)
-        cmds.add("iptables -t mangle -A MIHOMET_OUTPUT -m mark --mark 666 -j ACCEPT")
+        cmds.add("iptables -t mangle -A MIHOMET_OUTPUT -m mark --mark ${CoreConstants.CORE_ROUTING_MARK} -j ACCEPT")
         cmds.add("iptables -t mangle -A MIHOMET_OUTPUT -m owner --uid-owner 0 --gid-owner 3005 -j ACCEPT")
         cmds.add("iptables -t mangle -A MIHOMET_OUTPUT -j MIHOMET_BYPASS")
 
@@ -82,15 +83,15 @@ class IptablesEngine : FirewallEngine {
         }
 
         // Mark remaining traffic to divert to table 2025 -> lo -> PREROUTING
-        cmds.add("iptables -t mangle -A MIHOMET_OUTPUT -p tcp -j MARK --set-mark 20")
-        cmds.add("iptables -t mangle -A MIHOMET_OUTPUT -p udp -j MARK --set-mark 20")
+        cmds.add("iptables -t mangle -A MIHOMET_OUTPUT -p tcp -j MARK --set-mark ${CoreConstants.TPROXY_MARK_IPV4}")
+        cmds.add("iptables -t mangle -A MIHOMET_OUTPUT -p udp -j MARK --set-mark ${CoreConstants.TPROXY_MARK_IPV4}")
 
         // 5. Mangle PREROUTING chain (TProxy interception)
         cmds.add("iptables -t mangle -N MIHOMET_PREROUTING 2>/dev/null || iptables -t mangle -F MIHOMET_PREROUTING")
-        cmds.add("iptables -t mangle -A MIHOMET_PREROUTING -m mark --mark 666 -j ACCEPT")
+        cmds.add("iptables -t mangle -A MIHOMET_PREROUTING -m mark --mark ${CoreConstants.CORE_ROUTING_MARK} -j ACCEPT")
         cmds.add("iptables -t mangle -A MIHOMET_PREROUTING -j MIHOMET_BYPASS")
-        cmds.add("iptables -t mangle -A MIHOMET_PREROUTING -p tcp -j TPROXY --on-port $tproxyPort --tproxy-mark 20")
-        cmds.add("iptables -t mangle -A MIHOMET_PREROUTING -p udp -j TPROXY --on-port $tproxyPort --tproxy-mark 20")
+        cmds.add("iptables -t mangle -A MIHOMET_PREROUTING -p tcp -j TPROXY --on-port $tproxyPort --tproxy-mark ${CoreConstants.TPROXY_MARK_IPV4}")
+        cmds.add("iptables -t mangle -A MIHOMET_PREROUTING -p udp -j TPROXY --on-port $tproxyPort --tproxy-mark ${CoreConstants.TPROXY_MARK_IPV4}")
 
         // 6. Attach to main chains
         cmds.add("iptables -t mangle -I OUTPUT 1 -p tcp -j MIHOMET_OUTPUT")
@@ -100,7 +101,7 @@ class IptablesEngine : FirewallEngine {
 
         // 7. IPv6 Block when disabled
         if (!ipv6Enabled) {
-            cmds.add("ip6tables -I OUTPUT 1 -m mark ! --mark 666 -j DROP 2>/dev/null || true")
+            cmds.add("ip6tables -I OUTPUT 1 -m mark ! --mark ${CoreConstants.CORE_ROUTING_MARK} -j DROP 2>/dev/null || true")
         }
 
         val result = Shell.cmd(*cmds.toTypedArray()).exec()
@@ -114,8 +115,8 @@ class IptablesEngine : FirewallEngine {
             "DEFAULT_TABLE=\$(ip rule show | grep -E '^31000:' | awk '{print \$NF}'); " +
             "[ -z \"\$DEFAULT_TABLE\" ] && DEFAULT_TABLE=\$(ip route show table main | grep default | awk '{print \$5}'); " +
             "[ -z \"\$DEFAULT_TABLE\" ] && DEFAULT_TABLE=\"wlan0\"; " +
-            "ip rule del fwmark 666 lookup \$DEFAULT_TABLE pref 100 2>/dev/null || true; " +
-            "ip -6 rule del fwmark 666 lookup \$DEFAULT_TABLE pref 100 2>/dev/null || true",
+            "ip rule del fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup \$DEFAULT_TABLE pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null || true; " +
+            "ip -6 rule del fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup \$DEFAULT_TABLE pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null || true",
             "iptables -t mangle -D OUTPUT -p tcp -j MIHOMET_OUTPUT 2>/dev/null || true",
             "iptables -t mangle -D OUTPUT -p udp -j MIHOMET_OUTPUT 2>/dev/null || true",
             "iptables -t mangle -D PREROUTING -p tcp -j MIHOMET_PREROUTING 2>/dev/null || true",
@@ -128,11 +129,11 @@ class IptablesEngine : FirewallEngine {
             "iptables -t mangle -X MIHOMET_PREROUTING 2>/dev/null || true",
             "iptables -t mangle -X MIHOMET_BYPASS 2>/dev/null || true",
             "iptables -t mangle -X MIHOMET_UIDS 2>/dev/null || true",
-            "ip6tables -D OUTPUT -m mark ! --mark 666 -j DROP 2>/dev/null || true",
-            "ip rule del fwmark 20 table 2025 pref 2025 2>/dev/null || true",
-            "ip route del local default dev lo table 2025 2>/dev/null || true",
-            "ip -6 rule del fwmark 25 table 2025 pref 2025 2>/dev/null || true",
-            "ip -6 route del local default dev lo table 2025 2>/dev/null || true"
+            "ip6tables -D OUTPUT -m mark ! --mark ${CoreConstants.CORE_ROUTING_MARK} -j DROP 2>/dev/null || true",
+            "ip rule del fwmark ${CoreConstants.TPROXY_MARK_IPV4} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL} 2>/dev/null || true",
+            "ip route del local default dev lo table ${CoreConstants.POLICY_ROUTING_TABLE} 2>/dev/null || true",
+            "ip -6 rule del fwmark ${CoreConstants.TPROXY_MARK_IPV6} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL} 2>/dev/null || true",
+            "ip -6 route del local default dev lo table ${CoreConstants.POLICY_ROUTING_TABLE} 2>/dev/null || true"
         ).exec()
     }
 }

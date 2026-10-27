@@ -13,7 +13,7 @@ import org.mihomet.app.core.network.NodePingTester
 import org.mihomet.app.core.root.RootShellManager
 import org.mihomet.app.core.root.RootTProxyService
 import org.mihomet.app.core.vpn.MihometVpnService
-import org.mihomet.app.data.api.MihomoApiClient
+import org.mihomet.app.data.api.MihomoApiClientProvider
 import org.mihomet.app.data.api.TrafficSample
 import org.mihomet.app.data.db.ProfileDao
 import org.mihomet.app.data.preferences.ProxyMode
@@ -38,7 +38,7 @@ data class DashboardUiState(
 class DashboardViewModel(
     private val settingsRepository: SettingsRepository,
     private val profileDao: ProfileDao,
-    private val apiClient: MihomoApiClient,
+    private val apiClientProvider: MihomoApiClientProvider,
     private val context: Context
 ) : ViewModel() {
 
@@ -143,14 +143,14 @@ class DashboardViewModel(
     fun setMode(mode: ProxyMode) {
         viewModelScope.launch {
             settingsRepository.updateProxyMode(mode)
-            apiClient.updateMode(mode.apiValue)
+            apiClientProvider.current().updateMode(mode.apiValue)
         }
     }
 
     private fun startTrafficMonitor() {
         trafficJob?.cancel()
         trafficJob = viewModelScope.launch {
-            apiClient.streamTraffic().collect { sample ->
+            apiClientProvider.current().streamTraffic().collect { sample ->
                 historyBuffer.add(sample)
                 if (historyBuffer.size > 30) {
                     historyBuffer.removeAt(0)
@@ -180,7 +180,7 @@ class DashboardViewModel(
     private fun syncActiveProxy() {
         viewModelScope.launch {
             delay(1000) // wait for external controller to initialize
-            apiClient.getProxies().onSuccess { response ->
+            apiClientProvider.current().getProxies().onSuccess { response ->
                 val primaryGroup = response.proxies.values.firstOrNull {
                     (it.type.equals("Selector", ignoreCase = true) || it.type.equals("select", ignoreCase = true)) &&
                     !it.name.equals("GLOBAL", ignoreCase = true)
@@ -194,7 +194,7 @@ class DashboardViewModel(
                     // Apply preselected node only if user selected one that belongs to this group
                     val targetNode = if (currentSelected.isNotBlank() && primaryGroup.all?.contains(currentSelected) == true) {
                         if (primaryGroup.now != currentSelected) {
-                            apiClient.selectProxyNode(groupName, currentSelected)
+                            apiClientProvider.current().selectProxyNode(groupName, currentSelected)
                         }
                         currentSelected
                     } else {

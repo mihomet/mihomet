@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.mihomet.app.R
+import org.mihomet.app.core.CoreConstants
 import org.mihomet.app.core.CoreManager
 import org.mihomet.app.core.ServiceState
 import org.mihomet.app.core.config.ConfigGenerator
@@ -126,20 +127,20 @@ class RootTProxyService : Service(), KoinComponent {
             )
 
             // Write to /data/adb/mihomet/run/config.yaml via root
-            val writeCmd = "cat << 'EOF' > ${CoreManager.ROOT_CONFIG_PATH}\n$runtimeYaml\nEOF"
+            val writeCmd = "cat << 'EOF' > ${CoreConstants.ROOT_CONFIG_PATH}\n$runtimeYaml\nEOF"
             coreManager.ensureGeoDatabases(filesDir)
             val appGeoip = File(filesDir, "geoip.metadb")
             val appGeosite = File(filesDir, "geosite.dat")
             Shell.cmd(
-                "mkdir -p ${CoreManager.ROOT_RUN_DIR}",
-                "if [ ! -f ${CoreManager.ROOT_RUN_DIR}/geoip.metadb ] || [ ! -s ${CoreManager.ROOT_RUN_DIR}/geoip.metadb ]; then cp \"${appGeoip.absolutePath}\" ${CoreManager.ROOT_RUN_DIR}/geoip.metadb; fi",
-                "if [ ! -f ${CoreManager.ROOT_RUN_DIR}/geosite.dat ] || [ ! -s ${CoreManager.ROOT_RUN_DIR}/geosite.dat ]; then cp \"${appGeosite.absolutePath}\" ${CoreManager.ROOT_RUN_DIR}/geosite.dat; fi",
-                "chmod 644 ${CoreManager.ROOT_RUN_DIR}/geoip.metadb ${CoreManager.ROOT_RUN_DIR}/geosite.dat 2>/dev/null || true",
+                "mkdir -p ${CoreConstants.ROOT_RUN_DIR}",
+                "if [ ! -f ${CoreConstants.ROOT_RUN_DIR}/geoip.metadb ] || [ ! -s ${CoreConstants.ROOT_RUN_DIR}/geoip.metadb ]; then cp \"${appGeoip.absolutePath}\" ${CoreConstants.ROOT_RUN_DIR}/geoip.metadb; fi",
+                "if [ ! -f ${CoreConstants.ROOT_RUN_DIR}/geosite.dat ] || [ ! -s ${CoreConstants.ROOT_RUN_DIR}/geosite.dat ]; then cp \"${appGeosite.absolutePath}\" ${CoreConstants.ROOT_RUN_DIR}/geosite.dat; fi",
+                "chmod 644 ${CoreConstants.ROOT_RUN_DIR}/geoip.metadb ${CoreConstants.ROOT_RUN_DIR}/geosite.dat 2>/dev/null || true",
                 writeCmd
             ).exec()
 
             // 4. Start daemon
-            RootShellManager.startDaemon(CoreManager.ROOT_CONFIG_PATH).getOrThrow()
+            RootShellManager.startDaemon(CoreConstants.ROOT_CONFIG_PATH).getOrThrow()
 
             // 5. Setup netfilter firewall rules
             firewallManager.setup(

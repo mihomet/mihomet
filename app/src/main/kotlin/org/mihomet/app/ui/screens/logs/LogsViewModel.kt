@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.mihomet.app.data.api.LogEntry
-import org.mihomet.app.data.api.MihomoApiClient
+import org.mihomet.app.data.api.MihomoApiClientProvider
 
 data class LogsUiState(
     val logs: List<LogEntry> = emptyList(),
@@ -13,7 +13,7 @@ data class LogsUiState(
 )
 
 class LogsViewModel(
-    private val apiClient: MihomoApiClient
+    private val apiClientProvider: MihomoApiClientProvider
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LogsUiState())
@@ -23,7 +23,7 @@ class LogsViewModel(
 
     init {
         viewModelScope.launch {
-            apiClient.streamLogs().collect { entry ->
+            apiClientProvider.current().streamLogs().collect { entry ->
                 logBuffer.add(entry)
                 if (logBuffer.size > 500) {
                     logBuffer.removeAt(0)

@@ -1,7 +1,7 @@
 package org.mihomet.app.core.root
 
 import com.topjohnwu.superuser.Shell
-import org.mihomet.app.core.CoreManager
+import org.mihomet.app.core.CoreConstants
 
 object RootShellManager {
 
@@ -24,8 +24,8 @@ object RootShellManager {
     fun isDaemonRunning(): Boolean {
         return runCatching {
             val res = Shell.cmd(
-                "if [ -f ${CoreManager.ROOT_PID_FILE} ]; then " +
-                        "PID=\$(cat ${CoreManager.ROOT_PID_FILE}); " +
+                "if [ -f ${CoreConstants.ROOT_PID_FILE} ]; then " +
+                        "PID=\$(cat ${CoreConstants.ROOT_PID_FILE}); " +
                         "if kill -0 \$PID 2>/dev/null; then echo ALIVE; else echo DEAD; fi; " +
                         "else echo DEAD; fi"
             ).exec()
@@ -47,19 +47,19 @@ object RootShellManager {
         Shell.cmd(
             "PREV_DNS=\$(settings get global private_dns_mode 2>/dev/null); " +
             "if [ -n \"\$PREV_DNS\" ] && [ \"\$PREV_DNS\" != \"null\" ] && [ \"\$PREV_DNS\" != \"off\" ]; then " +
-            "echo \"\$PREV_DNS\" > ${CoreManager.ROOT_RUN_DIR}/.prev_dns; " +
+            "echo \"\$PREV_DNS\" > ${CoreConstants.ROOT_RUN_DIR}/.prev_dns; " +
             "settings put global private_dns_mode off; fi"
         ).exec()
 
         // 3. Find busybox to run daemon with gid 3005 (net_admin) for Android network permissions
         val startCmd = "BUSYBOX=\$(which busybox 2>/dev/null || ls /data/adb/*/bin/busybox 2>/dev/null | head -n 1); " +
                 "if [ -n \"\$BUSYBOX\" ] && [ -x \"\$BUSYBOX\" ]; then EXEC_PREFIX=\"\$BUSYBOX setuidgid 0:3005\"; else EXEC_PREFIX=\"\"; fi; " +
-                "nohup \$EXEC_PREFIX ${CoreManager.ROOT_BIN_PATH} -d ${CoreManager.ROOT_RUN_DIR} -f \"$configPath\" > ${CoreManager.ROOT_LOG_FILE} 2>&1 & echo \$! > ${CoreManager.ROOT_PID_FILE}"
+                "nohup \$EXEC_PREFIX ${CoreConstants.ROOT_BIN_PATH} -d ${CoreConstants.ROOT_RUN_DIR} -f \"$configPath\" > ${CoreConstants.ROOT_LOG_FILE} 2>&1 & echo \$! > ${CoreConstants.ROOT_PID_FILE}"
 
         val res = Shell.cmd(
-            "mkdir -p ${CoreManager.ROOT_RUN_DIR}",
+            "mkdir -p ${CoreConstants.ROOT_RUN_DIR}",
             startCmd,
-            "cat ${CoreManager.ROOT_PID_FILE}"
+            "cat ${CoreConstants.ROOT_PID_FILE}"
         ).exec()
 
         if (!res.isSuccess) {
@@ -74,20 +74,20 @@ object RootShellManager {
 
     fun stopDaemon(): Result<Unit> = runCatching {
         Shell.cmd(
-            "if [ -f ${CoreManager.ROOT_PID_FILE} ]; then " +
-                    "PID=\$(cat ${CoreManager.ROOT_PID_FILE}); " +
+            "if [ -f ${CoreConstants.ROOT_PID_FILE} ]; then " +
+                    "PID=\$(cat ${CoreConstants.ROOT_PID_FILE}); " +
                     "kill -15 \$PID 2>/dev/null; " +
                     "sleep 0.2; " +
                     "kill -9 \$PID 2>/dev/null; " +
-                    "rm -f ${CoreManager.ROOT_PID_FILE}; " +
+                    "rm -f ${CoreConstants.ROOT_PID_FILE}; " +
                     "fi; " +
                     "killall mihomo 2>/dev/null || true; " +
                     "killall libmihomo.so 2>/dev/null || true; " +
                     "pkill -9 -f mihomo 2>/dev/null || true; " +
-                    "if [ -f ${CoreManager.ROOT_RUN_DIR}/.prev_dns ]; then " +
-                    "RESTORE_DNS=\$(cat ${CoreManager.ROOT_RUN_DIR}/.prev_dns 2>/dev/null); " +
+                    "if [ -f ${CoreConstants.ROOT_RUN_DIR}/.prev_dns ]; then " +
+                    "RESTORE_DNS=\$(cat ${CoreConstants.ROOT_RUN_DIR}/.prev_dns 2>/dev/null); " +
                     "if [ -n \"\$RESTORE_DNS\" ]; then settings put global private_dns_mode \"\$RESTORE_DNS\"; fi; " +
-                    "rm -f ${CoreManager.ROOT_RUN_DIR}/.prev_dns; fi"
+                    "rm -f ${CoreConstants.ROOT_RUN_DIR}/.prev_dns; fi"
         ).exec()
     }
 }

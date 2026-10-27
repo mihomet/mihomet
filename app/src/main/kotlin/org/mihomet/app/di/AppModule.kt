@@ -6,7 +6,7 @@ import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 import org.mihomet.app.core.CoreManager
 import org.mihomet.app.core.firewall.FirewallManager
-import org.mihomet.app.data.api.MihomoApiClient
+import org.mihomet.app.data.api.MihomoApiClientProvider
 import org.mihomet.app.data.db.AppDatabase
 import org.mihomet.app.data.preferences.SettingsRepository
 import org.mihomet.app.ui.screens.connections.ConnectionsViewModel
@@ -34,14 +34,8 @@ val appModule = module {
     single { CoreManager(androidContext()) }
     single { FirewallManager() }
 
-    // API Client
-    single {
-        MihomoApiClient(
-            host = "127.0.0.1",
-            port = 9090,
-            secret = "mihomet_secret_token"
-        )
-    }
+    // API Client (recreated only when controller port/secret changes)
+    single { MihomoApiClientProvider(get()) }
 
     // ViewModels
     viewModel { DashboardViewModel(get(), get(), get(), get()) }

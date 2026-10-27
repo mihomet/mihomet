@@ -1,6 +1,7 @@
 package org.mihomet.app.core.firewall
 
 import com.topjohnwu.superuser.Shell
+import org.mihomet.app.core.CoreConstants
 import org.mihomet.app.data.preferences.PerAppMode
 
 class NftablesEngine : FirewallEngine {
@@ -20,16 +21,16 @@ class NftablesEngine : FirewallEngine {
             "DEFAULT_TABLE=\$(ip rule show | grep -E '^31000:' | awk '{print \$NF}'); " +
             "[ -z \"\$DEFAULT_TABLE\" ] && DEFAULT_TABLE=\$(ip route show table main | grep default | awk '{print \$5}'); " +
             "[ -z \"\$DEFAULT_TABLE\" ] && DEFAULT_TABLE=\"wlan0\"; " +
-            "ip rule add fwmark 666 lookup \$DEFAULT_TABLE pref 100; " +
-            "ip rule add fwmark 20 table 2025 pref 2025; " +
-            "ip route add local 0.0.0.0/0 dev lo table 2025; " +
+            "ip rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup \$DEFAULT_TABLE pref ${CoreConstants.POLICY_RULE_PREF_MAIN}; " +
+            "ip rule add fwmark ${CoreConstants.TPROXY_MARK_IPV4} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL}; " +
+            "ip route add local 0.0.0.0/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE}; " +
             "echo 1 > /proc/sys/net/ipv4/ip_forward; " +
             "echo 2 > /proc/sys/net/ipv4/conf/all/rp_filter 2>/dev/null || true; " +
             "echo 2 > /proc/sys/net/ipv4/conf/default/rp_filter 2>/dev/null || true; " +
             if (ipv6Enabled) {
-                "ip -6 rule add fwmark 666 lookup \$DEFAULT_TABLE pref 100 2>/dev/null || true; " +
-                "ip -6 rule add fwmark 25 table 2025 pref 2025 2>/dev/null || true; " +
-                "ip -6 route add local ::/0 dev lo table 2025 2>/dev/null || true"
+                "ip -6 rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup \$DEFAULT_TABLE pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null || true; " +
+                "ip -6 rule add fwmark ${CoreConstants.TPROXY_MARK_IPV6} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL} 2>/dev/null || true; " +
+                "ip -6 route add local ::/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE} 2>/dev/null || true"
             } else ""
         ).exec()
 
@@ -71,7 +72,7 @@ class NftablesEngine : FirewallEngine {
             // 2. OUTPUT mangle hook (mark 20 -> lo)
             appendLine("    chain output {")
             appendLine("        type route hook output priority mangle; policy accept;")
-            appendLine("        meta mark 666 accept")
+            appendLine("        meta mark ${CoreConstants.CORE_ROUTING_MARK} accept")
             appendLine("        meta skuid 0 meta skgid 3005 accept")
             appendLine("        jump bypass")
             if (ipv6BlockRule.isNotBlank()) {
@@ -80,15 +81,15 @@ class NftablesEngine : FirewallEngine {
             if (perAppRule.isNotBlank()) {
                 appendLine(perAppRule)
             }
-            appendLine("        meta l4proto { tcp, udp } meta mark set 20")
+            appendLine("        meta l4proto { tcp, udp } meta mark set ${CoreConstants.TPROXY_MARK_IPV4}")
             appendLine("    }")
             appendLine()
             // 3. PREROUTING mangle hook (tproxy)
             appendLine("    chain prerouting {")
             appendLine("        type filter hook prerouting priority mangle; policy accept;")
-            appendLine("        meta mark 666 accept")
+            appendLine("        meta mark ${CoreConstants.CORE_ROUTING_MARK} accept")
             appendLine("        jump bypass")
-            appendLine("        meta l4proto { tcp, udp } meta mark set 20 tproxy to :$tproxyPort accept")
+            appendLine("        meta l4proto { tcp, udp } meta mark set ${CoreConstants.TPROXY_MARK_IPV4} tproxy to :$tproxyPort accept")
             appendLine("    }")
             appendLine("}")
         }
@@ -107,13 +108,13 @@ class NftablesEngine : FirewallEngine {
             "DEFAULT_TABLE=\$(ip rule show | grep -E '^31000:' | awk '{print \$NF}'); " +
             "[ -z \"\$DEFAULT_TABLE\" ] && DEFAULT_TABLE=\$(ip route show table main | grep default | awk '{print \$5}'); " +
             "[ -z \"\$DEFAULT_TABLE\" ] && DEFAULT_TABLE=\"wlan0\"; " +
-            "ip rule del fwmark 666 lookup \$DEFAULT_TABLE pref 100 2>/dev/null || true; " +
-            "ip -6 rule del fwmark 666 lookup \$DEFAULT_TABLE pref 100 2>/dev/null || true",
+            "ip rule del fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup \$DEFAULT_TABLE pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null || true; " +
+            "ip -6 rule del fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup \$DEFAULT_TABLE pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null || true",
             "nft delete table inet mihomet 2>/dev/null || true",
-            "ip rule del fwmark 20 table 2025 pref 2025 2>/dev/null || true",
-            "ip route del local default dev lo table 2025 2>/dev/null || true",
-            "ip -6 rule del fwmark 25 table 2025 pref 2025 2>/dev/null || true",
-            "ip -6 route del local default dev lo table 2025 2>/dev/null || true"
+            "ip rule del fwmark ${CoreConstants.TPROXY_MARK_IPV4} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL} 2>/dev/null || true",
+            "ip route del local default dev lo table ${CoreConstants.POLICY_ROUTING_TABLE} 2>/dev/null || true",
+            "ip -6 rule del fwmark ${CoreConstants.TPROXY_MARK_IPV6} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL} 2>/dev/null || true",
+            "ip -6 route del local default dev lo table ${CoreConstants.POLICY_ROUTING_TABLE} 2>/dev/null || true"
         ).exec()
     }
 }

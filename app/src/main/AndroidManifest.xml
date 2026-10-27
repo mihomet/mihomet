@@ -14,7 +14,7 @@
 
     <application
         android:name=".MihometApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:extractNativeLibs="true"
         android:usesCleartextTraffic="true"
         android:icon="@mipmap/ic_launcher"

@@ -7,11 +7,19 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import org.mihomet.app.core.CoreConstants
 import java.io.IOException
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "mihomet_settings")
 
 class SettingsRepository(private val context: Context) {
+
+    // Guard against racing collectors generating different secrets in parallel
+    @Volatile
+    private var cachedSecret: String? = null
+    private val secretMutex = Mutex()
 
     private object PreferencesKeys {
         val IS_ROOT_MODE = booleanPreferencesKey("is_root_mode")
@@ -57,17 +65,17 @@ class SettingsRepository(private val context: Context) {
                     ProxyMode.valueOf(preferences[PreferencesKeys.PROXY_MODE] ?: ProxyMode.RULE.name)
                 }.getOrDefault(ProxyMode.RULE),
                 selectedNodeName = preferences[PreferencesKeys.SELECTED_NODE_NAME] ?: "",
-                mixedPort = preferences[PreferencesKeys.MIXED_PORT] ?: 7890,
-                tproxyPort = preferences[PreferencesKeys.TPROXY_PORT] ?: 7893,
-                dnsPort = preferences[PreferencesKeys.DNS_PORT] ?: 1053,
-                controllerPort = preferences[PreferencesKeys.CONTROLLER_PORT] ?: 9090,
+                mixedPort = preferences[PreferencesKeys.MIXED_PORT] ?: CoreConstants.DEFAULT_MIXED_PORT,
+                tproxyPort = preferences[PreferencesKeys.TPROXY_PORT] ?: CoreConstants.DEFAULT_TPROXY_PORT,
+                dnsPort = preferences[PreferencesKeys.DNS_PORT] ?: CoreConstants.DEFAULT_DNS_PORT,
+                controllerPort = preferences[PreferencesKeys.CONTROLLER_PORT] ?: CoreConstants.DEFAULT_CONTROLLER_PORT,
                 ipv6Enabled = preferences[PreferencesKeys.IPV6_ENABLED] ?: false,
                 dynamicColor = preferences[PreferencesKeys.DYNAMIC_COLOR] ?: true,
                 darkTheme = preferences[PreferencesKeys.DARK_THEME] ?: true,
                 amoledBlack = preferences[PreferencesKeys.AMOLED_BLACK] ?: false,
                 showSpeedInNotification = preferences[PreferencesKeys.SHOW_SPEED_NOTIFICATION] ?: true,
                 customDns = preferences[PreferencesKeys.CUSTOM_DNS] ?: "",
-                controllerSecret = preferences[PreferencesKeys.CONTROLLER_SECRET] ?: "mihomet_secret_token",
+                controllerSecret = resolveControllerSecret(preferences[PreferencesKeys.CONTROLLER_SECRET]),
                 testUrl = preferences[PreferencesKeys.TEST_URL]?.let { stored ->
                     if (stored.startsWith("https://cp.cloudflare.com")) {
                         stored.replace("https://", "http://")
@@ -76,6 +84,28 @@ class SettingsRepository(private val context: Context) {
                 testTimeoutMs = preferences[PreferencesKeys.TEST_TIMEOUT_MS] ?: 5000
             )
         }
+
+    /**
+     * Returns the stored controller secret, or generates a random one on first
+     * use. Generation is guarded by a mutex plus a volatile cache so parallel
+     * collectors produce a single value; the write only happens if the key is
+     * still blank. The resulting re-emission carries the persisted secret.
+     */
+    private suspend fun resolveControllerSecret(stored: String?): String {
+        stored?.takeIf { it.isNotBlank() }?.let { return it }
+        cachedSecret?.let { return it }
+        return secretMutex.withLock {
+            cachedSecret?.let { return it }
+            val generated = CoreConstants.generateRandomHexSecret()
+            context.dataStore.edit { preferences ->
+                if (preferences[PreferencesKeys.CONTROLLER_SECRET].isNullOrBlank()) {
+                    preferences[PreferencesKeys.CONTROLLER_SECRET] = generated
+                }
+            }
+            cachedSecret = generated
+            generated
+        }
+    }
 
     suspend fun updateSelectedNodeName(name: String) {
         context.dataStore.edit { it[PreferencesKeys.SELECTED_NODE_NAME] = name }

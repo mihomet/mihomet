@@ -20,6 +20,7 @@ import org.mihomet.app.core.network.NodePingTester
 import org.mihomet.app.core.network.PingProtocol
 import org.mihomet.app.core.network.ProxyNodeInfo
 import org.mihomet.app.data.api.MihomoApiClient
+import org.mihomet.app.data.api.MihomoApiClientProvider
 import org.mihomet.app.data.db.ProfileDao
 import org.mihomet.app.data.preferences.SettingsRepository
 import org.yaml.snakeyaml.Yaml
@@ -66,7 +67,7 @@ data class ProxiesUiState(
 )
 
 class ProxiesViewModel(
-    private val apiClient: MihomoApiClient,
+    private val apiClientProvider: MihomoApiClientProvider,
     private val coreManager: CoreManager,
     private val settingsRepository: SettingsRepository,
     private val profileDao: ProfileDao,
@@ -247,7 +248,7 @@ class ProxiesViewModel(
     }
 
     private suspend fun syncLiveControllerStatus() {
-        apiClient.getProxies().onSuccess { response ->
+        apiClientProvider.current().getProxies().onSuccess { response ->
             val allProxies = response.proxies
 
             _uiState.update { state ->
@@ -300,7 +301,7 @@ class ProxiesViewModel(
             settingsRepository.updateSelectedNodeName(node.name)
 
             // 1. Send selection to all active selector groups in the running Mihomo core
-            val liveProxies = apiClient.getProxies().getOrNull()?.proxies ?: emptyMap()
+            val liveProxies = apiClientProvider.current().getProxies().getOrNull()?.proxies ?: emptyMap()
             val selectorGroups = liveProxies.filter { (_, proxy) ->
                 proxy.type.equals("Selector", ignoreCase = true) || proxy.type.equals("select", ignoreCase = true)
             }
@@ -308,19 +309,19 @@ class ProxiesViewModel(
             if (selectorGroups.isNotEmpty()) {
                 selectorGroups.forEach { (name, proxy) ->
                     if (proxy.all?.contains(node.name) == true || proxy.all.isNullOrEmpty()) {
-                        apiClient.selectProxyNode(name, node.name).onFailure { e ->
+                        apiClientProvider.current().selectProxyNode(name, node.name).onFailure { e ->
                             android.util.Log.e("ProxiesVM", "Failed to select node ${node.name} in group $name", e)
                         }
                     }
                 }
             } else if (targetGroup.isNotBlank()) {
-                apiClient.selectProxyNode(targetGroup, node.name).onFailure { e ->
+                apiClientProvider.current().selectProxyNode(targetGroup, node.name).onFailure { e ->
                     android.util.Log.e("ProxiesVM", "Failed to select node ${node.name} in group $targetGroup", e)
                 }
             }
 
             // 2. Immediately close all connections so active traffic switches to new proxy without delay
-            apiClient.closeAllConnections()
+            apiClientProvider.current().closeAllConnections()
         }
     }
 
@@ -344,7 +345,7 @@ class ProxiesViewModel(
 
         viewModelScope.launch {
             _uiState.update { it.copy(testingNodeNames = it.testingNodeNames + node.name) }
-            val isCoreOnline = apiClient.getVersion().isSuccess || ServiceState.isRunning.value
+            val isCoreOnline = apiClientProvider.current().getVersion().isSuccess || ServiceState.isRunning.value
             val rawTestUrl = if (protocol == PingProtocol.HTTP_HEAD) {
                 "http://cp.cloudflare.com/generate_204"
             } else {
@@ -364,7 +365,7 @@ class ProxiesViewModel(
                 }
                 PingProtocol.HTTP_GET, PingProtocol.HTTP_HEAD -> {
                     if (isCoreOnline) {
-                        val res = apiClient.testNodeDelay(node.name, testUrl, timeout).getOrDefault(-1)
+                        val res = apiClientProvider.current().testNodeDelay(node.name, testUrl, timeout).getOrDefault(-1)
                         if (res > 0) res.toLong() else -1L
                     } else {
                         val probeRes = coreManager.runTemporaryCoreProbe(_uiState.value.rawConfigYaml) { probeClient ->
@@ -395,11 +396,11 @@ class ProxiesViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isTestingAll = true, statusMessage = null) }
 
-            val isCoreOnline = apiClient.getVersion().isSuccess || ServiceState.isRunning.value
+            val isCoreOnline = apiClientProvider.current().getVersion().isSuccess || ServiceState.isRunning.value
 
             if (currentProtocol == PingProtocol.HTTP_GET || currentProtocol == PingProtocol.HTTP_HEAD) {
                 if (isCoreOnline) {
-                    runHttpApiTestAll(currentProtocol, apiClient)
+                    runHttpApiTestAll(currentProtocol, apiClientProvider.current())
                 } else {
                     // Core is not running: launch lightweight background core probe
                     val probeResult = coreManager.runTemporaryCoreProbe(_uiState.value.rawConfigYaml) { probeClient ->
@@ -420,7 +421,7 @@ class ProxiesViewModel(
 
     private suspend fun runHttpApiTestAll(
         protocol: PingProtocol,
-        client: MihomoApiClient = apiClient
+        client: MihomoApiClient = apiClientProvider.current()
     ) = withContext(Dispatchers.IO) {
         val rawTestUrl = if (protocol == PingProtocol.HTTP_HEAD) {
             "http://cp.cloudflare.com/generate_204"

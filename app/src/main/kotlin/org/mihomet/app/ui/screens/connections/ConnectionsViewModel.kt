@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.mihomet.app.data.api.ConnectionItem
-import org.mihomet.app.data.api.MihomoApiClient
+import org.mihomet.app.data.api.MihomoApiClientProvider
 
 data class ConnectionsUiState(
     val downloadTotal: Long = 0L,
@@ -21,7 +21,7 @@ data class ConnectionsUiState(
 )
 
 class ConnectionsViewModel(
-    private val apiClient: MihomoApiClient
+    private val apiClientProvider: MihomoApiClientProvider
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConnectionsUiState())
@@ -34,7 +34,8 @@ class ConnectionsViewModel(
     private fun startPollingConnections() {
         viewModelScope.launch {
             while (isActive) {
-                apiClient.getConnections().onSuccess { response ->
+                // Resolve current client on every iteration so port/secret changes are picked up
+                apiClientProvider.current().getConnections().onSuccess { response ->
                     _uiState.update {
                         it.copy(
                             downloadTotal = response.downloadTotal,
@@ -50,7 +51,7 @@ class ConnectionsViewModel(
 
     fun closeConnection(id: String) {
         viewModelScope.launch {
-            apiClient.closeConnection(id)
+            apiClientProvider.current().closeConnection(id)
             _uiState.update { state ->
                 state.copy(connections = state.connections.filter { it.id != id })
             }
@@ -59,7 +60,7 @@ class ConnectionsViewModel(
 
     fun closeAllConnections() {
         viewModelScope.launch {
-            apiClient.closeAllConnections()
+            apiClientProvider.current().closeAllConnections()
             _uiState.update { it.copy(connections = emptyList()) }
         }
     }

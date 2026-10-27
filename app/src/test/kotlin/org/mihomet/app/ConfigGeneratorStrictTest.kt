@@ -62,7 +62,7 @@ class ConfigGeneratorStrictTest {
         assertEquals("Mixed port must be 7890", 7890, parsed["mixed-port"])
         assertEquals("127.0.0.1:9090", parsed["external-controller"])
         assertEquals("rule", parsed["mode"])
-        assertEquals(true, parsed["allow-lan"])
+        assertEquals(false, parsed["allow-lan"])
     }
 
     @Test
@@ -140,7 +140,7 @@ class ConfigGeneratorStrictTest {
 
         val dns = parsed["dns"] as Map<String, Any>
         assertEquals(true, dns["enable"])
-        assertEquals("0.0.0.0:1053", dns["listen"])
+        assertEquals("127.0.0.1:1053", dns["listen"])
         assertEquals("fake-ip", dns["enhanced-mode"])
 
         val proxyServerDns = dns["proxy-server-nameserver"] as List<String>

@@ -56,7 +56,7 @@ class SubscriptionTest {
         val runtimeParsed = yaml.load<Map<String, Any>>(runtimeConfig)
         assertEquals(666, runtimeParsed["routing-mark"])
         assertEquals(7893, runtimeParsed["tproxy-port"])
-        assertEquals("0.0.0.0:1053", (runtimeParsed["dns"] as Map<String, Any>)["listen"])
+        assertEquals("127.0.0.1:1053", (runtimeParsed["dns"] as Map<String, Any>)["listen"])
 
         val runtimeProxies = runtimeParsed["proxies"] as List<Map<String, Any>>
         assertEquals(proxies.size, runtimeProxies.size)
