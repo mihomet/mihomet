@@ -1,3 +1,5 @@
+import java.net.HttpURLConnection
+import java.net.URL
 import java.security.MessageDigest
 import java.util.Properties
 import java.util.zip.GZIPInputStream
@@ -30,7 +32,7 @@ val downloadMihomoCore by tasks.registering {
         fun download(url: String, dest: File, expectedSha: String?) {
             logger.lifecycle("Mihomet: downloading ${dest.name}…")
             dest.parentFile.mkdirs()
-            val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+            val connection = URL(url).openConnection() as HttpURLConnection
             connection.connectTimeout = 15000
             connection.readTimeout = 120000
             connection.instanceFollowRedirects = true
@@ -83,20 +85,20 @@ val downloadMihomoCore by tasks.registering {
             logger.lifecycle("Mihomet: extracted libmihomo.so ($abi) from core v$coreVersion")
         }
 
-        // Geo databases: rolling latest, sanity-checked by size (data, not executed)
-        mapOf("geoip.metadb" to "geoip", "geosite.dat" to "geosite").forEach { (fileName, key) ->
+        // Geo databases: rolling latest, downloaded only when missing, sanity-checked by size.
+        // (Data files consumed by the core — not executed — so no checksum pinning; keeps builds
+        //  self-healing while the core binary above stays strictly pinned.)
+        mapOf("geoip.metadb" to "geoip", "geosite.dat" to "geosite").forEach { (fileName, _) ->
             val target = layout.projectDirectory.file("src/main/assets/$fileName").asFile
-            val expectedSha = coreProperties.getProperty("checksum.$key")
-            if (target.isFile && expectedSha != null && sha256(target).equals(expectedSha, ignoreCase = true)) {
+            if (target.isFile && target.length() > 1_000_000) {
                 return@forEach
             }
             val cached = coreCacheDir.file(fileName).asFile
-            val cachedSha = if (cached.isFile) sha256(cached) else null
-            if (cachedSha == null || expectedSha == null || !cachedSha.equals(expectedSha, ignoreCase = true)) {
+            if (!cached.isFile || cached.length() < 1_000_000) {
                 download(
                     "https://github.com/MetaCubeX/meta-rules-dat/releases/latest/download/$fileName",
                     cached,
-                    expectedSha
+                    null
                 )
             }
             target.parentFile.mkdirs()

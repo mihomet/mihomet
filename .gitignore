@@ -22,3 +22,8 @@ keystore.properties
 *.apk
 *.aab
 *.hprof
+
+# Downloaded build artifacts (see downloadMihomoCore task)
+app/src/main/jniLibs/*/libmihomo.so
+app/src/main/assets/geoip.metadb
+app/src/main/assets/geosite.dat

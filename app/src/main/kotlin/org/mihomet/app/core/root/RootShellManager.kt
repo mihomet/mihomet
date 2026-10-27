@@ -83,7 +83,6 @@ object RootShellManager {
                     "fi; " +
                     "killall mihomo 2>/dev/null || true; " +
                     "killall libmihomo.so 2>/dev/null || true; " +
-                    "pkill -9 -f mihomo 2>/dev/null || true; " +
                     "if [ -f ${CoreConstants.ROOT_RUN_DIR}/.prev_dns ]; then " +
                     "RESTORE_DNS=\$(cat ${CoreConstants.ROOT_RUN_DIR}/.prev_dns 2>/dev/null); " +
                     "if [ -n \"\$RESTORE_DNS\" ]; then settings put global private_dns_mode \"\$RESTORE_DNS\"; fi; " +

@@ -118,7 +118,7 @@ class RoutingViewModel(
     fun selectAllApps() {
         viewModelScope.launch {
             val visibleApps = _uiState.value.installedApps.filter {
-                _uiState.value.showSystemApps || !it.isSystem || it.packageName == "com.android.chrome"
+                _uiState.value.showSystemApps || !it.isSystem
             }
             val uids = visibleApps.map { it.uid }.toSet()
             settingsRepository.updateSelectedAppUids(uids)

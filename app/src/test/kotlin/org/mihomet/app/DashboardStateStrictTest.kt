@@ -13,7 +13,7 @@ class DashboardStateStrictTest {
         assertFalse(state.isRunning)
         assertFalse(state.isConnecting)
         assertFalse(state.isDisconnecting)
-        assertEquals("Нет профиля", state.activeProfileName)
+        assertEquals("По умолчанию", state.activeProfileName)
         assertTrue(state.trafficHistory.isEmpty())
     }
 

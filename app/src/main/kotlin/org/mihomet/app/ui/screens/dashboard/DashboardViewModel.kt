@@ -24,7 +24,7 @@ import java.io.File
 data class DashboardUiState(
     val isRunning: Boolean = false,
     val isRootMode: Boolean = true,
-    val activeProfileName: String = "Нет профиля",
+    val activeProfileName: String = "По умолчанию",
     val currentTraffic: TrafficSample = TrafficSample(),
     val trafficHistory: List<TrafficSample> = emptyList(),
     val activeMode: ProxyMode = ProxyMode.RULE,
