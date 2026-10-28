@@ -1,0 +1,42 @@
+mode: Global
+port: 7890
+proxies:
+- alterId: 0
+  cipher: auto
+  name: 🚀 Marz (MihometTest) [VMess - ws]
+  network: ws
+  port: 10002
+  server: 9.247.6.62
+  type: vmess
+  udp: true
+  uuid: 959776f0-b606-44c0-8dc2-fea04c207711
+  ws-opts:
+    ip-version: dual
+    path: /mws
+- cipher: aes-256-gcm
+  name: 🚀 Marz (MihometTest) [Shadowsocks - tcp]
+  network: tcp
+  password: 0Gg2OQ7/b8zRlnDCBpUInmuGKSDj4kYZxXFkKMnglPI=
+  port: 10003
+  server: 9.247.6.62
+  type: ss
+  udp: true
+- name: 🚀 Marz (MihometTest) [Trojan - tcp]
+  network: tcp
+  password: WxDVHv33BlNHvVo3AyrMdA
+  port: 10004
+  server: 9.247.6.62
+  tcp-opts:
+    ip-version: dual
+  type: trojan
+  udp: true
+rules: []
+proxy-groups:
+- name: ♻️ Automatic
+  type: url-test
+  url: http://www.gstatic.com/generate_204
+  interval: 300
+  proxies:
+  - 🚀 Marz (MihometTest) [VMess - ws]
+  - 🚀 Marz (MihometTest) [Shadowsocks - tcp]
+  - 🚀 Marz (MihometTest) [Trojan - tcp]

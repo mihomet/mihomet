@@ -328,6 +328,25 @@ class UniversalConfigConverterTest {
 
     @Test
     @Suppress("UNCHECKED_CAST")
+    fun `test SS2022 plain userinfo with iPSK and query params parses`() {
+        // SS2022 panels emit raw percent-encoded cipher:psk[:ipsk] userinfo (not base64)
+        val uri = "ss://2022-blake3-aes-128-gcm:A6beDiWfjeiG%2Fv48qQ1IZw%3D%3D:pwPJQHEVtilCyqP79n1kpg%3D%3D" +
+                "@localhost:10012?type=tcp#Mihomet%20SS2022"
+        val yamlStr = UniversalConfigConverter.convertToMihomoYaml(uri)
+        val parsed = Yaml().load<Map<String, Any>>(yamlStr)
+
+        val proxies = parsed["proxies"] as List<Map<String, Any>>
+        assertEquals(1, proxies.size)
+        val node = proxies[0]
+        assertEquals("ss", node["type"])
+        assertEquals("2022-blake3-aes-128-gcm", node["cipher"])
+        assertEquals("A6beDiWfjeiG/v48qQ1IZw==:pwPJQHEVtilCyqP79n1kpg==", node["password"])
+        assertEquals("localhost", node["server"])
+        assertEquals(10012, node["port"])
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
     fun `test TUIC URI converts to tuic proxy with all parameters`() {
         val uri = "tuic://uuid-abcd:my_secret@tuic.example.com:8443?" +
                 "congestion_control=bbr&alpn=h3&sni=tuic.sni.com&udp_relay_mode=native&allow_insecure=1#TuicNode"

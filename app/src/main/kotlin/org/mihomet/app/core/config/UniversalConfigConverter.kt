@@ -1288,15 +1288,16 @@ object UniversalConfigConverter {
     private fun parseShadowsocksUri(uri: String, name: String): Map<String, Any>? {
         val noScheme = uri.removePrefix("ss://")
         return if (noScheme.contains("@")) {
-            val atIdx = noScheme.indexOf('@')
-            val userinfoB64 = noScheme.substring(0, atIdx)
+            // SIP002: ss://userinfo@host:port — userinfo is either websafe-base64(cipher:password)
+            // or, with SS2022 panels (3x-ui etc.), a percent-encoded plain "cipher:psk[:ipsk]"
+            val atIdx = noScheme.lastIndexOf('@')
+            val userinfo = noScheme.substring(0, atIdx)
             val rest = noScheme.substring(atIdx + 1)
-            val decodedUser = decodeBase64(userinfoB64)
-            val upParts = decodedUser.split(":")
-            if (upParts.size != 2) return null
-            val method = upParts[0]
-            val password = upParts[1]
-            val (server, rawPort) = parseHostPort(rest) ?: return null
+            val (method, password) = decodeShadowsocksUserinfo(userinfo) ?: return null
+            // Strip query string (?type=tcp&plugin=...) — SIP003 plugin mapping is not handled yet
+            val qIdx = rest.indexOf('?')
+            val hostPort = if (qIdx != -1) rest.substring(0, qIdx) else rest
+            val (server, rawPort) = parseHostPort(hostPort) ?: return null
             mutableMapOf(
                 "name" to name,
                 "type" to "ss",
@@ -1324,6 +1325,31 @@ object UniversalConfigConverter {
                 "password" to upParts[1]
             )
         }
+    }
+
+    /**
+     * Decodes the SIP002 userinfo part of an ss:// link into (cipher, password).
+     */
+    private fun decodeShadowsocksUserinfo(userinfo: String): Pair<String, String>? {
+        // Websafe-base64 form — raw userinfo never contains a colon
+        if (!userinfo.contains(':')) {
+            val decodedUser = runCatching { decodeBase64(userinfo) }.getOrNull()
+            if (decodedUser != null) {
+                val parts = decodedUser.split(":", limit = 2)
+                if (parts.size == 2 && parts[0].isNotBlank() && parts[1].isNotBlank()) {
+                    return parts[0] to parts[1]
+                }
+            }
+        }
+        // Plain percent-encoded form (SS2022): "cipher:psk" — password may itself contain ':'
+        val decoded = runCatching { URLDecoder.decode(userinfo, "UTF-8") }.getOrElse { userinfo }
+        val idx = decoded.indexOf(':')
+        if (idx != -1) {
+            val method = decoded.substring(0, idx)
+            val password = decoded.substring(idx + 1)
+            if (method.isNotBlank() && password.isNotBlank()) return method to password
+        }
+        return null
     }
 
     private fun parseHysteria2Uri(uri: String, name: String): Map<String, Any>? {

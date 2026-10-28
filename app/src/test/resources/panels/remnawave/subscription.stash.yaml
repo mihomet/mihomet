@@ -1,0 +1,89 @@
+proxy-groups:
+  - name: → Remnawave
+    type: select
+    proxies:
+      - Bench VLESS Reality
+      - Bench VLESS WS
+      - Bench Trojan WS
+proxies:
+  - name: Bench VLESS Reality
+    type: vless
+    server: 127.0.0.1
+    port: 10041
+    network: tcp
+    udp: true
+    uuid: b831481d-6324-4d43-ad0f-09782339439c
+    packet-encoding: xudp
+    flow: xtls-rprx-vision
+    tls: true
+    servername: www.microsoft.com
+    reality-opts:
+      public-key: HpWsPF48op0R2bzt02n4Gf6viADqD3IKbsbUXrruLyY
+      short-id: df23c040
+    client-fingerprint: chrome
+  - name: Bench VLESS WS
+    type: vless
+    server: 127.0.0.1
+    port: 10042
+    network: ws
+    udp: true
+    uuid: b831481d-6324-4d43-ad0f-09782339439c
+    packet-encoding: xudp
+    ws-opts:
+      path: /vlessws
+      headers:
+        Host: 127.0.0.1
+    client-fingerprint: chrome
+  - name: Bench Trojan WS
+    type: trojan
+    server: 127.0.0.1
+    port: 10043
+    network: ws
+    udp: true
+    password: benchTrojanPass1
+    ws-opts:
+      path: /trojanws
+      headers:
+        Host: 127.0.0.1
+    client-fingerprint: chrome
+rules:
+  - SCRIPT,quic,REJECT
+  - DOMAIN-SUFFIX,iphone-ld.apple.com,DIRECT
+  - DOMAIN-SUFFIX,lcdn-locator.apple.com,DIRECT
+  - DOMAIN-SUFFIX,lcdn-registration.apple.com,DIRECT
+  - DOMAIN-SUFFIX,push.apple.com,DIRECT
+  - PROCESS-NAME,v2ray,DIRECT
+  - PROCESS-NAME,Surge,DIRECT
+  - PROCESS-NAME,ss-local,DIRECT
+  - PROCESS-NAME,privoxy,DIRECT
+  - PROCESS-NAME,trojan,DIRECT
+  - PROCESS-NAME,trojan-go,DIRECT
+  - PROCESS-NAME,naive,DIRECT
+  - PROCESS-NAME,CloudflareWARP,DIRECT
+  - PROCESS-NAME,Cloudflare WARP,DIRECT
+  - IP-CIDR,162.159.193.0/24,DIRECT,no-resolve
+  - PROCESS-NAME,p4pclient,DIRECT
+  - PROCESS-NAME,Thunder,DIRECT
+  - PROCESS-NAME,DownloadService,DIRECT
+  - PROCESS-NAME,qbittorrent,DIRECT
+  - PROCESS-NAME,Transmission,DIRECT
+  - PROCESS-NAME,fdm,DIRECT
+  - PROCESS-NAME,aria2c,DIRECT
+  - PROCESS-NAME,Folx,DIRECT
+  - PROCESS-NAME,NetTransport,DIRECT
+  - PROCESS-NAME,uTorrent,DIRECT
+  - PROCESS-NAME,WebTorrent,DIRECT
+  - GEOIP,LAN,DIRECT
+  - MATCH,→ Remnawave
+script:
+  shortcuts:
+    quic: network == 'udp' and dst_port == 443
+dns:
+  default-nameserver:
+    - 1.1.1.1
+    - 1.0.0.1
+  nameserver:
+    - 1.1.1.1
+    - 1.0.0.1
+log-level: warning
+mode: rule
