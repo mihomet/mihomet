@@ -19,6 +19,7 @@ import org.mihomet.app.core.config.UniversalConfigConverter
 import org.mihomet.app.data.db.ProfileDao
 import org.mihomet.app.data.db.ProfileEntity
 import org.mihomet.app.data.db.ProfileType
+import org.mihomet.app.data.crypto.SecretsCipher
 import org.mihomet.app.data.preferences.SettingsRepository
 import org.mihomet.app.ui.screens.profiles.SubscriptionMeta
 import org.mihomet.app.ui.screens.profiles.SubscriptionMetaParser
@@ -248,15 +249,19 @@ class SubscriptionRepository(
         }
 
     private suspend fun performRefresh(profile: ProfileEntity): ProfileRefreshResult {
-        val download = downloadAndConvert(profile.url, profile.customHeaders)
+        // url / custom_headers are encrypted at rest — decrypt before use; the
+        // migrated URL is re-encrypted on write below.
+        val url = SecretsCipher.decrypt(profile.url)
+        val headers = SecretsCipher.decrypt(profile.customHeaders)
+        val download = downloadAndConvert(url, headers)
         File(profile.filePath).writeText(download.outcome.yaml)
         // If the server sent no Subscription-Userinfo this time, keep the previous quota.
         val quota = download.userinfo
         // Panel-initiated subscription relocation (New-Url / Fallback-Url): auto-migrate.
         val migratedUrl = download.meta.redirectUrl
-            ?.takeIf { !it.equals(profile.url, ignoreCase = true) } ?: profile.url
+            ?.takeIf { !it.equals(url, ignoreCase = true) } ?: url
         val updated = profile.copy(
-            url = migratedUrl,
+            url = SecretsCipher.encrypt(migratedUrl),
             lastUpdated = System.currentTimeMillis(),
             uploadUsed = quota?.uploadUsed ?: profile.uploadUsed,
             downloadUsed = quota?.downloadUsed ?: profile.downloadUsed,

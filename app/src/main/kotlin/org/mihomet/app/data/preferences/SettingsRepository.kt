@@ -13,6 +13,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.mihomet.app.core.CoreConstants
+import org.mihomet.app.data.crypto.SecretsCipher
 import java.io.IOException
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "mihomet_settings")
@@ -99,21 +100,54 @@ class SettingsRepository(private val context: Context) {
             )
         }
 
+    // Memoized (stored → plaintext) pair: settingsFlow re-maps on every DataStore
+    // emission, and each SecretsCipher decrypt is a real AndroidKeyStore operation.
+    @Volatile
+    private var decryptedSecretCache: Pair<String, String>? = null
+
+    private fun decryptControllerSecret(stored: String): String {
+        decryptedSecretCache?.let { (encrypted, plain) ->
+            if (encrypted == stored) return plain
+        }
+        val plain = SecretsCipher.decrypt(stored)
+        decryptedSecretCache = stored to plain
+        return plain
+    }
+
     /**
-     * Returns the stored controller secret, or generates a random one on first
-     * use. Generation is guarded by a mutex plus a volatile cache so parallel
-     * collectors produce a single value; the write only happens if the key is
-     * still blank. The resulting re-emission carries the persisted secret.
+     * Returns the controller secret, or generates a random one on first use.
+     * The secret is persisted encrypted ([SecretsCipher]); legacy plaintext
+     * values pass through [SecretsCipher.decrypt] unchanged. Generation is
+     * guarded by a mutex plus a volatile cache so parallel collectors produce
+     * a single value; the write only happens if the key is still blank. The
+     * resulting re-emission carries the persisted (encrypted) secret.
      */
     private suspend fun resolveControllerSecret(stored: String?): String {
-        stored?.takeIf { it.isNotBlank() }?.let { return it }
+        stored?.takeIf { it.isNotBlank() }?.let { existing ->
+            val plain = decryptControllerSecret(existing)
+            // One-time legacy migration: a pre-encryption plaintext secret is
+            // re-persisted encrypted (no-op when the Keystore is unavailable —
+            // the facade passthrough then never yields the marker).
+            if (!existing.startsWith(SecretsCipher.MARKER)) {
+                val encrypted = SecretsCipher.encrypt(plain)
+                if (encrypted.startsWith(SecretsCipher.MARKER)) {
+                    context.dataStore.edit { preferences ->
+                        if (preferences[PreferencesKeys.CONTROLLER_SECRET] == existing) {
+                            preferences[PreferencesKeys.CONTROLLER_SECRET] = encrypted
+                        }
+                    }
+                }
+            }
+            return plain
+        }
         cachedSecret?.let { return it }
         return secretMutex.withLock {
             cachedSecret?.let { return it }
             val generated = CoreConstants.generateRandomHexSecret()
+            val encrypted = SecretsCipher.encrypt(generated)
             context.dataStore.edit { preferences ->
                 if (preferences[PreferencesKeys.CONTROLLER_SECRET].isNullOrBlank()) {
-                    preferences[PreferencesKeys.CONTROLLER_SECRET] = generated
+                    preferences[PreferencesKeys.CONTROLLER_SECRET] = encrypted
                 }
             }
             cachedSecret = generated

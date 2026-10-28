@@ -163,6 +163,12 @@ android {
         compose = true
     }
 
+    // JVM unit tests hit android.util.Log on the SecretsCipher decrypt-error
+    // path; unmocked framework methods return defaults instead of throwing.
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"

@@ -14,6 +14,7 @@ import org.mihomet.app.core.config.UniversalConfigConverter
 import org.mihomet.app.data.db.ProfileDao
 import org.mihomet.app.data.db.ProfileEntity
 import org.mihomet.app.data.db.ProfileType
+import org.mihomet.app.data.crypto.SecretsCipher
 import org.mihomet.app.data.preferences.PerAppMode
 import org.mihomet.app.data.preferences.SettingsRepository
 import org.mihomet.app.data.subs.SubscriptionRepository
@@ -92,9 +93,10 @@ class ProfilesViewModel(
                 val entity = ProfileEntity(
                     name = resolvedName,
                     type = ProfileType.REMOTE,
-                    url = effectiveUrl,
+                    // url / custom_headers are encrypted at rest (see SecretsCipher).
+                    url = SecretsCipher.encryptIfSecret(effectiveUrl),
                     filePath = file.absolutePath,
-                    customHeaders = normalizedHeaders,
+                    customHeaders = SecretsCipher.encryptIfSecret(normalizedHeaders),
                     isSelected = isFirst,
                     uploadUsed = quota?.uploadUsed ?: 0,
                     downloadUsed = quota?.downloadUsed ?: 0,
@@ -168,7 +170,8 @@ class ProfilesViewModel(
                     val entity = ProfileEntity(
                         name = autoName,
                         type = ProfileType.REMOTE,
-                        url = url,
+                        // Encrypted at rest (see SecretsCipher); blank stays blank.
+                        url = SecretsCipher.encryptIfSecret(url),
                         filePath = file.absolutePath,
                         isSelected = isFirst
                     )
@@ -244,18 +247,23 @@ class ProfilesViewModel(
      * URL migration and update interval are honored.
      */
     fun updateProfile(profile: ProfileEntity) {
-        if (profile.type != ProfileType.REMOTE || profile.url.isBlank()) return
+        if (profile.type != ProfileType.REMOTE) return
+        // url / custom_headers are encrypted at rest — decrypt before use; the
+        // migrated URL is re-encrypted on write below.
+        val url = SecretsCipher.decrypt(profile.url)
+        val headers = SecretsCipher.decrypt(profile.customHeaders)
+        if (url.isBlank()) return
         viewModelScope.launch {
             try {
-                val download = subscriptionRepository.downloadAndConvert(profile.url, profile.customHeaders)
+                val download = subscriptionRepository.downloadAndConvert(url, headers)
                 File(profile.filePath).writeText(download.outcome.yaml)
                 // If the server sent no Subscription-Userinfo this time, keep the previous quota.
                 val quota = download.userinfo
                 // Panel-initiated subscription relocation (New-Url / Fallback-Url): auto-migrate.
                 val migratedUrl = download.meta.redirectUrl
-                    ?.takeIf { !it.equals(profile.url, ignoreCase = true) } ?: profile.url
+                    ?.takeIf { !it.equals(url, ignoreCase = true) } ?: url
                 val updated = profile.copy(
-                    url = migratedUrl,
+                    url = SecretsCipher.encrypt(migratedUrl),
                     lastUpdated = System.currentTimeMillis(),
                     uploadUsed = quota?.uploadUsed ?: profile.uploadUsed,
                     downloadUsed = quota?.downloadUsed ?: profile.downloadUsed,
