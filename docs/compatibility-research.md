@@ -14,7 +14,7 @@
 | `sing-box://import-remote?url=` | SFA | ✅ |
 | `happ://add/<base64-payload>` | однотап добавление узла | ✅ |
 | `happ://routing/add|onadd/{base64-JSON}` | роутинг-профиль (GlobalProxy, DirectSites…) | ✅ (onadd = импорт + активировать) |
-| `happ://crypt4/`, `crypt5/` | зашифрованная подписка (AES-128-GCM, `crypto.happ.su`) | passthrough (warning) |
+| `happ://crypt4/`, `crypt5/` | зашифрованная подписка (AES-128-GCM, `crypto.happ.su`) | ✅ расшифровка по спеке (ключница в DataStore, IV 'kkkkkkkkkkkk', тег в encrypt-tag); keyring-UI — TODO |
 | `incy://add/<url>`, `incy://import/{data}` | Incy | ✅ |
 | `incy://crypt1/<payload>` | base64url(iv‖ct‖tag) | passthrough (warning) |
 | `incy://connect|disconnect|toggle`, `mihomet://start|stop` | управление VPN по ссылке | ✅ (MainActivity.handleControlLink) |
@@ -49,4 +49,4 @@
 5. ✅ `FOREGROUND_SERVICE_IMMEDIATE` + core watchdog (auto-restart ×3) + Always-on (null-intent restart, onRevoke) + root-daemon watchdog (10s monitor, backoff ×3) + автообновление подписок по update-interval (WorkManager)
 6. ⬜ Смена сети → реконнект core-соединений (аналог FlClash `Core.resetNetwork`), screen-on обновление скорости
 7. ⬜ Always-on VPN + `onRevoke` graceful
-8. ◐ Override-слой поверх профиля: базовая typed-версия готова (unified-delay / tcp-concurrent / log-level / sniffer в Настройки→Продвинутые, приоритет над профилем). Остаток (L): per-profile override, полный блок dns (nameserver-policy, fake-ip-filter-mode), sniffer per-protocol, JS-скрипты как в FlClash.
+8. ◐ Override-слой поверх профиля: базовая typed-версия готова (unified-delay / tcp-concurrent / log-level / sniffer в Настройки→Продвинутые, приоритет над профилем); per-profile override-патч готов (Room v4 `overridePatch`, YAML-фрагмент в меню профиля, глубокий merge в runtime-конфиг ДО обязательных настроек — allow-lan/порты/DNS приложения всегда приоритетны). Остаток (L): полный блок dns (nameserver-policy, fake-ip-filter-mode), sniffer per-protocol, JS-скрипты как в FlClash.
