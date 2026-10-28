@@ -184,6 +184,18 @@ fun YamlEditorScreen(
                             color = MaterialTheme.colorScheme.onSurface,
                             lineHeight = 20.sp
                         ),
+                        visualTransformation = run {
+                            val keyColor = MaterialTheme.colorScheme.primary
+                            val commentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                            val literalColor = MaterialTheme.colorScheme.secondary
+                            val urlColor = MaterialTheme.colorScheme.tertiary
+                            androidx.compose.ui.text.input.VisualTransformation { field ->
+                                androidx.compose.ui.text.input.TransformedText(
+                                    highlightYaml(field.text, keyColor, commentColor, literalColor, urlColor),
+                                    androidx.compose.ui.text.input.OffsetMapping.Identity
+                                )
+                            }
+                        },
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -191,4 +203,67 @@ fun YamlEditorScreen(
             }
         }
     }
+}
+
+private val YAML_KEY_REGEX = Regex("^([ \\t-]*)([A-Za-z0-9_.-]+)(:)(\\s|$)")
+private val YAML_COMMENT_REGEX = Regex("#\\s?.*$")
+private val YAML_LITERAL_REGEX = Regex("(?<=^|[ \\t:\\-])(true|false|null|~|-?\\d+(\\.\\d+)?)(?=[ \\t]|$)")
+private val YAML_URL_REGEX = Regex("https?://\\S+")
+
+/**
+ * Lightweight YAML coloring (keys / comments / booleans & numbers / URLs) applied as a
+ * VisualTransformation with an identity offset mapping — cursor and selection positions
+ * are preserved. Very large documents fall back to plain text to keep typing snappy.
+ */
+private fun highlightYaml(
+    text: String,
+    keyColor: androidx.compose.ui.graphics.Color,
+    commentColor: androidx.compose.ui.graphics.Color,
+    literalColor: androidx.compose.ui.graphics.Color,
+    urlColor: androidx.compose.ui.graphics.Color
+): androidx.compose.ui.text.AnnotatedString {
+    if (text.length > 256_000) return androidx.compose.ui.text.AnnotatedString(text)
+
+    val builder = androidx.compose.ui.text.AnnotatedString.Builder(text.length)
+    var offset = 0
+    text.lineSequence().forEach { line ->
+        val lineEnd = offset + line.length
+        val commentStart = YAML_COMMENT_REGEX.find(line)?.range?.first
+        val codeEnd = commentStart ?: line.length
+
+        YAML_KEY_REGEX.find(line)?.let { match ->
+            val keyRange = match.groups[2]!!.range
+            if (keyRange.first < codeEnd) {
+                builder.addStyle(
+                    androidx.compose.ui.text.SpanStyle(color = keyColor, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                    offset + keyRange.first,
+                    offset + keyRange.last + 1
+                )
+            }
+        }
+        YAML_LITERAL_REGEX.findAll(line.substring(0, codeEnd)).forEach { match ->
+            builder.addStyle(
+                androidx.compose.ui.text.SpanStyle(color = literalColor, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                offset + match.range.first,
+                offset + match.range.last + 1
+            )
+        }
+        YAML_URL_REGEX.findAll(line.substring(0, codeEnd)).forEach { match ->
+            builder.addStyle(
+                androidx.compose.ui.text.SpanStyle(color = urlColor),
+                offset + match.range.first,
+                offset + match.range.last + 1
+            )
+        }
+        if (commentStart != null) {
+            builder.addStyle(
+                androidx.compose.ui.text.SpanStyle(color = commentColor, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic),
+                offset + commentStart,
+                lineEnd
+            )
+        }
+        builder.append("\n")
+        offset = lineEnd + 1
+    }
+    return builder.toAnnotatedString()
 }
