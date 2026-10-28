@@ -17,6 +17,9 @@
 | S-UI | ✅ tested | fixture; base64url SS2022 SIP002 form + singbox + clash |
 | Hiddify Panel | ✅ tested | fixture; 96 links incl. ssh/snell/wg, expiry pseudo-link dropped with warning |
 | Sub-Store / subconverter pipelines | ❌ untested | exotic output variants |
+| Deep-link импорт (happ/incy/clash/v2rayng/sing-box) | ✅ implemented | `core/DeepLinkParser.kt`, live-tested on emulator |
+| Управление по ссылкам (incy://connect|toggle, mihomet://) | ✅ implemented | MainActivity.handleControlLink |
+| Автообновление подписок (profile-update-interval) | ✅ implemented | WorkManager 6h, Room v3 |
 
 ### Phase 1: Docker test bench
 - [ ] **1.1. Testing directory**: `docker/test-bench/` with modular compose files and docs.
