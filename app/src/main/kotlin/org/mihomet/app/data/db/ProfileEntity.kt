@@ -28,5 +28,10 @@ data class ProfileEntity(
     val downloadUsed: Long = 0,
     val trafficTotal: Long = 0,
     // Expiration as epoch millis; 0 = unknown/no expiration
-    val expireAt: Long = 0
+    val expireAt: Long = 0,
+    // Per-profile YAML override patch: a small user-authored YAML fragment deep-merged
+    // into the runtime config BEFORE the mandatory app-managed keys (ports, allow-lan,
+    // DNS, external-controller...) are written, so security/port settings always win.
+    // Empty string = no patch.
+    val overridePatch: String = ""
 )

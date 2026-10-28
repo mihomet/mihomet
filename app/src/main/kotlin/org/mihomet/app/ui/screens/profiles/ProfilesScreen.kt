@@ -22,6 +22,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,6 +55,8 @@ fun ProfilesScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    // Profile whose override patch is being edited (P7)
+    var patchDialogProfile by remember { mutableStateOf<ProfileEntity?>(null) }
     val clipboardManager = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -263,6 +267,10 @@ fun ProfilesScreen(
                             viewModel.selectProfile(profile.id)
                         },
                         onEditYaml = { onEditProfileYaml(profile.id) },
+                        onEditPatch = {
+                            AppHaptics.perform(context, HapticType.CLICK, view)
+                            patchDialogProfile = profile
+                        },
                         onUpdate = {
                             AppHaptics.perform(context, HapticType.CLICK, view)
                             viewModel.updateProfile(profile)
@@ -289,6 +297,21 @@ fun ProfilesScreen(
                 }
             )
         }
+
+        patchDialogProfile?.let { profile ->
+            OverridePatchDialog(
+                initialPatch = profile.overridePatch,
+                onDismiss = { patchDialogProfile = null },
+                onSave = { patch ->
+                    // Validation failures keep the dialog open (input preserved);
+                    // the error snackbar comes through state.errorMessage.
+                    val result = viewModel.saveOverridePatch(profile.id, patch)
+                    if (result.isSuccess) {
+                        patchDialogProfile = null
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -297,6 +320,7 @@ fun ExpressiveProfileCard(
     profile: ProfileEntity,
     onSelect: () -> Unit,
     onEditYaml: () -> Unit,
+    onEditPatch: () -> Unit,
     onUpdate: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -449,6 +473,14 @@ fun ExpressiveProfileCard(
                                 leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
                             )
                             DropdownMenuItem(
+                                text = { Text(stringResource(R.string.profile_patch_menu)) },
+                                onClick = {
+                                    showMenu = false
+                                    onEditPatch()
+                                },
+                                leadingIcon = { Icon(Icons.Default.Tune, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error) },
                                 onClick = {
                                     showMenu = false
@@ -555,6 +587,55 @@ fun ExpressiveProfileCard(
             }
         }
     }
+}
+
+@Composable
+fun OverridePatchDialog(
+    initialPatch: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var patch by remember { mutableStateOf(initialPatch) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.profile_patch_title), fontWeight = FontWeight.Black) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = stringResource(R.string.profile_patch_hint),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = patch,
+                    onValueChange = { patch = it },
+                    placeholder = { Text("keep-alive-interval: 15") },
+                    textStyle = TextStyle(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 13.sp
+                    ),
+                    minLines = 4,
+                    maxLines = 10,
+                    shape = ExpressiveShapes.Small,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(patch) },
+                shape = ExpressiveShapes.Small
+            ) {
+                Text(stringResource(R.string.action_save), fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
 }
 
 @Composable

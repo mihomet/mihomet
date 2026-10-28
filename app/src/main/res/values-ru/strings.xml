@@ -112,6 +112,12 @@
     <string name="profile_type_local">Локальный</string>
     <string name="profiles_update_now">Обновить сейчас</string>
     <string name="profiles_edit_yaml">Редактировать YAML</string>
+    <string name="profile_patch_menu">Override-патч</string>
+    <string name="profile_patch_title">Override-патч</string>
+    <string name="profile_patch_hint">YAML-фрагмент (глубоко встраивается в runtime-конфиг)</string>
+    <string name="profile_patch_saved">Override-патч сохранён</string>
+    <string name="profile_patch_invalid">Ошибка YAML: %1$s</string>
+    <string name="profile_patch_not_map">Патч должен быть YAML-отображением (ключ: значение), а не скаляром или списком</string>
     <string name="profiles_add_title">Добавить подписку</string>
     <string name="profiles_type_url">Ссылка (URL)</string>
     <string name="profiles_type_local_file">Локальный файл</string>

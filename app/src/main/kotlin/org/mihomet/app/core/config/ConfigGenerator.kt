@@ -15,13 +15,39 @@ object ConfigGenerator {
     fun generateRuntimeConfig(
         profileYamlContent: String,
         settings: AppSettings,
-        tunFd: Int? = null
+        tunFd: Int? = null,
+        overridePatch: String = ""
     ): String {
         val yaml = Yaml()
         val configMap: MutableMap<String, Any> = try {
             (yaml.load<Map<String, Any>>(profileYamlContent) ?: emptyMap()).toMutableMap()
         } catch (e: Exception) {
             mutableMapOf()
+        }
+
+        // Per-profile override patch (P7): the user-authored YAML fragment is deep-merged
+        // into the profile config BEFORE the mandatory app-managed keys are written below.
+        // Because allow-lan / bind-address / ports / DNS / external-controller / secret are
+        // written AFTER this merge, the patch can never weaken security (e.g. it CANNOT
+        // enable allow-lan=true or move the controller to 0.0.0.0) — that is by design:
+        // the patch may only add or override core-behaviour keys the app does not manage.
+        val patch = overridePatch.trim()
+        if (patch.isNotEmpty()) {
+            try {
+                when (val parsedPatch = yaml.load<Any>(patch)) {
+                    is Map<*, *> -> {
+                        // Skip null values (`key:` with no value ≈ unset in YAML)
+                        val patchMap = LinkedHashMap<String, Any>(parsedPatch.size)
+                        for ((k, v) in parsedPatch) if (v != null) patchMap[k.toString()] = v
+                        deepMerge(configMap, patchMap)
+                    }
+                    // A valid-but-non-mapping patch (scalar/list) has nothing to merge — ignore it.
+                    else -> {}
+                }
+            } catch (e: Exception) {
+                // Malformed patch YAML is ignored (never crashes core start); the UI
+                // validates the fragment at save time, so this is a defensive fallback.
+            }
         }
 
         // Standard ports & controllers
@@ -180,5 +206,34 @@ object ConfigGenerator {
         val writer = StringWriter()
         outputYaml.dump(configMap, writer)
         return writer.toString()
+    }
+
+    /**
+     * Deep-merges [src] into [dst] in place and returns [dst]:
+     * - Map + Map → recursive merge by keys (both sides keep their other entries);
+     * - any other combination (scalars, lists, type mismatch) → src replaces dst.
+     *
+     * Used to apply the per-profile override patch: nested blocks (e.g. `hosts`,
+     * `tun` sub-keys the app does not manage) merge key-by-key, while sequences
+     * (rules, proxies, nameservers) are replaced wholesale.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun deepMerge(
+        dst: MutableMap<String, Any>,
+        src: Map<String, Any>
+    ): MutableMap<String, Any> {
+        for ((key, srcValue) in src) {
+            val dstValue = dst[key]
+            if (dstValue is Map<*, *> && srcValue is Map<*, *>) {
+                // Re-box the existing map into a mutable String-keyed one before recursing,
+                // so snakeyaml's immutable maps can be mutated and non-String keys don't crash.
+                val nestedDst = LinkedHashMap<String, Any>(dstValue.size)
+                for ((k, v) in dstValue) if (v != null) nestedDst[k.toString()] = v
+                dst[key] = deepMerge(nestedDst, srcValue as Map<String, Any>)
+            } else {
+                dst[key] = srcValue
+            }
+        }
+        return dst
     }
 }

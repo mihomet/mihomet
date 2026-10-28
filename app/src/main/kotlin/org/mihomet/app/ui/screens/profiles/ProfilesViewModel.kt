@@ -274,4 +274,49 @@ class ProfilesViewModel(
             profileDao.updateProfile(entity.copy(lastUpdated = System.currentTimeMillis()))
         }
     }
+
+    /**
+     * Validates and stores the per-profile override patch (deep-merged into the
+     * runtime config before the mandatory app-managed keys — see ConfigGenerator).
+     * A blank patch clears the override. Validation runs synchronously so the caller
+     * can keep the editor open on failure; success/failure snackbars go through the
+     * shared [ProfilesUiState.successMessage] / [ProfilesUiState.errorMessage] flows.
+     */
+    fun saveOverridePatch(profileId: Long, patch: String): Result<Unit> {
+        val trimmed = patch.trim()
+
+        // Validate YAML syntax and shape before touching the DB. An empty patch is
+        // valid (it clears the override); otherwise the fragment must be a mapping.
+        if (trimmed.isNotEmpty()) {
+            val parsed = try {
+                Yaml().load<Any>(trimmed)
+            } catch (e: Exception) {
+                val reason = e.message?.lineSequence()?.firstOrNull()?.take(160) ?: ""
+                val error = IllegalArgumentException(context.getString(R.string.profile_patch_invalid, reason))
+                errorMessageFlow.value = error.message ?: context.getString(R.string.profiles_unknown_error)
+                return Result.failure(error)
+            }
+            if (parsed != null && parsed !is Map<*, *>) {
+                val error = IllegalArgumentException(context.getString(R.string.profile_patch_not_map))
+                errorMessageFlow.value = error.message
+                return Result.failure(error)
+            }
+        }
+
+        viewModelScope.launch {
+            try {
+                val entity = profileDao.getProfileById(profileId)
+                    ?: throw IllegalArgumentException("Profile not found")
+                profileDao.updateProfile(
+                    entity.copy(overridePatch = trimmed, lastUpdated = System.currentTimeMillis())
+                )
+                errorMessageFlow.value = null
+                successMessageFlow.value = context.getString(R.string.profile_patch_saved)
+            } catch (e: Exception) {
+                errorMessageFlow.value =
+                    context.getString(R.string.profiles_update_failed, e.message ?: context.getString(R.string.profiles_unknown_error))
+            }
+        }
+        return Result.success(Unit)
+    }
 }

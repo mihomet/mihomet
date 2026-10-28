@@ -282,7 +282,8 @@ class MihometVpnService : VpnService(), KoinComponent {
             val runtimeYaml = ConfigGenerator.generateRuntimeConfig(
                 profileYamlContent = rawYaml,
                 settings = settings,
-                tunFd = CoreConstants.TUN_FILE_DESCRIPTOR
+                tunFd = CoreConstants.TUN_FILE_DESCRIPTOR,
+                overridePatch = selectedProfile?.overridePatch ?: ""
             )
 
             val vpnWorkDir = File(filesDir, "vpn_run").apply { mkdirs() }

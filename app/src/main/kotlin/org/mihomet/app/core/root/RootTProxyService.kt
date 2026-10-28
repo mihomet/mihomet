@@ -130,7 +130,8 @@ class RootTProxyService : Service(), KoinComponent {
             val runtimeYaml = ConfigGenerator.generateRuntimeConfig(
                 profileYamlContent = rawYaml,
                 settings = settings,
-                tunFd = null
+                tunFd = null,
+                overridePatch = selectedProfile?.overridePatch ?: ""
             )
 
             // Write to /data/adb/mihomet/run/config.yaml via root
