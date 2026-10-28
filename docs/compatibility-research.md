@@ -46,7 +46,7 @@
 2. ✅ Watchdog ядра (авторестарт с backoff, 3 попытки)
 3. ✅ Honest UA `Mihomet/<ver>` + `x-hwid` + profile-title / New-Url
 4. ✅ Builder: `setBlocking(false)`, `setMetered(false)`, `setConfigureIntent`
-5. ✅ `FOREGROUND_SERVICE_IMMEDIATE` + core watchdog (auto-restart ×3) + Always-on (null-intent restart, onRevoke) + автообновление подписок по update-interval (WorkManager)
+5. ✅ `FOREGROUND_SERVICE_IMMEDIATE` + core watchdog (auto-restart ×3) + Always-on (null-intent restart, onRevoke) + root-daemon watchdog (10s monitor, backoff ×3) + автообновление подписок по update-interval (WorkManager)
 6. ⬜ Смена сети → реконнект core-соединений (аналог FlClash `Core.resetNetwork`), screen-on обновление скорости
 7. ⬜ Always-on VPN + `onRevoke` graceful
 8. ⬜ Override-слой поверх профиля (CMFA `ConfigurationOverride`) — L

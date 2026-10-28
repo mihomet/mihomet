@@ -30,6 +30,10 @@
   - Автоматическая конвертация форматов (Base64, Sing-box JSON, Clash YAML, ссылки `vless://`/`tuic://`/`hysteria://` и др.).
   - Поддержка пользовательских заголовков при загрузке (`x-hwid` для Remnawave, кастомный `User-Agent` и формат JSON / `Ключ: Значение`).
   - Тестирование задержки узлов (HTTP, TCP, ICMP) даже при выключенном ядре.
+- **Надёжность как у больших клиентов:**
+  - Watchdog ядра: крэш mihomo — авторестарт с backoff (VPN и root-демон), без ручного тыка.
+  - Автообновление подписок в фоне по `profile-update-interval` (WorkManager, минимум раз в 6 ч).
+  - Always-on VPN: системный рестарт сервиса и `onRevoke` обрабатываются корректно.
 - **Однотапный импорт и совместимость с экосистемой:**
   - Deep-links: `happ://add/…`, `happ://routing/…`, `incy://add|import/…`, `clash://install-config`, `clashmeta://`, `flclash://`, `v2rayng://install-sub`, `sing-box://import-remote` и «Поделиться → Mihomet» из браузера.
   - Честный `User-Agent: Mihomet/…` + заголовок `x-hwid` (device-binding) при загрузке подписок; разбор `profile-title`, `New-Url`/`Fallback-Url` (авто-переезд), `Subscription-Userinfo`.
