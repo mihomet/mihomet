@@ -51,16 +51,8 @@ object RootShellManager {
             "settings put global private_dns_mode off; fi"
         ).exec()
 
-        // 3. Find busybox to run daemon with gid 3005 (net_admin) for Android network permissions
-        val startCmd = "BUSYBOX=\$(which busybox 2>/dev/null || ls /data/adb/*/bin/busybox 2>/dev/null | head -n 1); " +
-                "if [ -n \"\$BUSYBOX\" ] && [ -x \"\$BUSYBOX\" ]; then EXEC_PREFIX=\"\$BUSYBOX setuidgid 0:3005\"; else EXEC_PREFIX=\"\"; fi; " +
-                "nohup \$EXEC_PREFIX ${CoreConstants.ROOT_BIN_PATH} -d ${CoreConstants.ROOT_RUN_DIR} -f \"$configPath\" > ${CoreConstants.ROOT_LOG_FILE} 2>&1 & echo \$! > ${CoreConstants.ROOT_PID_FILE}"
-
-        val res = Shell.cmd(
-            "mkdir -p ${CoreConstants.ROOT_RUN_DIR}",
-            startCmd,
-            "cat ${CoreConstants.ROOT_PID_FILE}"
-        ).exec()
+        // 3. Launch the daemon via the command builder
+        val res = Shell.cmd(*buildStartDaemonCommands(configPath).toTypedArray()).exec()
 
         if (!res.isSuccess) {
             throw RuntimeException("Failed to start Mihomo daemon: ${res.err.joinToString("\n")}")
@@ -98,20 +90,43 @@ object RootShellManager {
     }
 
     fun stopDaemon(): Result<Unit> = runCatching {
-        Shell.cmd(
-            "if [ -f ${CoreConstants.ROOT_PID_FILE} ]; then " +
-                    "PID=\$(cat ${CoreConstants.ROOT_PID_FILE}); " +
-                    "kill -15 \$PID 2>/dev/null; " +
-                    "sleep 0.2; " +
-                    "kill -9 \$PID 2>/dev/null; " +
-                    "rm -f ${CoreConstants.ROOT_PID_FILE}; " +
-                    "fi; " +
-                    "killall mihomo 2>/dev/null || true; " +
-                    "killall libmihomo.so 2>/dev/null || true; " +
-                    "if [ -f ${CoreConstants.ROOT_RUN_DIR}/.prev_dns ]; then " +
-                    "RESTORE_DNS=\$(cat ${CoreConstants.ROOT_RUN_DIR}/.prev_dns 2>/dev/null); " +
-                    "if [ -n \"\$RESTORE_DNS\" ]; then settings put global private_dns_mode \"\$RESTORE_DNS\"; fi; " +
-                    "rm -f ${CoreConstants.ROOT_RUN_DIR}/.prev_dns; fi"
-        ).exec()
+        Shell.cmd(*buildStopDaemonCommands().toTypedArray()).exec()
     }
+
+    /**
+     * Pure builder for the daemon launch commands: prepare the run dir, spawn the
+     * mihomo binary with gid 3005 (net_admin) for Android network permissions and
+     * capture its PID. The PID is read back by the last command so [startDaemon]
+     * can return it.
+     */
+    fun buildStartDaemonCommands(configPath: String): List<String> = listOf(
+        "mkdir -p ${CoreConstants.ROOT_RUN_DIR}",
+        // Find busybox to run daemon with gid 3005 (net_admin) for Android network permissions
+        "BUSYBOX=\$(which busybox 2>/dev/null || ls /data/adb/*/bin/busybox 2>/dev/null | head -n 1); " +
+                "if [ -n \"\$BUSYBOX\" ] && [ -x \"\$BUSYBOX\" ]; then EXEC_PREFIX=\"\$BUSYBOX setuidgid 0:3005\"; else EXEC_PREFIX=\"\"; fi; " +
+                "nohup \$EXEC_PREFIX ${CoreConstants.ROOT_BIN_PATH} -d ${CoreConstants.ROOT_RUN_DIR} -f \"$configPath\" > ${CoreConstants.ROOT_LOG_FILE} 2>&1 & echo \$! > ${CoreConstants.ROOT_PID_FILE}",
+        "cat ${CoreConstants.ROOT_PID_FILE}"
+    )
+
+    /**
+     * Pure builder for the daemon stop commands: SIGTERM then SIGKILL via the pid
+     * file, targeted killall of leftover core processes (never a broad `pkill -9 -f`,
+     * which would kill unrelated processes matching the pattern), and restore of
+     * Android Private DNS saved by [startDaemon].
+     */
+    fun buildStopDaemonCommands(): List<String> = listOf(
+        "if [ -f ${CoreConstants.ROOT_PID_FILE} ]; then " +
+                "PID=\$(cat ${CoreConstants.ROOT_PID_FILE}); " +
+                "kill -15 \$PID 2>/dev/null; " +
+                "sleep 0.2; " +
+                "kill -9 \$PID 2>/dev/null; " +
+                "rm -f ${CoreConstants.ROOT_PID_FILE}; " +
+                "fi; ",
+        "killall mihomo 2>/dev/null || true; ",
+        "killall libmihomo.so 2>/dev/null || true; ",
+        "if [ -f ${CoreConstants.ROOT_RUN_DIR}/.prev_dns ]; then " +
+                "RESTORE_DNS=\$(cat ${CoreConstants.ROOT_RUN_DIR}/.prev_dns 2>/dev/null); " +
+                "if [ -n \"\$RESTORE_DNS\" ]; then settings put global private_dns_mode \"\$RESTORE_DNS\"; fi; " +
+                "rm -f ${CoreConstants.ROOT_RUN_DIR}/.prev_dns; fi"
+    )
 }

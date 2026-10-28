@@ -18,6 +18,7 @@ work = "2.10.0"
 libsu = "5.2.2"
 snakeyaml = "2.2"
 coil = "2.7.0"
+mockWebServer = "4.12.0"
 junit = "4.13.2"
 extJunit = "1.2.1"
 espresso = "3.6.1"
@@ -74,6 +75,7 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 
 # Test
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "mockWebServer" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "extJunit" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 
