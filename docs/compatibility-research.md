@@ -49,4 +49,4 @@
 5. ✅ `FOREGROUND_SERVICE_IMMEDIATE` + core watchdog (auto-restart ×3) + Always-on (null-intent restart, onRevoke) + root-daemon watchdog (10s monitor, backoff ×3) + автообновление подписок по update-interval (WorkManager)
 6. ⬜ Смена сети → реконнект core-соединений (аналог FlClash `Core.resetNetwork`), screen-on обновление скорости
 7. ⬜ Always-on VPN + `onRevoke` graceful
-8. ⬜ Override-слой поверх профиля (CMFA `ConfigurationOverride`) — L
+8. ◐ Override-слой поверх профиля: базовая typed-версия готова (unified-delay / tcp-concurrent / log-level / sniffer в Настройки→Продвинутые, приоритет над профилем). Остаток (L): per-profile override, полный блок dns (nameserver-policy, fake-ip-filter-mode), sniffer per-protocol, JS-скрипты как в FlClash.
