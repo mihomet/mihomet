@@ -41,7 +41,7 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         // v4 -> v5: encrypt secrets at rest. Subscription URLs can embed auth
-        // tokens and custom_headers carry panel API tokens, so both columns are
+        // tokens and customHeaders carry panel API tokens, so both columns are
         // re-stored encrypted with the AndroidKeyStore key (SecretsCipher). Blank
         // values and values already carrying the `enc1:` marker are left as-is
         // (idempotent). The Keystore key is generated on first use and is always
@@ -49,10 +49,10 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_4_5: Migration = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 val encrypted = mutableListOf<Triple<Long, String, String>>()
-                db.query("SELECT id, url, custom_headers FROM profiles").use { cursor ->
+                db.query("SELECT id, url, customHeaders FROM profiles").use { cursor ->
                     val idIdx = cursor.getColumnIndexOrThrow("id")
                     val urlIdx = cursor.getColumnIndexOrThrow("url")
-                    val headersIdx = cursor.getColumnIndexOrThrow("custom_headers")
+                    val headersIdx = cursor.getColumnIndexOrThrow("customHeaders")
                     while (cursor.moveToNext()) {
                         val id = cursor.getLong(idIdx)
                         val url = SecretsCipher.encryptIfSecret(cursor.getString(urlIdx) ?: "")
@@ -62,7 +62,7 @@ abstract class AppDatabase : RoomDatabase() {
                 }
                 for ((id, url, headers) in encrypted) {
                     db.execSQL(
-                        "UPDATE profiles SET url = ?, custom_headers = ? WHERE id = ?",
+                        "UPDATE profiles SET url = ?, customHeaders = ? WHERE id = ?",
                         arrayOf(url, headers, id)
                     )
                 }
