@@ -40,6 +40,11 @@
 - [x] ViewModel statuses emit resource ids with format args; plurals for import counts.
 - [ ] Remaining: localize converter `warnings` at display time (currently Russian data strings).
 
+- [x] **DNS classification for Russia-restricted networks**: presets grouped by
+      availability (plaintext RU / encrypted RU / global), bootstrap and
+      proxy-server-nameserver pinned to RU-reachable resolvers, GLOBAL DoH
+      choices get an automatic plaintext fallback.
+
 ### Deferred audit findings (medium/low)
 - [x] Room: real migration v2 written, destructive fallback removed. (Remaining: `exportSchema` for future schema diffs.)
 - [x] Android Private DNS restored at next root-mode startup after a daemon crash.
