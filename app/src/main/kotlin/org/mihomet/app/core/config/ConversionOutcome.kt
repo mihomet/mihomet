@@ -6,7 +6,8 @@ package org.mihomet.app.core.config
  * @param yaml     resulting YAML, or the original content when conversion was not possible
  * @param warnings non-fatal problems collected during conversion: unrecognized nodes
  * ("Не удалось распознать узел: ..."), per-proxy parse errors and fatal fallbacks to raw
- * input ("Ошибка конвертации: ..." — marks a failed conversion)
+ * input ("Ошибка конвертации: ..." — marks a failed conversion).
+ * The literals are Russian; localize them at display time via [WarningLocalizer].
  */
 data class ConversionOutcome(
     val yaml: String,

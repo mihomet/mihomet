@@ -147,6 +147,18 @@
         <item quantity="other">Импорт (%1$d узлов)</item>
     </plurals>
 
+    <!-- Предупреждения конвертера (WarningLocalizer сопоставляет русские литералы UniversalConfigConverter) -->
+    <string name="conv_warning_unrecognized">Не удалось распознать узел: %1$s</string>
+    <string name="conv_warning_parse_error">Ошибка разбора узла: %1$s</string>
+    <string name="conv_warning_parse_error_details">Ошибка разбора узла: %1$s (%2$s)</string>
+    <string name="conv_error_xray">Ошибка конвертации Xray JSON: %1$s</string>
+    <string name="conv_error_singbox">Ошибка конвертации Sing-Box JSON: %1$s</string>
+    <string name="conv_warning_no_nodes">В подписке не найдено ни одного поддерживаемого узла</string>
+    <string name="conv_warning_no_nodes_xray">В Xray-конфиге не найдено ни одного поддерживаемого узла</string>
+    <string name="conv_warning_no_nodes_singbox">В Sing-Box конфиге не найдено ни одного поддерживаемого узла</string>
+    <string name="conv_warning_unknown_format">Не удалось определить формат конфигурации</string>
+    <string name="conv_warning_unsupported_outbound">Тип outbound \'%1$s\' (\'%2$s\') не поддерживается конвертером</string>
+
     <!-- Settings -->
     <string name="settings_connection_mode">Режим подключения</string>
     <string name="settings_mode_vpn_title">Без Root (VPN)</string>

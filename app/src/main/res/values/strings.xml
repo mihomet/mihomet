@@ -145,6 +145,18 @@
         <item quantity="other">Import (%1$d nodes)</item>
     </plurals>
 
+    <!-- Converter warnings (WarningLocalizer matches the Russian literals emitted by UniversalConfigConverter) -->
+    <string name="conv_warning_unrecognized">Unrecognized node: %1$s</string>
+    <string name="conv_warning_parse_error">Failed to parse node: %1$s</string>
+    <string name="conv_warning_parse_error_details">Failed to parse node: %1$s (%2$s)</string>
+    <string name="conv_error_xray">Xray JSON conversion error: %1$s</string>
+    <string name="conv_error_singbox">Sing-Box JSON conversion error: %1$s</string>
+    <string name="conv_warning_no_nodes">No supported nodes found in the subscription</string>
+    <string name="conv_warning_no_nodes_xray">No supported nodes found in the Xray config</string>
+    <string name="conv_warning_no_nodes_singbox">No supported nodes found in the Sing-Box config</string>
+    <string name="conv_warning_unknown_format">Could not determine the configuration format</string>
+    <string name="conv_warning_unsupported_outbound">Outbound type \'%1$s\' (\'%2$s\') is not supported by the converter</string>
+
     <!-- Settings -->
     <string name="settings_connection_mode">Connection mode</string>
     <string name="settings_mode_vpn_title">No Root (VPN)</string>
