@@ -1,5 +1,6 @@
 package org.mihomet.app.ui.screens.profiles
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -31,14 +32,66 @@ fun YamlEditorScreen(
     viewModel: ProfilesViewModel = koinViewModel()
 ) {
     var yamlText by remember { mutableStateOf("") }
+    var savedText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(true) }
+    var showExitDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    // Dirty state: content differs from the last saved/loaded version
+    val isDirty = yamlText != savedText
+
     LaunchedEffect(profileId) {
-        yamlText = viewModel.getProfileContent(profileId)
+        val content = viewModel.getProfileContent(profileId)
+        yamlText = content
+        savedText = content
         isLoading = false
+    }
+
+    fun requestExit() {
+        if (isDirty) showExitDialog = true else onNavigateBack()
+    }
+
+    fun saveAndExit() {
+        showExitDialog = false
+        scope.launch {
+            viewModel.saveProfileContent(profileId, yamlText)
+                .onSuccess {
+                    onNavigateBack()
+                }
+                .onFailure {
+                    snackbarHostState.showSnackbar(
+                        context.getString(R.string.yaml_syntax_error, it.message ?: "")
+                    )
+                }
+        }
+    }
+
+    // Intercept the system back while there are unsaved changes
+    BackHandler(enabled = isDirty) {
+        showExitDialog = true
+    }
+
+    if (showExitDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog = false },
+            title = { Text(stringResource(R.string.yaml_unsaved_changes_title)) },
+            text = { Text(stringResource(R.string.yaml_unsaved_changes_message)) },
+            confirmButton = {
+                TextButton(onClick = { saveAndExit() }) {
+                    Text(stringResource(R.string.yaml_save_and_exit))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onNavigateBack) {
+                    Text(stringResource(R.string.yaml_exit_without_saving))
+                }
+                TextButton(onClick = { showExitDialog = false }) {
+                    Text(stringResource(R.string.yaml_cancel))
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -47,7 +100,7 @@ fun YamlEditorScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.yaml_editor_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = { requestExit() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                     }
                 },
@@ -57,6 +110,7 @@ fun YamlEditorScreen(
                             scope.launch {
                                 viewModel.saveProfileContent(profileId, yamlText)
                                     .onSuccess {
+                                        savedText = yamlText
                                         snackbarHostState.showSnackbar(context.getString(R.string.yaml_saved))
                                     }
                                     .onFailure {
@@ -85,13 +139,17 @@ fun YamlEditorScreen(
             val linesCount = yamlText.lines().size.coerceAtLeast(1)
             val lineNumbers = (1..linesCount).joinToString("\n")
 
+            // A single scroll state drives BOTH the gutter and the text area,
+            // which keeps them pixel-perfectly synchronized.
+            val editorScrollState = rememberScrollState()
+
             Row(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
                     .background(MaterialTheme.colorScheme.surface)
             ) {
-                // Line numbers gutter
+                // Line numbers gutter (scrolls with the shared state)
                 Text(
                     text = lineNumbers,
                     style = TextStyle(
@@ -101,18 +159,20 @@ fun YamlEditorScreen(
                         lineHeight = 20.sp
                     ),
                     modifier = Modifier
+                        .fillMaxHeight()
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                         .padding(horizontal = 8.dp, vertical = 8.dp)
-                        .verticalScroll(rememberScrollState())
+                        .verticalScroll(editorScrollState)
                 )
 
                 // Editable YAML text area
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .weight(1f)
+                        .fillMaxHeight()
                         .padding(8.dp)
                         .horizontalScroll(rememberScrollState())
-                        .verticalScroll(rememberScrollState())
+                        .verticalScroll(editorScrollState)
                 ) {
                     BasicTextField(
                         value = yamlText,

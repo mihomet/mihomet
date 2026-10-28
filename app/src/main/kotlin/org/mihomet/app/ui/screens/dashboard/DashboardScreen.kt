@@ -230,29 +230,29 @@ fun DashboardScreen(
                 }
             )
 
-            // 5. Traffic Activity Graph Card
-            if (state.isRunning && state.trafficHistory.isNotEmpty()) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = ExpressiveShapes.Large,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    border = BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                    )
-                ) {
-                    Column(modifier = Modifier.padding(18.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = stringResource(R.string.dashboard_traffic_activity),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
+            // 5. Traffic Activity Graph Card (always visible; TrafficGraph shows a placeholder when there is no data yet)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = ExpressiveShapes.Large,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                border = BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = stringResource(R.string.dashboard_traffic_activity),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
 
+                        if (state.isRunning && state.trafficHistory.isNotEmpty()) {
                             Surface(
                                 shape = CircleShape,
                                 color = MaterialTheme.colorScheme.surfaceContainerHighest
@@ -272,16 +272,16 @@ fun DashboardScreen(
                                 }
                             }
                         }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        TrafficGraph(
-                            history = state.trafficHistory,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(130.dp)
-                        )
                     }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    TrafficGraph(
+                        history = state.trafficHistory,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(130.dp)
+                    )
                 }
             }
 

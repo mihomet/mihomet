@@ -58,6 +58,7 @@
     <string name="dashboard_download">Входящий</string>
     <string name="dashboard_upload">Исходящий</string>
     <string name="dashboard_traffic_activity">Активность трафика</string>
+    <string name="graph_placeholder">Запустите VPN, чтобы увидеть трафик</string>
     <string name="cd_dashboard_connect">Подключение</string>
     <string name="dashboard_status_connecting">ПОДКЛЮЧЕНИЕ...</string>
     <string name="dashboard_status_disconnecting">ОТКЛЮЧЕНИЕ...</string>
@@ -252,6 +253,11 @@
     <string name="yaml_editor_title">YAML Editor</string>
     <string name="yaml_saved">Конфигурация сохранена</string>
     <string name="yaml_syntax_error">Ошибка синтаксиса YAML: %1$s</string>
+    <string name="yaml_unsaved_changes_title">Несохранённые изменения</string>
+    <string name="yaml_unsaved_changes_message">Сохранить изменения перед выходом?</string>
+    <string name="yaml_save_and_exit">Сохранить и выйти</string>
+    <string name="yaml_exit_without_saving">Выйти без сохранения</string>
+    <string name="yaml_cancel">Отмена</string>
 
     <!-- Quick settings tile -->
     <string name="tile_connected">Подключено</string>

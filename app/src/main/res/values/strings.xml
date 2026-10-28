@@ -58,6 +58,7 @@
     <string name="dashboard_download">Download</string>
     <string name="dashboard_upload">Upload</string>
     <string name="dashboard_traffic_activity">Traffic activity</string>
+    <string name="graph_placeholder">Start the VPN to see live traffic</string>
     <string name="cd_dashboard_connect">Connect</string>
     <string name="dashboard_status_connecting">CONNECTING...</string>
     <string name="dashboard_status_disconnecting">DISCONNECTING...</string>
@@ -250,6 +251,11 @@
     <string name="yaml_editor_title">YAML Editor</string>
     <string name="yaml_saved">Configuration saved successfully</string>
     <string name="yaml_syntax_error">YAML Syntax Error: %1$s</string>
+    <string name="yaml_unsaved_changes_title">Unsaved changes</string>
+    <string name="yaml_unsaved_changes_message">Do you want to save your changes before exiting?</string>
+    <string name="yaml_save_and_exit">Save and exit</string>
+    <string name="yaml_exit_without_saving">Exit without saving</string>
+    <string name="yaml_cancel">Cancel</string>
 
     <!-- Quick settings tile -->
     <string name="tile_connected">Connected</string>
