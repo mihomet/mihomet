@@ -17,7 +17,7 @@
 | `happ://crypt4/`, `crypt5/` | зашифрованная подписка (AES-128-GCM, `crypto.happ.su`) | passthrough (warning) |
 | `incy://add/<url>`, `incy://import/{data}` | Incy | ✅ |
 | `incy://crypt1/<payload>` | base64url(iv‖ct‖tag) | passthrough (warning) |
-| `incy://connect|disconnect|toggle` | управление VPN по ссылке | ❌ TODO |
+| `incy://connect|disconnect|toggle`, `mihomet://start|stop` | управление VPN по ссылке | ✅ (MainActivity.handleControlLink) |
 
 ## Заголовки, которые шлют/читают Happ и Incy
 
@@ -46,7 +46,7 @@
 2. ✅ Watchdog ядра (авторестарт с backoff, 3 попытки)
 3. ✅ Honest UA `Mihomet/<ver>` + `x-hwid` + profile-title / New-Url
 4. ✅ Builder: `setBlocking(false)`, `setMetered(false)`, `setConfigureIntent`
-5. ✅ `FOREGROUND_SERVICE_IMMEDIATE`
+5. ✅ `FOREGROUND_SERVICE_IMMEDIATE` + core watchdog (auto-restart ×3) + Always-on (null-intent restart, onRevoke) + автообновление подписок по update-interval (WorkManager)
 6. ⬜ Смена сети → реконнект core-соединений (аналог FlClash `Core.resetNetwork`), screen-on обновление скорости
 7. ⬜ Always-on VPN + `onRevoke` graceful
 8. ⬜ Override-слой поверх профиля (CMFA `ConfigurationOverride`) — L
