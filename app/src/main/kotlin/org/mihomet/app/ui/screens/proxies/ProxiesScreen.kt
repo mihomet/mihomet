@@ -37,6 +37,7 @@ import org.mihomet.app.core.network.ConnectionTestResult
 import org.mihomet.app.core.network.PingProtocol
 import org.mihomet.app.ui.components.CountBadge
 import org.mihomet.app.ui.components.ExpressiveLatencyBadge
+import org.mihomet.app.ui.components.ExpressiveSnackbarHost
 import org.mihomet.app.ui.components.ProtocolBadge
 import org.mihomet.app.ui.components.SearchPill
 import org.mihomet.app.ui.theme.*
@@ -110,7 +111,7 @@ fun ProxiesScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { ExpressiveSnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -417,7 +418,8 @@ fun ExpressiveServerNodeCard(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Node Name and Protocol
+            // Node Name and Protocol (weighted column: latency chip can never
+            // squeeze or overlap the name; both lines ellipsize, never cut mid-word)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = node.name,
@@ -425,12 +427,17 @@ fun ExpressiveServerNodeCard(
                     fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
+                    softWrap = false,
                     overflow = TextOverflow.Ellipsis
                 )
 
                 Spacer(modifier = Modifier.height(3.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Content-sized protocol tag: never wrapped, never truncated mid-word
                     ProtocolBadge(protocol = node.type)
 
                     if (node.server.isNotBlank()) {
@@ -441,7 +448,9 @@ fun ExpressiveServerNodeCard(
                             fontFamily = FontFamily.Monospace,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }

@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -82,7 +83,12 @@ fun PulsingStatusDot(
 }
 
 /**
- * Expressive protocol pill badge with dedicated distinct color palette.
+ * Expressive protocol pill badge.
+ *
+ * Monochrome and palette-agnostic: tinted with the current [MaterialTheme]
+ * primary (soft tinted background + primary text) so it stays consistent in
+ * the default, dynamic and AMOLED schemes. [ProtocolColors] is kept in
+ * Color.kt only as a fallback palette for static previews.
  */
 @Composable
 fun ProtocolBadge(
@@ -90,35 +96,28 @@ fun ProtocolBadge(
     modifier: Modifier = Modifier
 ) {
     val cleanProto = protocol.uppercase()
-    val (textColor, bgColor) = when {
-        cleanProto.contains("VLESS") -> ProtocolColors.VlessText to ProtocolColors.VlessBg
-        cleanProto.contains("HYSTERIA") || cleanProto.contains("HY2") -> ProtocolColors.HysteriaText to ProtocolColors.HysteriaBg
-        cleanProto.contains("TROJAN") -> ProtocolColors.TrojanText to ProtocolColors.TrojanBg
-        cleanProto.contains("SS") || cleanProto.contains("SHADOWSOCKS") -> ProtocolColors.ShadowsocksText to ProtocolColors.ShadowsocksBg
-        cleanProto.contains("TUIC") -> ProtocolColors.TuicText to ProtocolColors.TuicBg
-        cleanProto.contains("DIRECT") -> ProtocolColors.DirectText to ProtocolColors.DirectBg
-        else -> MaterialTheme.colorScheme.primary to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-    }
 
     val displayLabel = when {
         cleanProto.contains("HYSTERIA2") || cleanProto.contains("HY2") -> "HY2"
         cleanProto.contains("HYSTERIA") -> "HY1"
         cleanProto.contains("SHADOWSOCKS") -> "SS"
-        else -> cleanProto.take(6)
+        else -> cleanProto
     }
 
     Surface(
         shape = ExpressiveShapes.Small,
-        color = bgColor,
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
         modifier = modifier
     ) {
         Text(
             text = displayLabel,
-            color = textColor,
+            color = MaterialTheme.colorScheme.primary,
             fontSize = 10.sp,
             fontWeight = FontWeight.ExtraBold,
             fontFamily = FontFamily.Monospace,
             letterSpacing = 0.5.sp,
+            maxLines = 1,
+            softWrap = false,
             modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
         )
     }
@@ -135,12 +134,22 @@ fun ExpressiveLatencyBadge(
     isTesting: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
+    // The badge sits on surfaceContainerHighest: in light themes the vivid accent
+    // tones are too pale for text, so switch to their deep variants there.
+    // Dark/AMOLED surfaces keep the vivid accents (badge bg stays a neutral
+    // theme container, never an opaque dark chunk).
+    val badgeSurfaceLuminance = MaterialTheme.colorScheme.surfaceContainerHighest.luminance()
+    val lightSurface = badgeSurfaceLuminance > 0.5f
+    val greenText = if (lightSurface) AccentGreenDeep else AccentGreenLight
+    val orangeText = if (lightSurface) AccentOrangeDeep else AccentOrange
+    val redText = if (lightSurface) AccentRedDeep else AccentRed
+
     val (dotColor, textColor) = when {
         isTesting -> MaterialTheme.colorScheme.primary to MaterialTheme.colorScheme.primary
-        delayMs > 0 && delayMs < 120 -> AccentGreen to AccentGreenLight
-        delayMs in 120..280 -> AccentOrange to AccentOrange
-        delayMs > 280 -> AccentRed to AccentRed
-        delayMs < 0 -> AccentRed to AccentRed
+        delayMs > 0 && delayMs < 120 -> AccentGreen to greenText
+        delayMs in 120..280 -> AccentOrange to orangeText
+        delayMs > 280 -> AccentRed to redText
+        delayMs < 0 -> AccentRed to redText
         else -> Color.Gray to MaterialTheme.colorScheme.onSurfaceVariant
     }
     val text = when {

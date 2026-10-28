@@ -33,6 +33,7 @@ import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.R
 import org.mihomet.app.data.db.ProfileEntity
 import org.mihomet.app.data.db.ProfileType
+import org.mihomet.app.ui.components.ExpressiveSnackbarHost
 import org.mihomet.app.ui.theme.AccentOrange
 import org.mihomet.app.ui.theme.AccentRed
 import org.mihomet.app.ui.theme.AppHaptics
@@ -73,7 +74,7 @@ fun ProfilesScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { ExpressiveSnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -445,12 +446,19 @@ fun ExpressiveProfileCard(
                 }
             }
 
-            // Subscription quota & expiration (Subscription-Userinfo header)
-            if (profile.trafficTotal > 0) {
+            // Subscription quota & expiration (Subscription-Userinfo header).
+            // The panel may omit the total (trafficTotal == 0) while still sending
+            // upload/download usage and the expire date — show whatever is known.
+            val usedTraffic = profile.uploadUsed + profile.downloadUsed
+            val hasQuotaTotal = profile.trafficTotal > 0
+            val hasUsage = usedTraffic > 0
+            val hasExpireDate = profile.expireAt > 0
+            if (hasQuotaTotal || hasUsage || hasExpireDate) {
                 val now = System.currentTimeMillis()
-                val usedTraffic = profile.uploadUsed + profile.downloadUsed
-                val usedFraction = (usedTraffic.toDouble() / profile.trafficTotal).coerceIn(0.0, 1.0).toFloat()
-                val usedPercent = (usedTraffic * 100 / profile.trafficTotal).toInt()
+                val usedFraction = if (hasQuotaTotal) {
+                    (usedTraffic.toDouble() / profile.trafficTotal).coerceIn(0.0, 1.0).toFloat()
+                } else 0f
+                val usedPercent = if (hasQuotaTotal) (usedTraffic * 100 / profile.trafficTotal).toInt() else 0
                 val expireBadgeColor = when {
                     profile.expireAt <= 0L -> null
                     profile.expireAt <= now -> AccentRed
@@ -461,20 +469,36 @@ fun ExpressiveProfileCard(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = stringResource(
-                            R.string.profile_quota_used,
-                            formatTrafficBytes(usedTraffic),
-                            formatTrafficBytes(profile.trafficTotal),
-                            usedPercent
-                        ),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f)
-                    )
+                    if (hasQuotaTotal) {
+                        Text(
+                            text = stringResource(
+                                R.string.profile_quota_used,
+                                formatTrafficBytes(usedTraffic),
+                                formatTrafficBytes(profile.trafficTotal),
+                                usedPercent
+                            ),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else if (hasUsage) {
+                        // No total from the panel — show bare usage without a progress bar
+                        Text(
+                            text = stringResource(
+                                R.string.profile_quota_used_only,
+                                formatTrafficBytes(usedTraffic)
+                            ),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                     if (expireBadgeColor != null) {
-                        Spacer(modifier = Modifier.width(8.dp))
+                        if (hasQuotaTotal || hasUsage) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
                         Surface(
                             shape = CircleShape,
                             color = expireBadgeColor.copy(alpha = 0.15f)
@@ -493,23 +517,25 @@ fun ExpressiveProfileCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                if (hasQuotaTotal) {
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                // Thin branded-violet usage bar
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(6.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                ) {
+                    // Thin branded-violet usage bar
                     Box(
                         modifier = Modifier
-                            .fillMaxHeight()
-                            .fillMaxWidth(usedFraction)
+                            .fillMaxWidth()
+                            .height(6.dp)
                             .clip(CircleShape)
-                            .background(PrimaryViolet)
-                    )
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(usedFraction)
+                                .clip(CircleShape)
+                                .background(PrimaryViolet)
+                        )
+                    }
                 }
             }
         }

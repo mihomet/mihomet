@@ -192,7 +192,11 @@ class DashboardViewModel(
                 }
                 if (primaryGroup != null) {
                     val groupName = primaryGroup.name
-                    val currentSelected = _uiState.value.selectedNode
+                    // Read the persisted selection directly from DataStore: on the very
+                    // first start the settingsFlow collector may not have emitted yet,
+                    // so _uiState.value.selectedNode can still be blank and the default
+                    // node would be applied instead of the user's choice.
+                    val currentSelected = settingsRepository.settingsFlow.first().selectedNodeName
 
                     // Apply preselected node only if user selected one that belongs to this group
                     val targetNode = if (currentSelected.isNotBlank() && primaryGroup.all?.contains(currentSelected) == true) {

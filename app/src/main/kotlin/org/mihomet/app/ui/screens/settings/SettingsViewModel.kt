@@ -83,9 +83,13 @@ class SettingsViewModel(
             _uiState.update { it.copy(isCheckingUpdate = true, updateMessageRes = null, updateMessageArgs = emptyList()) }
             coreManager.checkLatestRelease()
                 .onSuccess { release ->
-                    val cleanLatest = release.tag_name.trim().removePrefix("v")
-                    val cleanCurrent = _uiState.value.coreVersion.trim().removePrefix("v")
-                    val isNewer = cleanLatest.isNotBlank() && cleanLatest != cleanCurrent
+                    // Compare semantic versions strictly: "isNewer" only when the release
+                    // is actually GREATER than the installed core. Plain string inequality
+                    // misfires because the current version can carry decorations like
+                    // "1.19.33 (Bundled)" before the real version is fetched from the core.
+                    val latest = parseSemanticVersion(release.tag_name)
+                    val current = parseSemanticVersion(_uiState.value.coreVersion)
+                    val isNewer = latest != null && current != null && isStrictlyNewer(latest, current)
                     _uiState.update {
                         it.copy(
                             isCheckingUpdate = false,
@@ -122,7 +126,6 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isDownloadingUpdate = false,
-                            coreVersion = release.tag_name,
                             updateMessageRes = R.string.settings_update_success,
                             updateMessageArgs = listOf(release.tag_name)
                         )
@@ -169,4 +172,21 @@ class SettingsViewModel(
             settingsRepository.updateCustomDns(dns)
         }
     }
+
+    /**
+     * Extracts the first `major.minor.patch` triple from a version string,
+     * tolerating decorations like "v1.19.33", "1.19.33 (Bundled)" or
+     * "v1.19.33-alpha". Returns null when no semantic version is present.
+     */
+    private fun parseSemanticVersion(raw: String): Triple<Int, Int, Int>? {
+        val match = Regex("\\d+\\.\\d+\\.\\d+").find(raw) ?: return null
+        val parts = match.value.split(".").map { it.toInt() }
+        return Triple(parts[0], parts[1], parts[2])
+    }
+
+    /** Lexicographic major/minor/patch check: true only when [candidate] is strictly greater. */
+    private fun isStrictlyNewer(
+        candidate: Triple<Int, Int, Int>,
+        current: Triple<Int, Int, Int>
+    ): Boolean = compareValuesBy(candidate, current, { it.first }, { it.second }, { it.third }) > 0
 }

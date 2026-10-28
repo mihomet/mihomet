@@ -65,6 +65,9 @@ val LightSurfaceContainerHigh = Color(0xFFE9E5EC)
 val LightSurfaceContainerHighest = Color(0xFFE3DFE6)
 
 // Protocol Expressive Color Accents
+// NOTE: fixed dark-on-dark pairs — kept ONLY as a fallback palette for static
+// previews. Live UI badges must derive colors from MaterialTheme instead
+// (see ProtocolBadge in ExpressiveCards.kt).
 object ProtocolColors {
     val VlessText = Color(0xFFC084FC)
     val VlessBg = Color(0xFF3B1569)
@@ -89,12 +92,15 @@ object ProtocolColors {
 val AccentGreen = Color(0xFF10B981)
 val AccentGreenContainer = Color(0xFF064E3B)
 val AccentGreenLight = Color(0xFF34D399)
+val AccentGreenDeep = Color(0xFF047857)
 
 val AccentOrange = Color(0xFFF59E0B)
 val AccentOrangeContainer = Color(0xFF451A03)
+val AccentOrangeDeep = Color(0xFFB45309)
 
 val AccentRed = Color(0xFFEF4444)
 val AccentRedContainer = Color(0xFF450A0A)
+val AccentRedDeep = Color(0xFFB91C1C)
 
 val AccentBlue = Color(0xFF3B82F6)
 val AccentIndigo = Color(0xFF6366F1)
