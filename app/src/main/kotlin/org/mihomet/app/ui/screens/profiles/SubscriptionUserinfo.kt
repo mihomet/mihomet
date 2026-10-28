@@ -1,5 +1,6 @@
 package org.mihomet.app.ui.screens.profiles
 
+import java.util.Base64
 import java.util.Locale
 
 /**
@@ -82,5 +83,92 @@ fun formatTrafficBytes(bytes: Long, locale: Locale = Locale.getDefault()): Strin
         bytes >= mb -> String.format(locale, "%.1f MB", bytes / mb)
         bytes >= kb -> String.format(locale, "%.1f KB", bytes / kb)
         else -> "$bytes B"
+    }
+}
+
+/**
+ * Subscription panel metadata parsed from the Happ/Incy-style HTTP response headers.
+ *
+ * Recognized headers:
+ * - `profile-title` — display name of the profile. Incy prefixes encoded titles with
+ *   `base64:`; the payload is decoded transparently (standard or URL-safe alphabet).
+ * - `profile-update-interval` — panel-recommended update period in **hours**.
+ *   Parsed for completeness only; it is intentionally not persisted (the Room
+ *   schema is frozen and `ProfileEntity` must not change here).
+ * - `New-Url` / `Fallback-Url` — panel-initiated subscription relocation
+ *   ("auto-migration"): well-behaved clients are expected to store the new URL
+ *   and fetch from it from now on. Only absolute http(s) URLs are accepted.
+ */
+data class SubscriptionMeta(
+    val profileTitle: String? = null,
+    val updateIntervalHours: Int = 0,
+    val redirectUrl: String? = null
+)
+
+object SubscriptionMetaParser {
+
+    private const val BASE64_PREFIX = "base64:"
+
+    /**
+     * Parses meta headers from a plain header map. Header names are matched
+     * case-insensitively, so any header lookup (e.g. ktor's case-insensitive
+     * `Headers`) can be flattened into it before the call.
+     */
+    fun parse(headers: Map<String, String>): SubscriptionMeta {
+        if (headers.isEmpty()) return SubscriptionMeta()
+
+        val lookup = HashMap<String, String>(headers.size)
+        for ((key, value) in headers) {
+            if (key != null && value != null) {
+                lookup.putIfAbsent(key.trim().lowercase(Locale.ROOT), value)
+            }
+        }
+
+        val title = lookup["profile-title"]?.trim()?.takeIf { it.isNotEmpty() }?.let(::decodeTitle)
+        val interval = lookup["profile-update-interval"]?.trim()?.toDoubleOrNull()
+            ?.toInt()?.coerceAtLeast(0) ?: 0
+        val redirect = sanitizeUrl(lookup["new-url"]) ?: sanitizeUrl(lookup["fallback-url"])
+
+        return SubscriptionMeta(
+            profileTitle = title,
+            updateIntervalHours = interval,
+            redirectUrl = redirect
+        )
+    }
+
+    /**
+     * Decodes the Incy `base64:<payload>` title notation; plain titles pass through.
+     * Undecodable payloads fall back to the raw text after the prefix.
+     */
+    private fun decodeTitle(raw: String): String {
+        if (!raw.startsWith(BASE64_PREFIX, ignoreCase = true)) return raw
+        val payload = raw.substring(BASE64_PREFIX.length).trim()
+        if (payload.isEmpty()) return raw
+
+        val clean = payload.replace("\n", "").replace("\r", "").replace(" ", "")
+        val padded = clean + "=".repeat((4 - clean.length % 4) % 4)
+        val decoded = runCatching {
+            val bytes = try {
+                Base64.getDecoder().decode(padded)
+            } catch (e: IllegalArgumentException) {
+                Base64.getUrlDecoder().decode(padded)
+            }
+            String(bytes, Charsets.UTF_8)
+        }.getOrNull()
+
+        return decoded?.trim()?.takeIf { it.isNotEmpty() } ?: payload
+    }
+
+    /** Only absolute http(s) URLs are legitimate migration targets. */
+    private fun sanitizeUrl(raw: String?): String? {
+        val trimmed = raw?.trim().orEmpty()
+        if (trimmed.isEmpty()) return null
+        return if (trimmed.startsWith("http://", ignoreCase = true) ||
+            trimmed.startsWith("https://", ignoreCase = true)
+        ) {
+            trimmed
+        } else {
+            null
+        }
     }
 }

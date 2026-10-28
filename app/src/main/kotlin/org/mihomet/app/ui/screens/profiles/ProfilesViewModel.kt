@@ -15,6 +15,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.mihomet.app.R
+import org.mihomet.app.core.HwidProvider
 import org.mihomet.app.core.config.ConversionOutcome
 import org.mihomet.app.core.config.UniversalConfigConverter
 import org.mihomet.app.data.db.ProfileDao
@@ -62,6 +63,12 @@ class ProfilesViewModel(
         }
     }
 
+    /**
+     * Stable device id sent as `x-hwid` with every subscription request
+     * (required by the Happ/Incy panel ecosystem; user-provided header wins).
+     */
+    private val hwid: String by lazy { HwidProvider.get(context) }
+
     fun selectProfile(id: Long) {
         viewModelScope.launch {
             profileDao.selectProfile(id)
@@ -85,22 +92,39 @@ class ProfilesViewModel(
         return Json.encodeToString(map)
     }
 
-    fun addRemoteProfile(name: String, url: String, customHeaders: String = "{}") {
+    /**
+     * Adds a remote profile. [name] may be blank — when the user leaves it empty,
+     * the panel-provided `profile-title` header (if any) names the profile, and
+     * otherwise a default name is derived from the URL host.
+     */
+    fun addRemoteProfile(name: String = "", url: String, customHeaders: String = "{}") {
         viewModelScope.launch {
             try {
                 val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
                 val normalizedHeaders = normalizeHeadersJson(customHeaders)
                 val download = downloadSubscription(url, normalizedHeaders)
+                val meta = download.meta
 
                 val file = File(profileDir, "profile_${System.currentTimeMillis()}.yaml")
                 file.writeText(download.outcome.yaml)
 
+                // Name priority: explicit user input > panel `profile-title` > auto name from URL host.
+                val host = runCatching { java.net.URI(url).host }.getOrNull()?.removePrefix("www.") ?: ""
+                val resolvedName = when {
+                    name.isNotBlank() -> name.trim()
+                    !meta.profileTitle.isNullOrBlank() -> meta.profileTitle.trim()
+                    host.isNotBlank() -> context.getString(R.string.profile_auto_name, host)
+                    else -> context.getString(R.string.profile_auto_name_clipboard)
+                }
+                // Panel-initiated subscription relocation (New-Url / Fallback-Url): store the new URL.
+                val effectiveUrl = meta.redirectUrl?.takeIf { !it.equals(url, ignoreCase = true) } ?: url
+
                 val isFirst = profileDao.getSelectedProfile() == null
                 val quota = download.userinfo
                 val entity = ProfileEntity(
-                    name = name,
+                    name = resolvedName,
                     type = ProfileType.REMOTE,
-                    url = url,
+                    url = effectiveUrl,
                     filePath = file.absolutePath,
                     customHeaders = normalizedHeaders,
                     isSelected = isFirst,
@@ -114,7 +138,7 @@ class ProfilesViewModel(
                     profileDao.selectProfile(newId)
                 }
                 errorMessageFlow.value = null
-                successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_added, name), download.outcome)
+                successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_added, resolvedName), download.outcome)
             } catch (e: Exception) {
                 errorMessageFlow.value = context.getString(R.string.profiles_add_failed, e.message ?: context.getString(R.string.profiles_unknown_error))
             }
@@ -245,8 +269,12 @@ class ProfilesViewModel(
                 File(profile.filePath).writeText(download.outcome.yaml)
                 // If the server sent no Subscription-Userinfo this time, keep the previous quota.
                 val quota = download.userinfo
+                // Panel-initiated subscription relocation (New-Url / Fallback-Url): auto-migrate.
+                val migratedUrl = download.meta.redirectUrl
+                    ?.takeIf { !it.equals(profile.url, ignoreCase = true) } ?: profile.url
                 profileDao.updateProfile(
                     profile.copy(
+                        url = migratedUrl,
                         lastUpdated = System.currentTimeMillis(),
                         uploadUsed = quota?.uploadUsed ?: profile.uploadUsed,
                         downloadUsed = quota?.downloadUsed ?: profile.downloadUsed,
@@ -305,7 +333,8 @@ class ProfilesViewModel(
 
     private data class SubscriptionDownload(
         val outcome: ConversionOutcome,
-        val userinfo: SubscriptionUserinfo?
+        val userinfo: SubscriptionUserinfo? = null,
+        val meta: SubscriptionMeta = SubscriptionMeta()
     )
 
     private suspend fun downloadSubscription(url: String, headersJson: String = "{}"): SubscriptionDownload =
@@ -323,11 +352,16 @@ class ProfilesViewModel(
                 }
         }
 
-        val customUa = parsedHeaders["User-Agent"]
+        val customUa = parsedHeaders.entries
+            .firstOrNull { it.key.equals("User-Agent", ignoreCase = true) }?.value
+        // Honest UA first: strict SRR panels (Remnawave) serve content by UA tier, so
+        // "Mihomet" must land in the Mihomo tier — no fake Happ priority. The other
+        // well-known clients stay as fallbacks for panels that gate on them.
         val userAgentsToTry = if (!customUa.isNullOrBlank()) {
             listOf(customUa)
         } else {
             listOf(
+                APP_USER_AGENT,
                 "Happ/3.6.0 (Android; Xray)",
                 "sing-box/1.10.0 (Android)",
                 "ClashMeta/1.18.0",
@@ -335,14 +369,21 @@ class ProfilesViewModel(
             )
         }
 
+        val hasCustomHwid = parsedHeaders.keys.any { it.equals(HwidProvider.HWID_HEADER, ignoreCase = true) }
+
         var responseText = ""
         var userinfo: SubscriptionUserinfo? = null
+        var meta = SubscriptionMeta()
         var lastException: Exception? = null
 
         for (ua in userAgentsToTry) {
             try {
                 val resp = httpClient.get(url) {
                     header("User-Agent", ua)
+                    // x-hwid accompanies every attempt (user-provided header wins)
+                    if (!hasCustomHwid) {
+                        header(HwidProvider.HWID_HEADER, hwid)
+                    }
                     parsedHeaders.forEach { (k, v) ->
                         if (!k.equals("User-Agent", ignoreCase = true)) {
                             header(k, v)
@@ -360,6 +401,12 @@ class ProfilesViewModel(
                         // Ktor Headers lookup is case-insensitive; format:
                         // "upload=123 download=456 total=789 expire=1700000000"
                         userinfo = SubscriptionUserinfoParser.parse(resp.headers["Subscription-Userinfo"])
+                        // Happ/Incy panel metadata: profile-title, profile-update-interval, New-Url
+                        meta = SubscriptionMetaParser.parse(
+                            resp.headers.names().mapNotNull { name ->
+                                resp.headers[name]?.let { name to it }
+                            }.toMap()
+                        )
                         break
                     }
                 }
@@ -401,11 +448,16 @@ class ProfilesViewModel(
         }
 
         UniversalConfigConverter.convertToMihomoYamlWithOutcome(decoded).let { outcome ->
-            SubscriptionDownload(outcome = outcome, userinfo = userinfo)
+            SubscriptionDownload(outcome = outcome, userinfo = userinfo, meta = meta)
         }
     }
 
     private companion object {
         const val MAX_SUBSCRIPTION_BYTES = 20L * 1024 * 1024
+
+        // TODO: derive from BuildConfig.VERSION_NAME once buildFeatures { buildConfig = true }
+        //  is enabled in app/build.gradle.kts (it is currently off, so the version is inlined).
+        const val APP_VERSION = "1.0"
+        const val APP_USER_AGENT = "Mihomet/$APP_VERSION (Android; Mihomo)"
     }
 }
