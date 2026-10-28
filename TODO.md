@@ -32,20 +32,20 @@
 - [ ] **2.4. Header retention**: keep custom headers (`x-hwid`, custom `User-Agent`) during background profile updates.
 - [ ] **2.5. Group alignment**: panel-defined selectors/url-test groups import into `ProxiesScreen` without conflicts.
 
-### Phase 3: Localization RU/EN (in progress — next task)
-- [ ] **3.1.** Extract ~200 hardcoded Russian strings from 7 screens + ViewModel statuses into `res/values/strings.xml` (EN default) and `values-ru/`.
-- [ ] **3.2.** ViewModels emit resource ids (not literals); plurals for node/connection counters.
-- [ ] **3.3.** Update tests asserting on literal strings.
+### Phase 3: Localization RU/EN — ✅ done
+- [x] ~215 hardcoded strings extracted into `res/values/strings.xml` (EN default) and `values-ru/strings.xml` (235 entries each).
+- [x] ViewModel statuses emit resource ids with format args; plurals for import counts.
+- [ ] Remaining: localize converter `warnings` at display time (currently Russian data strings).
 
 ### Deferred audit findings (medium/low)
 - [ ] Room: enable `exportSchema` and write real migrations (currently destructive).
 - [ ] Restore Android Private DNS after a root-daemon crash (currently only on clean stop).
 - [ ] Encrypt subscription URLs and controller secret at rest (Room/DataStore).
-- [ ] Unify duplicated UI pieces: `SearchPill` (3 screens), two latency badges, count badges.
-- [ ] TrafficGraph: upload gradient fill, axis labels, tap tooltip.
+- [x] Unify duplicated UI pieces: `SearchPill`, single latency badge, `CountBadge`.
+- [x] TrafficGraph: upload gradient fill + idle placeholder. (axis labels/tooltip remain)
 - [ ] Connection screen polling tied to screen visibility instead of VM init.
 - [ ] `DashboardViewModel` root-daemon polling via root shell every 3s → event-based.
-- [ ] YamlEditor: highlight syntax, keep gutter in sync (single scroll), unsaved-changes dialog.
+- [x] YamlEditor: synced gutter + unsaved-changes dialog. (syntax highlight remains)
 - [ ] `usesCleartextTraffic` → networkSecurityConfig allowing cleartext only for user-declared http subscription hosts.
 - [ ] CI: release workflow test with a dummy keystore secret.
 
