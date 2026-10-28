@@ -48,11 +48,10 @@
 
 ## 📸 Скриншоты
 
-<!-- TODO: добавить скриншоты: docs/screenshots/dashboard.png, proxies.png, settings.png
-| Дашборд | Узлы | Настройки |
-|---|---|---|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Proxies](docs/screenshots/proxies.png) | ![Settings](docs/screenshots/settings.png) |
--->
+| Дашборд | Узлы | Подписки | Настройки |
+|---|---|---|---|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Proxies](docs/screenshots/proxies.png) | ![Profiles](docs/screenshots/profiles.png) | ![Settings](docs/screenshots/settings.png) |
+
 
 ---
 
