@@ -15,9 +15,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import org.mihomet.app.data.preferences.SettingsRepository
 import org.mihomet.app.ui.components.ExpressiveNavigationBar
@@ -41,12 +44,14 @@ class MainActivity : ComponentActivity() {
     /**
      * Accepts one-tap import links (happ://, clash://, v2rayng://, sing-box://, incy:// …)
      * and plain shared text, queues the payload for the Profiles screen.
+     * incy://connect|disconnect|toggle control the VPN directly (CMFA ExternalControl parity).
      */
     private fun handleImportIntent(intent: android.content.Intent?) {
         when (intent?.action) {
             android.content.Intent.ACTION_VIEW -> {
                 intent.data?.toString()?.let { raw ->
-                    org.mihomet.app.core.DeepLinkParser.parse(raw)?.let { org.mihomet.app.core.DeepLinkBus.post(it) }
+                    handleControlLink(raw) ?: org.mihomet.app.core.DeepLinkParser.parse(raw)
+                        ?.let { org.mihomet.app.core.DeepLinkBus.post(it) }
                 }
             }
             android.content.Intent.ACTION_SEND -> {
@@ -54,6 +59,48 @@ class MainActivity : ComponentActivity() {
                     org.mihomet.app.core.DeepLinkParser.parse(text)?.let { org.mihomet.app.core.DeepLinkBus.post(it) }
                 }
             }
+        }
+    }
+
+    private fun handleControlLink(raw: String): Boolean {
+        val scheme = raw.substringBefore("://").lowercase()
+        if (scheme != "incy" && scheme != "mihomet") return false
+        val action = raw.substringAfter("://").substringBefore('?').substringBefore('/').lowercase()
+        return when (action) {
+            "connect", "start", "open" -> {
+                lifecycleScope.launch { startPreferredMode() }; true
+            }
+            "disconnect", "stop", "close" -> {
+                lifecycleScope.launch { stopActiveService() }; true
+            }
+            "toggle" -> {
+                lifecycleScope.launch {
+                    if (org.mihomet.app.core.ServiceState.isRunning.value) stopActiveService() else startPreferredMode()
+                }; true
+            }
+            else -> false
+        }
+    }
+
+    private suspend fun startPreferredMode() {
+        val settings = settingsRepository.settingsFlow.first()
+        if (settings.isRootMode || org.mihomet.app.core.ServiceState.runningService.value == org.mihomet.app.core.RunningService.ROOT) {
+            org.mihomet.app.core.root.RootTProxyService.start(this)
+        } else {
+            val vpnIntent = android.net.VpnService.prepare(this)
+            if (vpnIntent != null) {
+                startActivity(vpnIntent)
+                return
+            }
+            org.mihomet.app.core.vpn.MihometVpnService.start(this)
+        }
+    }
+
+    private suspend fun stopActiveService() {
+        when (org.mihomet.app.core.ServiceState.runningService.value) {
+            org.mihomet.app.core.RunningService.ROOT -> org.mihomet.app.core.root.RootTProxyService.stop(this)
+            org.mihomet.app.core.RunningService.VPN -> org.mihomet.app.core.vpn.MihometVpnService.stop(this)
+            else -> {}
         }
     }
 
