@@ -33,13 +33,28 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             <!-- One-tap import deep links (Happ / Incy / CMFA / v2rayNG / sing-box compatibility) -->
+            <!-- Clash family: install-config action only (CMFA / FlClash / Clash.Meta) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="clash" android:host="install-config" />
+                <data android:scheme="clashmeta" android:host="install-config" />
+                <data android:scheme="flclash" android:host="install-config" />
+            </intent-filter>
+            <!-- Happ / Incy: payload lives in the URI path, no fixed host -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="happ" />
                 <data android:scheme="incy" />
-                <data android:scheme="clash" />
+            </intent-filter>
+            <!-- v2rayNG / sing-box / mihomet: ?url= based import -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="v2rayng" />
                 <data android:scheme="sing-box" />
                 <data android:scheme="mihomet" />
