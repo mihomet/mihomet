@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -69,6 +70,7 @@ class RootTProxyService : Service(), KoinComponent {
     private val firewallManager: FirewallManager by inject()
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var daemonMonitorJob: kotlinx.coroutines.Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -160,6 +162,32 @@ class RootTProxyService : Service(), KoinComponent {
             ServiceState.setRunning(org.mihomet.app.core.RunningService.ROOT)
             val profileLabel = selectedProfile?.name ?: getString(R.string.dashboard_default_profile_name)
             updateNotification(getString(R.string.root_running, profileLabel))
+
+            // Watchdog: the root daemon is a detached nohup process — if it crashes,
+            // restart it with backoff (same policy as the VPN core watchdog); after
+            // 3 failed rounds — clean stop
+            daemonMonitorJob?.cancel()
+            daemonMonitorJob = serviceScope.launch {
+                var attempts = 0
+                while (isActive && org.mihomet.app.core.ServiceState.isRunning.value) {
+                    kotlinx.coroutines.delay(10_000)
+                    if (RootShellManager.isDaemonRunning()) {
+                        attempts = 0
+                        continue
+                    }
+                    attempts++
+                    if (attempts > 3) {
+                        updateNotification(getString(R.string.root_error, "daemon keeps crashing"))
+                        org.mihomet.app.core.ServiceState.stopService(org.mihomet.app.core.RunningService.ROOT)
+                        break
+                    }
+                    updateNotification(getString(R.string.vpn_restarting))
+                    kotlinx.coroutines.delay(2000L * attempts)
+                    RootShellManager.startDaemon(CoreConstants.ROOT_CONFIG_PATH)
+                        .onFailure { failure -> android.util.Log.e("RootTProxy", "daemon restart failed", failure) }
+                    if (RootShellManager.isDaemonRunning()) attempts = 0
+                }
+            }
         } catch (e: Exception) {
             ServiceState.stopService(org.mihomet.app.core.RunningService.ROOT)
             updateNotification(getString(R.string.root_error, e.message ?: "null"))
@@ -171,6 +199,8 @@ class RootTProxyService : Service(), KoinComponent {
         // Teardown must never skip ServiceState.stopService: a failing root shell
         // (e.g. firewallManager.teardown throwing) would otherwise leave the UI
         // stuck on "connected" until the app is restarted.
+        daemonMonitorJob?.cancel()
+        daemonMonitorJob = null
         try {
             try {
                 val settings = settingsRepository.settingsFlow.first()
