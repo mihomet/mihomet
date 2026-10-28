@@ -72,6 +72,31 @@ object RootShellManager {
         pid
     }
 
+    /**
+     * Restores Android Private DNS left over from a crashed previous root session.
+     *
+     * [startDaemon] saves the current private_dns_mode into .prev_dns and switches
+     * it off; [stopDaemon] restores it and removes the marker. If the app process
+     * or the daemon crashed, stopDaemon() never ran and Private DNS stays off.
+     * On the next root start, an existing .prev_dns while no daemon is running is
+     * therefore a crash signal: restore the saved mode and delete the marker.
+     * The subsequent startDaemon() re-saves the restored value and disables
+     * Private DNS again for the fresh session.
+     *
+     * Called from RootTProxyService.startProxy() before the daemon is started.
+     */
+    fun maybeRestorePrivateDns() {
+        if (isDaemonRunning()) return
+        runCatching {
+            Shell.cmd(
+                "if [ -f ${CoreConstants.ROOT_RUN_DIR}/.prev_dns ]; then " +
+                        "RESTORE_DNS=\$(cat ${CoreConstants.ROOT_RUN_DIR}/.prev_dns 2>/dev/null); " +
+                        "if [ -n \"\$RESTORE_DNS\" ]; then settings put global private_dns_mode \"\$RESTORE_DNS\"; fi; " +
+                        "rm -f ${CoreConstants.ROOT_RUN_DIR}/.prev_dns; fi"
+            ).exec()
+        }
+    }
+
     fun stopDaemon(): Result<Unit> = runCatching {
         Shell.cmd(
             "if [ -f ${CoreConstants.ROOT_PID_FILE} ]; then " +

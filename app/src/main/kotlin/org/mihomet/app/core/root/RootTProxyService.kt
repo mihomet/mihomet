@@ -107,6 +107,10 @@ class RootTProxyService : Service(), KoinComponent {
 
     private suspend fun startProxy() {
         try {
+            // 0. Recover Private DNS if the previous root session crashed before
+            // stopDaemon() could restore it (.prev_dns exists while daemon is dead)
+            RootShellManager.maybeRestorePrivateDns()
+
             // 1. Bootstrap root binary if missing
             coreManager.bootstrapRootBinary().getOrThrow()
 

@@ -88,16 +88,19 @@ class DashboardViewModel(
             }
         }
 
-        // Periodic root daemon check (if UI process restarted)
+        // Periodic root daemon check (if UI process restarted).
+        // Skipped while ServiceState.isRunning is true: the running status is
+        // already reflected there, so shell polling is only needed while the
+        // service is off and we wait to adopt a background mihomo instance.
         viewModelScope.launch {
             while (isActive) {
-                if (_uiState.value.isRootMode && !_uiState.value.isRunning) {
+                if (_uiState.value.isRootMode && !ServiceState.isRunning.value) {
                     val rootRunning = RootShellManager.isDaemonRunning()
                     if (rootRunning) {
                         ServiceState.setRunning(true)
                     }
                 }
-                delay(3000)
+                delay(5000)
             }
         }
     }

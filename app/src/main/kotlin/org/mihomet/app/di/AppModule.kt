@@ -24,7 +24,7 @@ val appModule = module {
             androidContext(),
             AppDatabase::class.java,
             "mihomet.db"
-        ).fallbackToDestructiveMigration().build()
+        ).addMigrations(AppDatabase.MIGRATION_1_2).build()
     }
 
     single { get<AppDatabase>().profileDao() }

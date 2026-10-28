@@ -2,6 +2,7 @@ package org.mihomet.app.ui.screens.connections
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,12 +28,16 @@ class ConnectionsViewModel(
     private val _uiState = MutableStateFlow(ConnectionsUiState())
     val uiState: StateFlow<ConnectionsUiState> = _uiState.asStateFlow()
 
-    init {
-        startPollingConnections()
-    }
+    private var pollingJob: Job? = null
 
-    private fun startPollingConnections() {
-        viewModelScope.launch {
+    /**
+     * Starts the connections refresh loop. Called by ConnectionsScreen when it
+     * enters composition (DisposableEffect) so the controller API is not polled
+     * while the screen is not visible. Safe to call repeatedly.
+     */
+    fun startPolling() {
+        if (pollingJob?.isActive == true) return
+        pollingJob = viewModelScope.launch {
             while (isActive) {
                 // Resolve current client on every iteration so port/secret changes are picked up
                 apiClientProvider.current().getConnections().onSuccess { response ->
@@ -47,6 +52,11 @@ class ConnectionsViewModel(
                 delay(1500)
             }
         }
+    }
+
+    fun stopPolling() {
+        pollingJob?.cancel()
+        pollingJob = null
     }
 
     fun closeConnection(id: String) {

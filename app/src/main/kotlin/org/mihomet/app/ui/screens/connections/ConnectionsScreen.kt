@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -38,6 +39,12 @@ fun ConnectionsScreen(
     viewModel: ConnectionsViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+
+    // Poll the controller API only while the screen is visible
+    DisposableEffect(Unit) {
+        viewModel.startPolling()
+        onDispose { viewModel.stopPolling() }
+    }
 
     val filteredConnections = state.connections.filter {
         state.searchQuery.isBlank() ||
