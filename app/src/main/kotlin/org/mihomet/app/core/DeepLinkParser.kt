@@ -2,6 +2,8 @@ package org.mihomet.app.core
 
 import java.net.URLDecoder
 import java.util.Base64
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.receiveAsFlow
 
 /**
  * Converts import deep links (happ://, clash://, v2rayng://, sing-box://, incy:// …)
@@ -144,16 +146,17 @@ object DeepLinkParser {
 /**
  * Bridge for payloads arriving from VIEW/SEND intents before the Profiles
  * screen is reached (singleTop activity → delivered via onNewIntent).
+ * A Channel (not StateFlow) so rapid successive links are not conflated.
  */
 object DeepLinkBus {
-    private val pending = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
-    val flow: kotlinx.coroutines.flow.StateFlow<String?> get() = pending
+    private val pending = kotlinx.coroutines.channels.Channel<String>(capacity = 8)
+    val flow: Flow<String> get() = pending.receiveAsFlow()
 
     fun post(text: String?) {
-        pending.value = text
+        text?.let { runCatching { pending.trySend(it) } }
     }
 
     fun consume() {
-        pending.value = null
+        // receiveAsFlow consumes on collect; nothing to drain here
     }
 }
