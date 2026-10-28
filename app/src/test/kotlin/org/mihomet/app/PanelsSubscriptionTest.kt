@@ -23,7 +23,7 @@ class PanelsSubscriptionTest {
 
     // Schemes the URI parser is required to understand
     private val supportedSchemes = setOf(
-        "vless", "vmess", "trojan", "ss", "hysteria2", "hy2", "hysteria", "tuic"
+        "vless", "vmess", "trojan", "ss", "hysteria2", "hy2", "hysteria", "tuic", "ssh", "snell", "wg"
     )
 
     @Test
@@ -36,8 +36,8 @@ class PanelsSubscriptionTest {
         for (panel in panelDirs.sortedBy { it.name }) {
             val fixtures = panel.listFiles()!!
                 .filter { it.isFile }
-                .filterNot { it.name.endsWith(".headers.txt") }   // captured HTTP headers, not payloads
-                .filterNot { it.name.endsWith(".info.json") }     // user metadata, not a config
+                .filter { it.name.startsWith("subscription") }   // skip captured headers / user metadata
+                .filterNot { it.name.endsWith(".info.json") }    // subscription-userinfo metadata, not a config
                 .filter { it.length() > 0L }
             // Panel directory being populated by the test bench — skip while empty
             if (fixtures.isEmpty()) continue
@@ -75,11 +75,41 @@ class PanelsSubscriptionTest {
             }
         }
 
-        // For URI payloads: the node count must survive the conversion exactly
-        val expected = countSupportedUris(decodeMaybeBase64(content))
-        if (expected > 0 && expected != proxies.size) {
+        // The URI invariant applies only to URI-list payloads (base64 or plain links):
+        // every URI either becomes a proxy or is dropped with an explicit warning —
+        // nothing may vanish silently. Schemes mihomo cannot represent (naive, mieru, …)
+        // are legitimately warning-dropped. Hiddify additionally embeds a pseudo-link
+        // showing the expiry date (trojan://…--YYYY.MM.DD.time:<port>) — display metadata.
+        val decoded = decodeMaybeBase64(content)
+        val firstRealLine = decoded.lineSequence()
+            .firstOrNull { it.isNotBlank() && !it.trimStart().startsWith("#") }
+            ?.trim()?.lowercase()
+        val isUriList = firstRealLine != null &&
+                supportedSchemes.any { firstRealLine.startsWith("$it://") }
+        if (!isUriList) return
+
+        val uriLines = decoded.lineSequence().map { it.trim() }
+            .filter { it.contains("://") && !it.startsWith("http") }
+            .toList()
+        val supported = uriLines.count { it.substringBefore("://").lowercase() in supportedSchemes }
+        val unsupported = uriLines.size - supported
+        val pseudoLinks = uriLines.count {
+            Regex("^trojan://.*--\\d{4}\\.\\d{2}\\.\\d{2}\\.time:\\d+").containsMatchIn(it)
+        }
+
+        if (supported - pseudoLinks > 0 && proxies.size != supported - pseudoLinks) {
             fail(
-                "expected $expected URI nodes but conversion produced ${proxies.size} " +
+                "expected ${supported - pseudoLinks} nodes but conversion produced ${proxies.size} " +
+                    "(warnings=${outcome.warnings})"
+            )
+        }
+        val drops = outcome.warnings.count {
+            it.startsWith("Не удалось распознать узел") || it.startsWith("Ошибка разбора узла")
+        }
+        if (drops != unsupported + pseudoLinks) {
+            fail(
+                "expected ${unsupported + pseudoLinks} dropped URIs (unsupported/pseudo) to be " +
+                    "reported via warnings, but found $drops — nodes may be vanishing silently " +
                     "(warnings=${outcome.warnings})"
             )
         }

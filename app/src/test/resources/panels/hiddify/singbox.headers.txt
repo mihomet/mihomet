@@ -1,0 +1,15 @@
+HTTP/2 200 
+content-type: application/json
+content-length: 48673
+subscription-userinfo: upload=0;download=0;total=0;expire=2108505600
+profile-web-page-url: https://127.0.0.1:3100/JaX0IKMTQDO0f0HmEgPf/83999090-86f8-4009-a889-746a492638d1/singbox/
+profile-update-interval: 1
+profile-title: base64:MTI3LjAuMC4xOjMxMDAgYmVuY2h1c2Vy
+referrer-policy: same-origin
+vary: Cookie
+set-cookie: session=yxpLeXXhUablhTylGaS6PDJSaUAYOh3S0vqHYBCCZFk; Expires=Sat, 07 Nov 2026 16:53:50 GMT; HttpOnly; Path=/
+server: granian
+date: Wed, 28 Oct 2026 16:53:50 GMT
+x-robots-tag: noindex, nofollow
+alt-svc: h3=":443"; ma=2592000
+

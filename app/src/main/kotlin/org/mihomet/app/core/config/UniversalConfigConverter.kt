@@ -217,7 +217,8 @@ object UniversalConfigConverter {
     }
 
     private fun isUriList(str: String): Boolean {
-        val firstLine = str.lineSequence().firstOrNull { it.isNotBlank() } ?: ""
+        // Panels prepend comment lines (#profile-title, usage notes) to URI lists — skip them
+        val firstLine = str.lineSequence().firstOrNull { it.isNotBlank() && !it.trimStart().startsWith("#") } ?: ""
         return firstLine.startsWith("vless://") ||
                 firstLine.startsWith("vmess://") ||
                 firstLine.startsWith("hysteria2://") ||
@@ -540,6 +541,8 @@ object UniversalConfigConverter {
                         if (proxyMap != null) {
                             proxies.add(proxyMap)
                             proxyNames.add(tag)
+                        } else if (type !in setOf("direct", "block", "dns")) {
+                            warnings?.add("Тип outbound '$type' ('$tag') не поддерживается конвертером")
                         }
                     }
                 }
@@ -580,36 +583,36 @@ object UniversalConfigConverter {
                     else -> targetOutbound
                 }
 
-                r["rule_set"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }?.forEach { rs ->
+                jsonStringList(r["rule_set"]).forEach { rs ->
                     if (rs.startsWith("geoip-") || rs.contains("geoip")) {
                         rulesList.add("GEOIP,${rs.removePrefix("geoip-").uppercase()},$target")
                     } else if (rs.startsWith("geosite-") || rs.contains("geosite")) {
-                        rulesList.add("GEOSITE,${rs.removePrefix("geosite-")},$target")
+                        rulesList.add("GEOSITE,${rs.removePrefix("geosite-").uppercase()},$target")
                     }
                 }
 
-                r["geosite"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }?.forEach {
+                jsonStringList(r["geosite"]).forEach {
                     rulesList.add("GEOSITE,$it,$target")
                 }
-                r["geoip"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }?.forEach {
+                jsonStringList(r["geoip"]).forEach {
                     rulesList.add("GEOIP,${it.uppercase()},$target")
                 }
-                r["domain"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }?.forEach {
+                jsonStringList(r["domain"]).forEach {
                     rulesList.add("DOMAIN,$it,$target")
                 }
-                r["domain_suffix"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }?.forEach {
+                jsonStringList(r["domain_suffix"]).forEach {
                     rulesList.add("DOMAIN-SUFFIX,$it,$target")
                 }
-                r["domain_keyword"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }?.forEach {
+                jsonStringList(r["domain_keyword"]).forEach {
                     rulesList.add("DOMAIN-KEYWORD,$it,$target")
                 }
-                r["domain_regex"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }?.forEach {
+                jsonStringList(r["domain_regex"]).forEach {
                     rulesList.add("DOMAIN-REGEX,$it,$target")
                 }
-                r["ip_cidr"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }?.forEach {
+                jsonStringList(r["ip_cidr"]).forEach {
                     rulesList.add("IP-CIDR,$it,$target,no-resolve")
                 }
-                r["port"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }?.forEach {
+                jsonStringList(r["port"]).forEach {
                     rulesList.add("DST-PORT,$it,$target")
                 }
             }
@@ -1017,8 +1020,8 @@ object UniversalConfigConverter {
                 val privateKey = ob["private_key"]?.jsonPrimitive?.contentOrNull ?: ""
                 val peerPublicKey = ob["peer_public_key"]?.jsonPrimitive?.contentOrNull ?: ""
                 val preSharedKey = ob["pre_shared_key"]?.jsonPrimitive?.contentOrNull
-                val localAddress = ob["local_address"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }
-                    ?: listOfNotNull(ob["local_address"]?.jsonPrimitive?.contentOrNull)
+                // sing-box allows local_address as either an array or a single string
+                val localAddress = jsonStringList(ob["local_address"])
 
                 val map = mutableMapOf<String, Any>(
                     "name" to tag,
@@ -1045,8 +1048,8 @@ object UniversalConfigConverter {
         val insecure = tls["insecure"]?.jsonPrimitive?.booleanOrNull ?: false
         if (insecure) map["skip-cert-verify"] = true
 
-        val alpn = tls["alpn"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }
-        if (!alpn.isNullOrEmpty()) map["alpn"] = alpn
+        val alpn = jsonStringList(tls["alpn"])
+        if (alpn.isNotEmpty()) map["alpn"] = alpn
 
         val utls = tls["utls"]?.jsonObject
         val fp = utls?.get("fingerprint")?.jsonPrimitive?.contentOrNull
@@ -1086,7 +1089,7 @@ object UniversalConfigConverter {
             "http", "h2" -> {
                 map["network"] = "h2"
                 val path = transport["path"]?.jsonPrimitive?.contentOrNull ?: "/"
-                val host = transport["host"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList()
+                val host = jsonStringList(transport["host"])
                 val h2Opts = mutableMapOf<String, Any>("path" to path)
                 if (host.isNotEmpty()) h2Opts["host"] = host
                 map["h2-opts"] = h2Opts
@@ -1094,17 +1097,31 @@ object UniversalConfigConverter {
         }
     }
 
+    /**
+     * Reads a JSON field that panels emit either as an array of strings or as a
+     * single string (both are legal in sing-box configs, e.g. "alpn": "h3").
+     */
+    private fun jsonStringList(el: JsonElement?): List<String> = when (el) {
+        null -> emptyList()
+        is JsonArray -> el.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+        is JsonPrimitive -> listOfNotNull(el.contentOrNull)
+        else -> emptyList()
+    }
+
     private fun convertUriListToMihomoYaml(uriList: String, warnings: MutableList<String>? = null): String {
         val proxies = mutableListOf<Map<String, Any>>()
         val names = mutableListOf<String>()
 
-        uriList.lineSequence().map { it.trim() }.filter { it.isNotBlank() }.forEach { uriStr ->
-            val proxy = parseUriToMihomoProxy(uriStr, warnings)
-            if (proxy != null) {
-                proxies.add(proxy)
-                names.add(proxy["name"].toString())
+        uriList.lineSequence().map { it.trim() }
+            .filter { it.isNotBlank() }
+            .filter { !it.startsWith("#") }
+            .forEach { uriStr ->
+                val proxy = parseUriToMihomoProxy(uriStr, warnings)
+                if (proxy != null) {
+                    proxies.add(proxy)
+                    names.add(proxy["name"].toString())
+                }
             }
-        }
 
         if (proxies.isEmpty()) {
             warnings?.add("В подписке не найдено ни одного поддерживаемого узла")
@@ -1138,12 +1155,18 @@ object UniversalConfigConverter {
 
     private fun parseUriToMihomoProxy(uri: String, warnings: MutableList<String>? = null): Map<String, Any>? {
         return try {
+            // Hiddify embeds an "expiry date" pseudo-link (trojan://…--YYYY.MM.DD.time:<port>) that is
+            // client-side display metadata, not a proxy node — reported as unrecognized below
+            val isExpiryPseudoLink =
+                Regex("^trojan://.*--\\d{4}\\.\\d{2}\\.\\d{2}\\.time:\\d+").containsMatchIn(uri)
             val hashIdx = uri.indexOf('#')
             val rawRemarks = if (hashIdx != -1) uri.substring(hashIdx + 1) else ""
             val remarks = runCatching { URLDecoder.decode(rawRemarks, "UTF-8") }.getOrDefault(rawRemarks).ifBlank { "Node" }
             val cleanUri = if (hashIdx != -1) uri.substring(0, hashIdx) else uri
 
-            when {
+            var recognized = true
+            val proxy = when {
+                isExpiryPseudoLink -> null
                 cleanUri.startsWith("vless://") -> parseVlessUri(cleanUri, remarks)
                 cleanUri.startsWith("vmess://") -> parseVmessUri(cleanUri, remarks)
                 cleanUri.startsWith("trojan://") -> parseTrojanUri(cleanUri, remarks)
@@ -1151,11 +1174,21 @@ object UniversalConfigConverter {
                 cleanUri.startsWith("hysteria2://") || cleanUri.startsWith("hy2://") -> parseHysteria2Uri(cleanUri, remarks)
                 cleanUri.startsWith("hysteria://") -> parseHysteriaUri(cleanUri, remarks)
                 cleanUri.startsWith("tuic://") -> parseTuicUri(cleanUri, remarks)
+                cleanUri.startsWith("ssh://") -> parseSshUri(cleanUri, remarks)
+                cleanUri.startsWith("snell://") -> parseSnellUri(cleanUri, remarks)
+                cleanUri.startsWith("wg://") -> parseWireguardUri(cleanUri, remarks)
                 else -> {
-                    warnings?.add("Не удалось распознать узел: $uri")
+                    recognized = false
                     null
                 }
             }
+            if (proxy == null) {
+                // A matched scheme that failed to parse must not vanish silently either
+                warnings?.add(
+                    if (recognized) "Ошибка разбора узла: $uri" else "Не удалось распознать узел: $uri"
+                )
+            }
+            proxy
         } catch (e: Exception) {
             warnings?.add("Ошибка разбора узла: $uri (${e.message ?: "неизвестная ошибка"})")
             null
@@ -1504,12 +1537,114 @@ object UniversalConfigConverter {
     }
 
     /**
+     * Snell URI (Hiddify-style): snell://[userinfo@]host:port?psk=...&version=4&obfs=none
+     */
+    private fun parseSnellUri(uri: String, name: String): Map<String, Any>? {
+        val noScheme = uri.removePrefix("snell://")
+        val qIdx = noScheme.indexOf('?')
+        var authority = if (qIdx != -1) noScheme.substring(0, qIdx) else noScheme
+        val query = if (qIdx != -1) noScheme.substring(qIdx + 1) else ""
+        authority = authority.trimEnd('/').substringAfterLast('@')
+
+        val (server, rawPort) = parseHostPort(authority) ?: return null
+        val port = rawPort.toIntOrNull() ?: return null
+        val params = parseQueryParams(query)
+        val psk = params["psk"]?.takeIf { it.isNotBlank() } ?: return null
+
+        val map = mutableMapOf<String, Any>(
+            "name" to name,
+            "type" to "snell",
+            "server" to server,
+            "port" to port,
+            "psk" to psk,
+            "udp" to true
+        )
+        params["version"]?.takeIf { it.isNotBlank() }?.let { map["version"] = it }
+        params["obfs"]?.takeIf { it.isNotBlank() && it != "none" }?.let { map["obfs-opts"] = mapOf("mode" to it) }
+        return map
+    }
+
+    /**
+     * WireGuard URI (Hiddify wg:// scheme): wg://host:port
+     * ?pk=<private key>&local_address=<cidr>&peer_pk=<peer public>&pre...=<preshared>
+     */
+    private fun parseWireguardUri(uri: String, name: String): Map<String, Any>? {
+        val noScheme = uri.removePrefix("wg://")
+        val qIdx = noScheme.indexOf('?')
+        var authority = if (qIdx != -1) noScheme.substring(0, qIdx) else noScheme
+        val query = if (qIdx != -1) noScheme.substring(qIdx + 1) else ""
+        authority = authority.trimEnd('/')
+
+        val (server, rawPort) = parseHostPort(authority) ?: return null
+        val port = rawPort.toIntOrNull() ?: return null
+        val params = parseQueryParams(query)
+        val privateKey = params["pk"]?.takeIf { it.isNotBlank() } ?: return null
+
+        val map = mutableMapOf<String, Any>(
+            "name" to name,
+            "type" to "wireguard",
+            "server" to server,
+            "port" to port,
+            "private-key" to privateKey
+        )
+        params["peer_pk"]?.takeIf { it.isNotBlank() }?.let { map["public-key"] = it }
+        params["preshared_key"]?.takeIf { it.isNotBlank() }?.let { map["preshared-key"] = it }
+        params["local_address"]?.takeIf { it.isNotBlank() }?.let { map["ip"] = it }
+        params["dns"]?.takeIf { it.isNotBlank() }?.let { map["dns"] = listOf(it) }
+        params["mtu"]?.toIntOrNull()?.let { map["mtu"] = it }
+        return map
+    }
+
+    /**
+     * Parses ssh:// links (Hiddify-style): ssh://user:password@host:port
+     * ?private_key=...&hk=<host key>. Multi-line key material arrives
+     * percent-encoded and goes into the YAML as a quoted scalar.
+     */
+    private fun parseSshUri(uri: String, name: String): Map<String, Any>? {
+        val noScheme = uri.removePrefix("ssh://")
+        val qIdx = noScheme.indexOf('?')
+        var authority = if (qIdx != -1) noScheme.substring(0, qIdx) else noScheme
+        val query = if (qIdx != -1) noScheme.substring(qIdx + 1) else ""
+        authority = authority.trimEnd('/')
+
+        val atIdx = authority.lastIndexOf('@')
+        if (atIdx == -1) return null
+        val userinfo = authority.substring(0, atIdx)
+        val (server, rawPort) = parseHostPort(authority.substring(atIdx + 1)) ?: return null
+        val port = rawPort.toIntOrNull() ?: 22
+
+        val username = runCatching { URLDecoder.decode(userinfo.substringBefore(':'), "UTF-8") }
+            .getOrDefault(userinfo.substringBefore(':'))
+        val password = userinfo.substringAfter(':', missingDelimiterValue = "")
+            .takeIf { it.isNotBlank() }
+            ?.let { runCatching { URLDecoder.decode(it, "UTF-8") }.getOrDefault(it) }
+
+        val params = parseQueryParams(query)
+        val map = mutableMapOf<String, Any>(
+            "name" to name,
+            "type" to "ssh",
+            "server" to server,
+            "port" to port,
+            "username" to username
+        )
+        password?.let { map["password"] = it }
+        params["private_key"]?.takeIf { it.isNotBlank() }?.let {
+            map["private-key"] = URLDecoder.decode(it, "UTF-8")
+        }
+        params["hk"]?.takeIf { it.isNotBlank() }?.let {
+            map["host-key"] = URLDecoder.decode(it, "UTF-8")
+        }
+        return map
+    }
+
+    /**
      * Parses "host:port" tolerating IPv6: "[2001:db8::1]:443" or plain "host:443".
+     * A trailing "/" (authority form before the query string) is tolerated.
      * Returns the host and the raw (unparsed) port; null for a bracket-less IPv6
      * literal (ambiguous without a port) or a malformed bracket form.
      */
     private fun parseHostPort(raw: String): Pair<String, String>? {
-        val trimmed = raw.trim()
+        val trimmed = raw.trim().trimEnd('/')
         if (trimmed.startsWith("[")) {
             val close = trimmed.indexOf(']')
             if (close == -1) return null

@@ -14,8 +14,8 @@
 | Marzneshin | ✅ tested | fixture from live docker bench; clash + clashmeta + singbox + links |
 | 3x-ui | ✅ tested | fixture; SS2022 plain-userinfo URI gap found & fixed |
 | Remnawave | ✅ tested | fixture; default/clash/mihomo/stash/singbox/xray-json outputs |
-| S-UI | ⏳ in progress | docker bench deployment |
-| Hiddify Panel | ⏳ in progress | docker bench deployment (best-effort) |
+| S-UI | ✅ tested | fixture; base64url SS2022 SIP002 form + singbox + clash |
+| Hiddify Panel | ✅ tested | fixture; 96 links incl. ssh/snell/wg, expiry pseudo-link dropped with warning |
 | Sub-Store / subconverter pipelines | ❌ untested | exotic output variants |
 
 ### Phase 1: Docker test bench
