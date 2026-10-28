@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.R
+import org.mihomet.app.core.HappCrypto
 import org.mihomet.app.core.dns.DnsCategory
 import org.mihomet.app.core.dns.DnsPresets
 import org.mihomet.app.data.preferences.ProfileOverrides
@@ -617,6 +618,15 @@ fun SettingsScreen(
                                     }
                                     Icon(Icons.AutoMirrored.Filled.Article, contentDescription = null, modifier = Modifier.size(18.dp))
                                 }
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                                // Happ crypto keyring (encrypted subscriptions)
+                                HappCryptoKeysSection(
+                                    keys = state.cryptoKeys,
+                                    onAdd = viewModel::addCryptoKey,
+                                    onRemove = viewModel::removeCryptoKey
+                                )
 
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
@@ -1220,6 +1230,124 @@ fun CustomDnsDialog(
             }
         }
     )
+}
+
+/**
+ * Happ crypto keyring editor (Settings → Advanced): lists the stored keys as
+ * id + masked value rows with a delete action, and provides id/key inputs
+ * guarded by the 16-byte AES-128 length check (see core/HappCrypto.kt).
+ */
+@Composable
+private fun HappCryptoKeysSection(
+    keys: Map<String, String>,
+    onAdd: (String, String) -> Unit,
+    onRemove: (String) -> Unit
+) {
+    var keyId by remember { mutableStateOf("") }
+    var keyValue by remember { mutableStateOf("") }
+
+    val isKeyLengthValid = keyValue.toByteArray(Charsets.UTF_8).size == HappCrypto.KEY_BYTES
+    val showLengthError = keyValue.isNotEmpty() && !isKeyLengthValid
+    val canAdd = keyId.isNotBlank() && isKeyLengthValid
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Surface(
+                shape = ExpressiveShapes.Small,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                modifier = Modifier.size(38.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.Key,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Text(
+                stringResource(R.string.settings_happ_keys),
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+        }
+
+        keys.entries.sortedBy { it.key }.forEach { entry ->
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = ExpressiveShapes.Small,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            entry.key,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            "••••",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    IconButton(onClick = { onRemove(entry.key) }) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        OutlinedTextField(
+            value = keyId,
+            onValueChange = { keyId = it },
+            label = { Text(stringResource(R.string.settings_happ_key_id)) },
+            shape = ExpressiveShapes.Small,
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = keyValue,
+            onValueChange = { keyValue = it },
+            label = { Text(stringResource(R.string.settings_happ_key_value)) },
+            shape = ExpressiveShapes.Small,
+            singleLine = true,
+            isError = showLengthError,
+            supportingText = {
+                if (showLengthError) {
+                    Text(stringResource(R.string.settings_happ_key_error_length))
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Button(
+            onClick = {
+                onAdd(keyId.trim(), keyValue.trim())
+                keyId = ""
+                keyValue = ""
+            },
+            enabled = canAdd,
+            modifier = Modifier.fillMaxWidth(),
+            shape = ExpressiveShapes.Small
+        ) {
+            Text(stringResource(R.string.settings_happ_key_add), fontWeight = FontWeight.Bold)
+        }
+    }
 }
 
 /** One selectable DNS preset row inside [CustomDnsDialog]. */

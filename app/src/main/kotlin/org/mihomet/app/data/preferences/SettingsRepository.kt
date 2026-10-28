@@ -207,6 +207,20 @@ class SettingsRepository(private val context: Context) {
     // region Happ crypto keyring (encrypted subscriptions, see core/HappCrypto.kt)
 
     /**
+     * Reactive view of the stored Happ crypto keys (key id → AES key), for UI
+     * keyring screens. A corrupted entry degrades to an empty keyring.
+     */
+    val cryptoKeysFlow: Flow<Map<String, String>> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences -> parseCryptoKeysJson(preferences[PreferencesKeys.HAPP_CRYPTO_KEYS]) }
+
+    /**
      * Returns all stored Happ crypto keys as a mapping of key id → AES key
      * (the key is kept as a raw 16-byte ASCII string, e.g. "key02" → "key02:+]%4ij#P\"/").
      */

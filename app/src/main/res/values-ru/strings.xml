@@ -208,6 +208,11 @@
     <string name="settings_override_sniffer_desc">Восстановление реальных доменов из TLS/HTTP-трафика</string>
     <string name="settings_override_log_level">Уровень логов</string>
     <string name="settings_override_log_level_desc">Текущее значение: %1$s</string>
+    <string name="settings_happ_keys">Happ crypto-ключи</string>
+    <string name="settings_happ_key_add">Добавить ключ</string>
+    <string name="settings_happ_key_id">ID ключа</string>
+    <string name="settings_happ_key_value">AES-ключ (16 байт)</string>
+    <string name="settings_happ_key_error_length">Неверная длина ключа</string>
     <string name="settings_core">Ядро Mihomo</string>
     <string name="settings_core_version">Версия: %1$s</string>
     <string name="settings_check">Проверить</string>

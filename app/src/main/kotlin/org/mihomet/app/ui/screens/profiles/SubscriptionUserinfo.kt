@@ -1,5 +1,8 @@
 package org.mihomet.app.ui.screens.profiles
 
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.Json
 import java.util.Base64
 import java.util.Locale
 
@@ -98,16 +101,33 @@ fun formatTrafficBytes(bytes: Long, locale: Locale = Locale.getDefault()): Strin
  * - `New-Url` / `Fallback-Url` — panel-initiated subscription relocation
  *   ("auto-migration"): well-behaved clients are expected to store the new URL
  *   and fetch from it from now on. Only absolute http(s) URLs are accepted.
+ *
+ * Happ/Incy behavior headers (the panel remotely configures the client):
+ * - `subscription-autoconnect` — `true`/`1` asks the client to make this profile
+ *   the active one ([autoConnect]).
+ * - `per-app-proxy-mode` — panel hint for per-app routing: `whitelist`/`blacklist`/
+ *   `all` ([perAppModeHint], raw trimmed value as sent by the panel).
+ * - `per-app-proxy-list` — package names for the per-app routing hint, sent either
+ *   as a JSON array or as a multiline/comma-separated list ([perAppPackages]).
+ * - `tun-mode` — explicit `true`/`false` hint whether the client should use a TUN
+ *   interface ([tunModeHint] is `null` when the header is absent or unparseable).
  */
 data class SubscriptionMeta(
     val profileTitle: String? = null,
     val updateIntervalHours: Int = 0,
-    val redirectUrl: String? = null
+    val redirectUrl: String? = null,
+    val autoConnect: Boolean = false,
+    val perAppModeHint: String? = null,
+    val perAppPackages: List<String> = emptyList(),
+    val tunModeHint: Boolean? = null
 )
 
 object SubscriptionMetaParser {
 
     private const val BASE64_PREFIX = "base64:"
+
+    /** Values accepted by `subscription-autoconnect` as boolean true. */
+    private val TRUE_VALUES = setOf("true", "1")
 
     /**
      * Parses meta headers from a plain header map. Header names are matched
@@ -129,10 +149,27 @@ object SubscriptionMetaParser {
             ?.toInt()?.coerceAtLeast(0) ?: 0
         val redirect = sanitizeUrl(lookup["new-url"]) ?: sanitizeUrl(lookup["fallback-url"])
 
+        // Behavior headers: header names case-insensitive, values kept as sent
+        // (normalization is the caller's concern).
+        val autoConnectRaw = lookup["subscription-autoconnect"]?.trim()
+        val autoConnect = autoConnectRaw != null &&
+            autoConnectRaw.lowercase(Locale.ROOT) in TRUE_VALUES
+        val perAppModeHint = lookup["per-app-proxy-mode"]?.trim()?.takeIf { it.isNotEmpty() }
+        val perAppPackages = parsePackageList(lookup["per-app-proxy-list"])
+        val tunModeHint = when (lookup["tun-mode"]?.trim()?.lowercase(Locale.ROOT)) {
+            "true" -> true
+            "false" -> false
+            else -> null
+        }
+
         return SubscriptionMeta(
             profileTitle = title,
             updateIntervalHours = interval,
-            redirectUrl = redirect
+            redirectUrl = redirect,
+            autoConnect = autoConnect,
+            perAppModeHint = perAppModeHint,
+            perAppPackages = perAppPackages,
+            tunModeHint = tunModeHint
         )
     }
 
@@ -170,5 +207,33 @@ object SubscriptionMetaParser {
         } else {
             null
         }
+    }
+
+    /**
+     * Parses the `per-app-proxy-list` header value: a JSON array of package
+     * names (`["com.example.app","com.foo.bar"]`) or a multiline /
+     * comma-separated list. Blank entries are dropped, duplicates collapsed;
+     * unparseable input degrades to an empty list.
+     */
+    private fun parsePackageList(raw: String?): List<String> {
+        val trimmed = raw?.trim().orEmpty()
+        if (trimmed.isEmpty()) return emptyList()
+
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            val decoded = runCatching {
+                Json.decodeFromString(ListSerializer(String.serializer()), trimmed)
+            }.getOrNull()
+            if (decoded != null) {
+                return decoded.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+            }
+        }
+
+        // Multiline / comma-separated notation; stray brackets and quotes from
+        // half-valid JSON are tolerated.
+        return trimmed.trim('[', ']')
+            .split('\n', '\r', ',')
+            .map { it.trim().trim('"', '\'') }
+            .filter { it.isNotEmpty() }
+            .distinct()
     }
 }

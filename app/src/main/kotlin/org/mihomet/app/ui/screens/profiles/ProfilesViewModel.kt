@@ -3,6 +3,7 @@ package org.mihomet.app.ui.screens.profiles
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -13,9 +14,12 @@ import org.mihomet.app.core.config.UniversalConfigConverter
 import org.mihomet.app.data.db.ProfileDao
 import org.mihomet.app.data.db.ProfileEntity
 import org.mihomet.app.data.db.ProfileType
+import org.mihomet.app.data.preferences.PerAppMode
+import org.mihomet.app.data.preferences.SettingsRepository
 import org.mihomet.app.data.subs.SubscriptionRepository
 import org.yaml.snakeyaml.Yaml
 import java.io.File
+import java.util.Locale
 
 data class ProfilesUiState(
     val profiles: List<ProfileEntity> = emptyList(),
@@ -27,7 +31,8 @@ data class ProfilesUiState(
 class ProfilesViewModel(
     private val context: Context,
     private val profileDao: ProfileDao,
-    private val subscriptionRepository: SubscriptionRepository
+    private val subscriptionRepository: SubscriptionRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val errorMessageFlow = MutableStateFlow<String?>(null)
@@ -102,6 +107,7 @@ class ProfilesViewModel(
                 if (isFirst) {
                     profileDao.selectProfile(newId)
                 }
+                applyBehaviorHeaders(newId, meta)
                 errorMessageFlow.value = null
                 successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_added, resolvedName), download.outcome)
             } catch (e: Exception) {
@@ -226,19 +232,84 @@ class ProfilesViewModel(
         }
     }
 
+    /**
+     * Refreshes a remote profile and applies the panel behavior headers on success.
+     *
+     * The refresh is performed through [SubscriptionRepository.downloadAndConvert] and
+     * persisted here (instead of `refreshProfileWithOutcome`) because the Happ/Incy
+     * behavior headers (`subscription-autoconnect`, `per-app-proxy-*`, `tun-mode`)
+     * must be applied after every successful save, and the refresh result does not
+     * carry the parsed [SubscriptionMeta]. Persisted fields mirror the repository's
+     * refresh semantics: a missing quota header keeps the stored values, the panel
+     * URL migration and update interval are honored.
+     */
     fun updateProfile(profile: ProfileEntity) {
         if (profile.type != ProfileType.REMOTE || profile.url.isBlank()) return
         viewModelScope.launch {
-            subscriptionRepository.refreshProfileWithOutcome(profile)
-                .onSuccess { (_, outcome) ->
-                    errorMessageFlow.value = null
-                    successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_updated), outcome)
-                }
-                .onFailure { e ->
-                    errorMessageFlow.value =
-                        context.getString(R.string.profiles_update_failed, e.message ?: context.getString(R.string.profiles_unknown_error))
-                }
+            try {
+                val download = subscriptionRepository.downloadAndConvert(profile.url, profile.customHeaders)
+                File(profile.filePath).writeText(download.outcome.yaml)
+                // If the server sent no Subscription-Userinfo this time, keep the previous quota.
+                val quota = download.userinfo
+                // Panel-initiated subscription relocation (New-Url / Fallback-Url): auto-migrate.
+                val migratedUrl = download.meta.redirectUrl
+                    ?.takeIf { !it.equals(profile.url, ignoreCase = true) } ?: profile.url
+                val updated = profile.copy(
+                    url = migratedUrl,
+                    lastUpdated = System.currentTimeMillis(),
+                    uploadUsed = quota?.uploadUsed ?: profile.uploadUsed,
+                    downloadUsed = quota?.downloadUsed ?: profile.downloadUsed,
+                    trafficTotal = quota?.trafficTotal ?: profile.trafficTotal,
+                    expireAt = quota?.expireAt ?: profile.expireAt,
+                    // Absent profile-update-interval keeps the previously stored interval.
+                    updateIntervalHours = download.meta.updateIntervalHours
+                        .takeIf { it > 0 } ?: profile.updateIntervalHours
+                )
+                profileDao.updateProfile(updated)
+                applyBehaviorHeaders(updated.id, download.meta)
+                errorMessageFlow.value = null
+                successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_updated), download.outcome)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errorMessageFlow.value =
+                    context.getString(R.string.profiles_update_failed, e.message ?: context.getString(R.string.profiles_unknown_error))
+            }
         }
+    }
+
+    /**
+     * Applies the Happ/Incy behavior headers ("панель дистанционно настраивает
+     * клиент") after a successful profile save. Headers the panel did not send
+     * leave the corresponding user settings untouched:
+     * - `subscription-autoconnect` makes the profile the selected (active) one;
+     * - `per-app-proxy-mode` + `per-app-proxy-list` switch per-app routing to the
+     *   panel-provided package set (applied only for a valid whitelist/blacklist
+     *   hint together with a non-empty, resolvable package list);
+     * - `tun-mode` explicit `true` maps to the non-root VPN service (TUN) and
+     *   explicit `false` to the root TProxy mode.
+     */
+    private suspend fun applyBehaviorHeaders(profileId: Long, meta: SubscriptionMeta) {
+        if (meta.autoConnect) {
+            profileDao.selectProfile(profileId)
+        }
+
+        val modeHint = meta.perAppModeHint?.trim()?.lowercase(Locale.ROOT)
+        if ((modeHint == "whitelist" || modeHint == "blacklist") && meta.perAppPackages.isNotEmpty()) {
+            val packageManager = context.packageManager
+            val uids = meta.perAppPackages.mapNotNull { pkg ->
+                // Packages that are not installed cannot resolve to a UID — skip them.
+                runCatching { packageManager.getPackageUid(pkg, 0) }.getOrNull()
+            }.toSet()
+            if (uids.isNotEmpty()) {
+                settingsRepository.updatePerAppMode(
+                    if (modeHint == "whitelist") PerAppMode.WHITELIST else PerAppMode.BLACKLIST
+                )
+                settingsRepository.updateSelectedAppUids(uids)
+            }
+        }
+
+        meta.tunModeHint?.let { settingsRepository.updateRootMode(!it) }
     }
 
     private fun appendWarnings(message: String, outcome: ConversionOutcome): String {

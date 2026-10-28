@@ -8,6 +8,7 @@ import kotlinx.coroutines.launch
 import org.mihomet.app.R
 import org.mihomet.app.core.CoreManager
 import org.mihomet.app.core.GitHubRelease
+import org.mihomet.app.core.HappCrypto
 import org.mihomet.app.data.api.MihomoApiClientProvider
 import org.mihomet.app.data.preferences.AppSettings
 import org.mihomet.app.data.preferences.FirewallEngineType
@@ -21,7 +22,9 @@ data class SettingsUiState(
     val isDownloadingUpdate: Boolean = false,
     val latestRelease: GitHubRelease? = null,
     val updateMessageRes: Int? = null,
-    val updateMessageArgs: List<String> = emptyList()
+    val updateMessageArgs: List<String> = emptyList(),
+    // Happ crypto keyring (key id → AES key), see core/HappCrypto.kt
+    val cryptoKeys: Map<String, String> = emptyMap()
 )
 
 class SettingsViewModel(
@@ -37,6 +40,12 @@ class SettingsViewModel(
         viewModelScope.launch {
             settingsRepository.settingsFlow.collect { settings ->
                 _uiState.update { it.copy(settings = settings) }
+            }
+        }
+
+        viewModelScope.launch {
+            settingsRepository.cryptoKeysFlow.collect { keys ->
+                _uiState.update { it.copy(cryptoKeys = keys) }
             }
         }
 
@@ -194,6 +203,29 @@ class SettingsViewModel(
     fun updateOverrideSnifferEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.updateOverrideSnifferEnabled(enabled)
+        }
+    }
+
+    /**
+     * Adds (or replaces) a Happ crypto key after validating the AES-128 length:
+     * the key must be exactly [HappCrypto.KEY_BYTES] bytes (UTF-8) and the id
+     * must not be blank. Invalid input is silently ignored — the keyring is only
+     * touched with a valid entry.
+     */
+    fun addCryptoKey(id: String, key: String) {
+        val keyId = id.trim()
+        val keyValue = key.trim()
+        if (keyId.isEmpty()) return
+        if (keyValue.toByteArray(Charsets.UTF_8).size != HappCrypto.KEY_BYTES) return
+        viewModelScope.launch {
+            settingsRepository.setCryptoKey(keyId, keyValue)
+        }
+    }
+
+    /** Removes the Happ crypto key stored under [id] (no-op when absent). */
+    fun removeCryptoKey(id: String) {
+        viewModelScope.launch {
+            settingsRepository.removeCryptoKey(id)
         }
     }
 

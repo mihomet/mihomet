@@ -206,6 +206,11 @@
     <string name="settings_override_sniffer_desc">Restore real domains from TLS/HTTP traffic</string>
     <string name="settings_override_log_level">Log level</string>
     <string name="settings_override_log_level_desc">Current value: %1$s</string>
+    <string name="settings_happ_keys">Happ crypto keys</string>
+    <string name="settings_happ_key_add">Add key</string>
+    <string name="settings_happ_key_id">Key ID</string>
+    <string name="settings_happ_key_value">AES key (16 bytes)</string>
+    <string name="settings_happ_key_error_length">Invalid key length</string>
     <string name="settings_core">Mihomo core</string>
     <string name="settings_core_version">Version: %1$s</string>
     <string name="settings_check">Check</string>
