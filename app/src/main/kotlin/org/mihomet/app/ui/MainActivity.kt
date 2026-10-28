@@ -78,6 +78,17 @@ class MainActivity : ComponentActivity() {
                     if (org.mihomet.app.core.ServiceState.isRunning.value) stopActiveService() else startPreferredMode()
                 }; true
             }
+            "status" -> true // handled silently: the caller reads state from the UI/notification
+            "onadd", "autorouting", "autoroutingadd" -> {
+                // Import the URL that follows the action; autorouting implies a refresh
+                // schedule which mihomet derives from the panel's profile-update-interval
+                val payload = raw.substringAfter('/', "")
+                    .takeIf { it.startsWith("http") || it.isNotBlank() }
+                if (!payload.isNullOrBlank()) {
+                    org.mihomet.app.core.DeepLinkBus.post(payload)
+                }
+                true
+            }
             else -> false
         }
     }
