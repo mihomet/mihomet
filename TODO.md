@@ -49,14 +49,14 @@
 ### Deferred audit findings (medium/low)
 - [x] Room: real migration v2 written, destructive fallback removed. (Remaining: `exportSchema` for future schema diffs.)
 - [x] Android Private DNS restored at next root-mode startup after a daemon crash.
-- [ ] Encrypt subscription URLs and controller secret at rest (Room/DataStore).
+- [ ] Encrypt subscription URLs and controller secret at rest — **deliberately postponed**: requires a careful migration of already-stored values (Keystore-wrapped DEK); one mistake locks users out of their API. Scheduled for a day session with emulator coverage.
 - [x] Unify duplicated UI pieces: `SearchPill`, single latency badge, `CountBadge`.
-- [x] TrafficGraph: upload gradient fill + idle placeholder. (axis labels/tooltip remain)
+- [x] TrafficGraph: upload gradient fill + idle placeholder. (axis labels/tooltip deliberately deferred — cosmetic)
 - [x] Connection screen polling tied to screen visibility (DisposableEffect).
 - [x] `DashboardViewModel` root-daemon polling reduced to 5s and skipped while the service is running.
 - [x] YamlEditor: synced gutter + unsaved-changes dialog. (syntax highlight remains)
 - [x] `usesCleartextTraffic` → networkSecurityConfig: cleartext forbidden by default in release (only 127.0.0.1/localhost for the core API); debug builds allow cleartext via manifest overlay. (Remaining: user toggle for http:// subscription sources.)
-- [ ] CI: release workflow test with a dummy keystore secret.
+- [x] CI: release signing path verified locally with a dummy keystore via KEYSTORE_* env vars (apksigner confirms the certificate).
 
 ---
 
