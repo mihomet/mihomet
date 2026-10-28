@@ -226,7 +226,10 @@ object UniversalConfigConverter {
                 firstLine.startsWith("hysteria://") ||
                 firstLine.startsWith("ss://") ||
                 firstLine.startsWith("trojan://") ||
-                firstLine.startsWith("tuic://")
+                firstLine.startsWith("tuic://") ||
+                firstLine.startsWith("ssh://") ||
+                firstLine.startsWith("snell://") ||
+                firstLine.startsWith("wg://")
     }
 
     private fun validateAndNormalizeYaml(yamlContent: String): String {
@@ -1240,6 +1243,9 @@ object UniversalConfigConverter {
         if (map["network"] == "ws") {
             val wsOpts = mutableMapOf<String, Any>("path" to (params["path"] ?: "/"))
             params["host"]?.let { wsOpts["headers"] = mapOf("Host" to it) }
+            // WebSocket 0-RTT early data (v2ray/xray "ed"/"eh" params)
+            params["ed"]?.toIntOrNull()?.let { wsOpts["max-early-data"] = it }
+            params["eh"]?.takeIf { it.isNotBlank() }?.let { wsOpts["early-data-header-name"] = it }
             map["ws-opts"] = wsOpts
         } else if (map["network"] == "grpc") {
             params["serviceName"]?.let { map["grpc-opts"] = mapOf("grpc-service-name" to it) }
