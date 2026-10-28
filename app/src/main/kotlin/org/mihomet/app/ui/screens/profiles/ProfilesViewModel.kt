@@ -90,26 +90,31 @@ class ProfilesViewModel(
             try {
                 val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
                 val normalizedHeaders = normalizeHeadersJson(customHeaders)
-                val outcome = downloadAndConvertOutcome(url, normalizedHeaders)
+                val download = downloadSubscription(url, normalizedHeaders)
 
                 val file = File(profileDir, "profile_${System.currentTimeMillis()}.yaml")
-                file.writeText(outcome.yaml)
+                file.writeText(download.outcome.yaml)
 
                 val isFirst = profileDao.getSelectedProfile() == null
+                val quota = download.userinfo
                 val entity = ProfileEntity(
                     name = name,
                     type = ProfileType.REMOTE,
                     url = url,
                     filePath = file.absolutePath,
                     customHeaders = normalizedHeaders,
-                    isSelected = isFirst
+                    isSelected = isFirst,
+                    uploadUsed = quota?.uploadUsed ?: 0,
+                    downloadUsed = quota?.downloadUsed ?: 0,
+                    trafficTotal = quota?.trafficTotal ?: 0,
+                    expireAt = quota?.expireAt ?: 0
                 )
                 val newId = profileDao.insertProfile(entity)
                 if (isFirst) {
                     profileDao.selectProfile(newId)
                 }
                 errorMessageFlow.value = null
-                successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_added, name), outcome)
+                successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_added, name), download.outcome)
             } catch (e: Exception) {
                 errorMessageFlow.value = context.getString(R.string.profiles_add_failed, e.message ?: context.getString(R.string.profiles_unknown_error))
             }
@@ -236,11 +241,21 @@ class ProfilesViewModel(
         if (profile.type != ProfileType.REMOTE || profile.url.isBlank()) return
         viewModelScope.launch {
             try {
-                val outcome = downloadAndConvertOutcome(profile.url, profile.customHeaders)
-                File(profile.filePath).writeText(outcome.yaml)
-                profileDao.updateProfile(profile.copy(lastUpdated = System.currentTimeMillis()))
+                val download = downloadSubscription(profile.url, profile.customHeaders)
+                File(profile.filePath).writeText(download.outcome.yaml)
+                // If the server sent no Subscription-Userinfo this time, keep the previous quota.
+                val quota = download.userinfo
+                profileDao.updateProfile(
+                    profile.copy(
+                        lastUpdated = System.currentTimeMillis(),
+                        uploadUsed = quota?.uploadUsed ?: profile.uploadUsed,
+                        downloadUsed = quota?.downloadUsed ?: profile.downloadUsed,
+                        trafficTotal = quota?.trafficTotal ?: profile.trafficTotal,
+                        expireAt = quota?.expireAt ?: profile.expireAt
+                    )
+                )
                 errorMessageFlow.value = null
-                successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_updated), outcome)
+                successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_updated), download.outcome)
             } catch (e: Exception) {
                 errorMessageFlow.value =
                     context.getString(R.string.profiles_update_failed, e.message ?: context.getString(R.string.profiles_unknown_error))
@@ -286,6 +301,14 @@ class ProfilesViewModel(
         downloadAndConvertOutcome(url, headersJson).yaml
 
     private suspend fun downloadAndConvertOutcome(url: String, headersJson: String = "{}"): ConversionOutcome =
+        downloadSubscription(url, headersJson).outcome
+
+    private data class SubscriptionDownload(
+        val outcome: ConversionOutcome,
+        val userinfo: SubscriptionUserinfo?
+    )
+
+    private suspend fun downloadSubscription(url: String, headersJson: String = "{}"): SubscriptionDownload =
         withContext(Dispatchers.IO) {
         val parsedHeaders = runCatching {
             Json.decodeFromString<Map<String, String>>(headersJson)
@@ -313,6 +336,7 @@ class ProfilesViewModel(
         }
 
         var responseText = ""
+        var userinfo: SubscriptionUserinfo? = null
         var lastException: Exception? = null
 
         for (ua in userAgentsToTry) {
@@ -333,6 +357,9 @@ class ProfilesViewModel(
                     val body: String = resp.body()
                     if (body.isNotBlank()) {
                         responseText = body
+                        // Ktor Headers lookup is case-insensitive; format:
+                        // "upload=123 download=456 total=789 expire=1700000000"
+                        userinfo = SubscriptionUserinfoParser.parse(resp.headers["Subscription-Userinfo"])
                         break
                     }
                 }
@@ -373,7 +400,9 @@ class ProfilesViewModel(
             responseText
         }
 
-        UniversalConfigConverter.convertToMihomoYamlWithOutcome(decoded)
+        UniversalConfigConverter.convertToMihomoYamlWithOutcome(decoded).let { outcome ->
+            SubscriptionDownload(outcome = outcome, userinfo = userinfo)
+        }
     }
 
     private companion object {

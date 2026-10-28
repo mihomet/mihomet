@@ -137,6 +137,8 @@
     <string name="profiles_warnings_suffix">(skipped items: %1$d)</string>
     <string name="profiles_too_large">Subscription response is too large (>20 MB)</string>
     <string name="profiles_unknown_error">Unknown error</string>
+    <string name="profile_quota_used">Used %1$s of %2$s (%3$d%%)</string>
+    <string name="profile_expires_at">Expires %1$s</string>
     <plurals name="profile_auto_name_import_count">
         <item quantity="one">Import (%1$d node)</item>
         <item quantity="other">Import (%1$d nodes)</item>

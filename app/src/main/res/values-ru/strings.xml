@@ -137,6 +137,8 @@
     <string name="profiles_warnings_suffix">(пропущено элементов: %1$d)</string>
     <string name="profiles_too_large">Ответ подписки слишком большой (>20 МБ)</string>
     <string name="profiles_unknown_error">неизвестная ошибка</string>
+    <string name="profile_quota_used">Использовано %1$s из %2$s (%3$d%%)</string>
+    <string name="profile_expires_at">Действует до %1$s</string>
     <plurals name="profile_auto_name_import_count">
         <item quantity="one">Импорт (%1$d узел)</item>
         <item quantity="few">Импорт (%1$d узла)</item>

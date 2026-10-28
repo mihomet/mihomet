@@ -3,6 +3,7 @@ package org.mihomet.app.ui.screens.profiles
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -32,12 +33,16 @@ import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.R
 import org.mihomet.app.data.db.ProfileEntity
 import org.mihomet.app.data.db.ProfileType
+import org.mihomet.app.ui.theme.AccentOrange
+import org.mihomet.app.ui.theme.AccentRed
 import org.mihomet.app.ui.theme.AppHaptics
 import org.mihomet.app.ui.theme.ExpressiveShapes
 import org.mihomet.app.ui.theme.HapticType
+import org.mihomet.app.ui.theme.PrimaryViolet
 import org.mihomet.app.ui.theme.SecondaryTeal
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -281,6 +286,7 @@ fun ExpressiveProfileCard(
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val dateFormat = remember { SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()) }
+    val expireDateFormat = remember { SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()) }
 
     Surface(
         modifier = Modifier
@@ -436,6 +442,74 @@ fun ExpressiveProfileCard(
                             )
                         }
                     }
+                }
+            }
+
+            // Subscription quota & expiration (Subscription-Userinfo header)
+            if (profile.trafficTotal > 0) {
+                val now = System.currentTimeMillis()
+                val usedTraffic = profile.uploadUsed + profile.downloadUsed
+                val usedFraction = (usedTraffic.toDouble() / profile.trafficTotal).coerceIn(0.0, 1.0).toFloat()
+                val usedPercent = (usedTraffic * 100 / profile.trafficTotal).toInt()
+                val expireBadgeColor = when {
+                    profile.expireAt <= 0L -> null
+                    profile.expireAt <= now -> AccentRed
+                    profile.expireAt - now <= TimeUnit.DAYS.toMillis(14) -> AccentOrange
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(
+                            R.string.profile_quota_used,
+                            formatTrafficBytes(usedTraffic),
+                            formatTrafficBytes(profile.trafficTotal),
+                            usedPercent
+                        ),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (expireBadgeColor != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = CircleShape,
+                            color = expireBadgeColor.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    R.string.profile_expires_at,
+                                    expireDateFormat.format(Date(profile.expireAt))
+                                ),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = expireBadgeColor,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Thin branded-violet usage bar
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(usedFraction)
+                            .clip(CircleShape)
+                            .background(PrimaryViolet)
+                    )
                 }
             }
         }
