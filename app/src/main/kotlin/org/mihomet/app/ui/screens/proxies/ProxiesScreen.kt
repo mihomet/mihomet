@@ -5,8 +5,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.*
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,7 +35,10 @@ import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.R
 import org.mihomet.app.core.network.ConnectionTestResult
 import org.mihomet.app.core.network.PingProtocol
+import org.mihomet.app.ui.components.CountBadge
+import org.mihomet.app.ui.components.ExpressiveLatencyBadge
 import org.mihomet.app.ui.components.ProtocolBadge
+import org.mihomet.app.ui.components.SearchPill
 import org.mihomet.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -123,18 +124,7 @@ fun ProxiesScreen(
                             fontWeight = FontWeight.Black
                         )
                         if (sortedServers.isNotEmpty()) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh
-                            ) {
-                                Text(
-                                    text = "${sortedServers.size}",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                )
-                            }
+                            CountBadge(count = sortedServers.size)
                         }
                     }
                 },
@@ -255,66 +245,14 @@ fun ProxiesScreen(
             }
 
             // Expressive Search Pill
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                border = BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                ),
+            SearchPill(
+                value = state.searchQuery,
+                onValueChange = { viewModel.updateSearchQuery(it) },
+                placeholderRes = R.string.proxies_search_hint,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 12.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    TextField(
-                        value = state.searchQuery,
-                        onValueChange = { viewModel.updateSearchQuery(it) },
-                        placeholder = {
-                            Text(
-                                stringResource(R.string.proxies_search_hint),
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        singleLine = true,
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            disabledContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    if (state.searchQuery.isNotBlank()) {
-                        IconButton(
-                            onClick = { viewModel.updateSearchQuery("") },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Clear,
-                                contentDescription = stringResource(R.string.cd_clear),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                }
-            }
+            )
 
             // Current Connection Live Diagnostics Card (if tested)
             state.currentConnectionResult?.let { result ->
@@ -512,7 +450,7 @@ fun ExpressiveServerNodeCard(
             Spacer(modifier = Modifier.width(8.dp))
 
             // Ping Badge (Clickable)
-            PingLatencyBadge(
+            ExpressiveLatencyBadge(
                 delayMs = node.delayMs,
                 isTesting = isTesting,
                 onClick = onPingClick
@@ -544,64 +482,6 @@ fun ExpressiveServerNodeCard(
                     modifier = Modifier.size(20.dp)
                 ) {}
             }
-        }
-    }
-}
-
-@Composable
-fun PingLatencyBadge(
-    delayMs: Long,
-    isTesting: Boolean = false,
-    onClick: (() -> Unit)? = null
-) {
-    val (dotColor, textColor) = when {
-        isTesting -> MaterialTheme.colorScheme.primary to MaterialTheme.colorScheme.primary
-        delayMs > 0 && delayMs < 120 -> AccentGreen to AccentGreenLight
-        delayMs in 120..280 -> AccentOrange to AccentOrange
-        delayMs > 280 -> AccentRed to AccentRed
-        delayMs == -1L -> AccentRed to AccentRed
-        else -> Color.Gray to MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    val text = when {
-        isTesting -> "..."
-        delayMs > 0 -> stringResource(R.string.latency_ms, delayMs)
-        delayMs == -1L -> stringResource(R.string.latency_timeout)
-        else -> "—"
-    }
-
-    Surface(
-        onClick = onClick ?: {},
-        enabled = onClick != null && !isTesting,
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        border = BorderStroke(1.dp, dotColor.copy(alpha = 0.35f))
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (isTesting) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(10.dp),
-                    strokeWidth = 1.5.dp,
-                    color = dotColor
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(dotColor)
-                )
-            }
-            Spacer(modifier = Modifier.width(5.dp))
-            Text(
-                text = text,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                color = textColor
-            )
         }
     }
 }

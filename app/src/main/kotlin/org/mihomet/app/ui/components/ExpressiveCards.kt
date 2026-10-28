@@ -126,13 +126,17 @@ fun ProtocolBadge(
 
 /**
  * Expressive latency badge pill with live colored dot and numeric readout.
+ * Optionally renders a testing spinner and can be made clickable (e.g. to re-ping).
  */
 @Composable
 fun ExpressiveLatencyBadge(
     delayMs: Long,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isTesting: Boolean = false,
+    onClick: (() -> Unit)? = null
 ) {
     val (dotColor, textColor) = when {
+        isTesting -> MaterialTheme.colorScheme.primary to MaterialTheme.colorScheme.primary
         delayMs > 0 && delayMs < 120 -> AccentGreen to AccentGreenLight
         delayMs in 120..280 -> AccentOrange to AccentOrange
         delayMs > 280 -> AccentRed to AccentRed
@@ -140,27 +144,31 @@ fun ExpressiveLatencyBadge(
         else -> Color.Gray to MaterialTheme.colorScheme.onSurfaceVariant
     }
     val text = when {
+        isTesting -> "..."
         delayMs > 0 -> stringResource(R.string.latency_ms, delayMs)
         delayMs < 0 -> stringResource(R.string.latency_timeout)
         else -> "—"
     }
 
-    Surface(
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        border = BorderStroke(1.dp, dotColor.copy(alpha = 0.3f)),
-        modifier = modifier
-    ) {
+    val badgeContent: @Composable () -> Unit = {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(6.dp)
-                    .clip(CircleShape)
-                    .background(dotColor)
-            )
+            if (isTesting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(10.dp),
+                    strokeWidth = 1.5.dp,
+                    color = dotColor
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(dotColor)
+                )
+            }
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = text,
@@ -169,6 +177,28 @@ fun ExpressiveLatencyBadge(
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace
             )
+        }
+    }
+
+    if (onClick != null) {
+        Surface(
+            onClick = onClick,
+            enabled = !isTesting,
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            border = BorderStroke(1.dp, dotColor.copy(alpha = 0.3f)),
+            modifier = modifier
+        ) {
+            badgeContent()
+        }
+    } else {
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            border = BorderStroke(1.dp, dotColor.copy(alpha = 0.3f)),
+            modifier = modifier
+        ) {
+            badgeContent()
         }
     }
 }
