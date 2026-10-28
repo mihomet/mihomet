@@ -13,7 +13,8 @@ class DashboardStateStrictTest {
         assertFalse(state.isRunning)
         assertFalse(state.isConnecting)
         assertFalse(state.isDisconnecting)
-        assertEquals("По умолчанию", state.activeProfileName)
+        // Default profile name is resolved in the UI layer via stringResource(R.string.dashboard_default_profile_name)
+        assertEquals("", state.activeProfileName)
         assertTrue(state.trafficHistory.isEmpty())
     }
 

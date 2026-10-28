@@ -32,16 +32,17 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.mihomet.app.R
 import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.data.preferences.ProxyMode
 import org.mihomet.app.ui.components.ExpressiveLatencyBadge
 import org.mihomet.app.ui.components.PulsingStatusDot
 import org.mihomet.app.ui.theme.*
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,7 +74,7 @@ fun DashboardScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            text = "Mihomet",
+                            text = stringResource(R.string.app_name),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Black,
                             letterSpacing = (-0.5).sp
@@ -99,7 +100,9 @@ fun DashboardScreen(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = if (state.isRootMode) "Root TProxy" else "VPN Режим",
+                                    text = stringResource(
+                                        if (state.isRootMode) R.string.dashboard_mode_root_tproxy else R.string.dashboard_mode_vpn
+                                    ),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -120,7 +123,7 @@ fun DashboardScreen(
                         ) {
                             Icon(
                                 Icons.Default.Hub,
-                                contentDescription = "Соединения",
+                                contentDescription = stringResource(R.string.nav_connections),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(19.dp)
                             )
@@ -138,7 +141,7 @@ fun DashboardScreen(
                         ) {
                             Icon(
                                 Icons.Default.Terminal,
-                                contentDescription = "Журнал",
+                                contentDescription = stringResource(R.string.nav_logs),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(19.dp)
                             )
@@ -186,7 +189,7 @@ fun DashboardScreen(
             // 2. Current Server Hero Card
             CurrentServerHeroCard(
                 serverName = state.selectedNode,
-                profileName = state.activeProfileName,
+                profileName = state.activeProfileName.ifBlank { stringResource(R.string.dashboard_default_profile_name) },
                 delayMs = state.selectedNodeDelay,
                 onClick = {
                     AppHaptics.perform(context, HapticType.CLICK, view)
@@ -200,7 +203,7 @@ fun DashboardScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 ExpressiveSpeedCard(
-                    title = "Входящий",
+                    title = stringResource(R.string.dashboard_download),
                     speedText = formatSpeed(state.currentTraffic.down),
                     icon = Icons.Default.ArrowDownward,
                     accentColor = AccentGreen,
@@ -209,7 +212,7 @@ fun DashboardScreen(
                 )
 
                 ExpressiveSpeedCard(
-                    title = "Исходящий",
+                    title = stringResource(R.string.dashboard_upload),
                     speedText = formatSpeed(state.currentTraffic.up),
                     icon = Icons.Default.ArrowUpward,
                     accentColor = AccentBlue,
@@ -245,7 +248,7 @@ fun DashboardScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "Активность трафика",
+                                text = stringResource(R.string.dashboard_traffic_activity),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -422,7 +425,7 @@ fun ExpressiveHeroConnect(
                     } else {
                         Icon(
                             imageVector = if (isRunning) Icons.Default.Shield else Icons.Default.PowerSettingsNew,
-                            contentDescription = "Подключение",
+                            contentDescription = stringResource(R.string.cd_dashboard_connect),
                             tint = iconTint,
                             modifier = Modifier.size(56.dp)
                         )
@@ -460,10 +463,10 @@ fun ExpressiveHeroConnect(
 
                 Text(
                     text = when {
-                        isConnecting -> "ПОДКЛЮЧЕНИЕ..."
-                        isDisconnecting -> "ОТКЛЮЧЕНИЕ..."
-                        isRunning -> "ЗАЩИЩЕНО"
-                        else -> "НЕ ПОДКЛЮЧЕНО"
+                        isConnecting -> stringResource(R.string.dashboard_status_connecting)
+                        isDisconnecting -> stringResource(R.string.dashboard_status_disconnecting)
+                        isRunning -> stringResource(R.string.dashboard_status_protected)
+                        else -> stringResource(R.string.dashboard_status_disconnected)
                     },
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Black,
@@ -532,14 +535,14 @@ fun CurrentServerHeroCard(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Активный сервер",
+                        text = stringResource(R.string.dashboard_active_server),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.SemiBold
                     )
 
                     Text(
-                        text = serverName.ifBlank { "Выбрать сервер" },
+                        text = serverName.ifBlank { stringResource(R.string.dashboard_select_server) },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.ExtraBold,
                         maxLines = 1,
@@ -547,7 +550,7 @@ fun CurrentServerHeroCard(
                     )
 
                     Text(
-                        text = "Подписка: $profileName",
+                        text = stringResource(R.string.dashboard_subscription_label, profileName),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -565,7 +568,7 @@ fun CurrentServerHeroCard(
                 }
                 Icon(
                     Icons.Default.ChevronRight,
-                    contentDescription = "Сменить сервер",
+                    contentDescription = stringResource(R.string.cd_dashboard_change_server),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -654,7 +657,7 @@ fun ExpressiveRoutingModeCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Режим маршрутизации",
+                text = stringResource(R.string.dashboard_routing_mode),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -674,9 +677,9 @@ fun ExpressiveRoutingModeCard(
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     val modes = listOf(
-                        Triple(ProxyMode.RULE, "Умный", Icons.AutoMirrored.Filled.AltRoute),
-                        Triple(ProxyMode.GLOBAL, "Все сайты", Icons.Default.Public),
-                        Triple(ProxyMode.DIRECT, "Напрямую", Icons.Default.ArrowOutward)
+                        Triple(ProxyMode.RULE, stringResource(R.string.mode_rule), Icons.AutoMirrored.Filled.AltRoute),
+                        Triple(ProxyMode.GLOBAL, stringResource(R.string.mode_global), Icons.Default.Public),
+                        Triple(ProxyMode.DIRECT, stringResource(R.string.mode_direct), Icons.Default.ArrowOutward)
                     )
 
                     modes.forEach { (mode, label, icon) ->
@@ -728,9 +731,9 @@ fun ExpressiveRoutingModeCard(
 
             Text(
                 text = when (activeMode) {
-                    ProxyMode.RULE -> "Обход блокировок: заблокированные сервисы через прокси, российские сайты напрямую."
-                    ProxyMode.GLOBAL -> "Полное проксирование: весь сетевой трафик смартфона направляется через выбранный сервер."
-                    ProxyMode.DIRECT -> "Прямое подключение: весь интернет-трафик идет напрямую в обход ядра прокси."
+                    ProxyMode.RULE -> stringResource(R.string.dashboard_mode_rule_desc)
+                    ProxyMode.GLOBAL -> stringResource(R.string.dashboard_mode_global_desc)
+                    ProxyMode.DIRECT -> stringResource(R.string.dashboard_mode_direct_desc)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -740,11 +743,12 @@ fun ExpressiveRoutingModeCard(
     }
 }
 
+@Composable
 private fun formatSpeed(bytesPerSec: Long): String {
     return when {
-        bytesPerSec >= 1024 * 1024 -> String.format(Locale.US, "%.1f МБ/с", bytesPerSec / (1024.0 * 1024.0))
-        bytesPerSec >= 1024 -> String.format(Locale.US, "%.0f КБ/с", bytesPerSec / 1024.0)
-        bytesPerSec > 0 -> "$bytesPerSec Б/с"
-        else -> "0 Б/с"
+        bytesPerSec >= 1024 * 1024 -> stringResource(R.string.speed_mb_per_s, bytesPerSec / (1024.0 * 1024.0))
+        bytesPerSec >= 1024 -> stringResource(R.string.speed_kb_per_s, bytesPerSec / 1024.0)
+        bytesPerSec > 0 -> stringResource(R.string.speed_b_per_s, bytesPerSec)
+        else -> stringResource(R.string.speed_b_per_s, 0L)
     }
 }

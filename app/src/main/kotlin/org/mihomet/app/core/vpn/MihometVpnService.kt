@@ -86,7 +86,7 @@ class MihometVpnService : VpnService(), KoinComponent {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                val notification = buildNotification("Starting VPN...")
+                val notification = buildNotification(getString(R.string.vpn_notification_starting))
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                     startForeground(
                         NOTIFICATION_ID,
@@ -260,7 +260,7 @@ class MihometVpnService : VpnService(), KoinComponent {
                         val tailLogs = runCatching { vpnLogFile.readLines().takeLast(10).joinToString("\n") }.getOrNull()
                         android.util.Log.e("MihometVpn", "Core exited with $exitCode: $tailLogs")
                         ServiceState.stopService(org.mihomet.app.core.RunningService.VPN)
-                        updateNotification("Ошибка ядра ($exitCode)")
+                        updateNotification(getString(R.string.vpn_error_core, exitCode))
                     } else {
                         ServiceState.stopService(org.mihomet.app.core.RunningService.VPN)
                     }
@@ -271,7 +271,8 @@ class MihometVpnService : VpnService(), KoinComponent {
 
             android.util.Log.d("MihometVpn", "Setting ServiceState.setRunning(VPN)")
             ServiceState.setRunning(org.mihomet.app.core.RunningService.VPN)
-            val baseText = "Подключено (${selectedProfile?.name ?: "По умолчанию"})"
+            val profileLabel = selectedProfile?.name ?: getString(R.string.dashboard_default_profile_name)
+            val baseText = getString(R.string.vpn_connected, profileLabel)
             updateNotification(baseText)
 
             // Live speed in the notification (optional toggle in settings)
@@ -288,7 +289,7 @@ class MihometVpnService : VpnService(), KoinComponent {
         } catch (e: Exception) {
             android.util.Log.e("MihometVpn", "startVpn() exception", e)
             ServiceState.stopService(org.mihomet.app.core.RunningService.VPN)
-            updateNotification("Ошибка VPN: ${e.message}")
+            updateNotification(getString(R.string.vpn_error, e.message ?: "null"))
             e.printStackTrace()
         }
     }
@@ -392,9 +393,9 @@ class MihometVpnService : VpnService(), KoinComponent {
         val kb = bytesPerSec / 1024.0
         val mb = kb / 1024.0
         return when {
-            mb >= 1.0 -> String.format(java.util.Locale.getDefault(), "%.1f МБ/с", mb)
-            kb >= 1.0 -> String.format(java.util.Locale.getDefault(), "%.0f КБ/с", kb)
-            else -> "$bytesPerSec Б/с"
+            mb >= 1.0 -> getString(R.string.speed_mb_per_s, mb)
+            kb >= 1.0 -> getString(R.string.speed_kb_per_s, kb)
+            else -> getString(R.string.speed_b_per_s, bytesPerSec)
         }
     }
 
@@ -409,7 +410,7 @@ class MihometVpnService : VpnService(), KoinComponent {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Mihomet VPN Service",
+                getString(R.string.vpn_channel_name),
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java)
@@ -433,11 +434,11 @@ class MihometVpnService : VpnService(), KoinComponent {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Mihomet VPN")
+            .setContentTitle(getString(R.string.vpn_notification_title))
             .setContentText(text)
             .setSmallIcon(R.drawable.ic_proxy_tile)
             .setContentIntent(pendingIntent)
-            .addAction(R.drawable.ic_proxy_tile, "Disconnect", stopIntent)
+            .addAction(R.drawable.ic_proxy_tile, getString(R.string.action_disconnect), stopIntent)
             .setOngoing(true)
             .build()
     }

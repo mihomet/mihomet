@@ -24,7 +24,7 @@ import java.io.File
 data class DashboardUiState(
     val isRunning: Boolean = false,
     val isRootMode: Boolean = true,
-    val activeProfileName: String = "По умолчанию",
+    val activeProfileName: String = "",
     val currentTraffic: TrafficSample = TrafficSample(),
     val trafficHistory: List<TrafficSample> = emptyList(),
     val activeMode: ProxyMode = ProxyMode.RULE,
@@ -66,7 +66,7 @@ class DashboardViewModel(
         viewModelScope.launch {
             profileDao.getSelectedProfileFlow().collect { profile ->
                 _uiState.update {
-                    it.copy(activeProfileName = profile?.name ?: "По умолчанию")
+                    it.copy(activeProfileName = profile?.name ?: "")
                 }
             }
         }

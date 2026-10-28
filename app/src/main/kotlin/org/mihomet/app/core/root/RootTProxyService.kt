@@ -80,7 +80,7 @@ class RootTProxyService : Service(), KoinComponent {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                val notification = buildNotification("Starting Root TProxy...")
+                val notification = buildNotification(getString(R.string.root_notification_starting))
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                     startForeground(
                         NOTIFICATION_ID,
@@ -154,10 +154,11 @@ class RootTProxyService : Service(), KoinComponent {
             ).getOrThrow()
 
             ServiceState.setRunning(org.mihomet.app.core.RunningService.ROOT)
-            updateNotification("Running (${selectedProfile?.name ?: "Default"})")
+            val profileLabel = selectedProfile?.name ?: getString(R.string.dashboard_default_profile_name)
+            updateNotification(getString(R.string.root_running, profileLabel))
         } catch (e: Exception) {
             ServiceState.stopService(org.mihomet.app.core.RunningService.ROOT)
-            updateNotification("Error: ${e.message}")
+            updateNotification(getString(R.string.root_error, e.message ?: "null"))
             e.printStackTrace()
         }
     }
@@ -184,10 +185,10 @@ class RootTProxyService : Service(), KoinComponent {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Mihomet Root Service",
+                getString(R.string.root_channel_name),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Mihomet Root TProxy background status"
+                description = getString(R.string.root_channel_desc)
             }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
@@ -210,11 +211,11 @@ class RootTProxyService : Service(), KoinComponent {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Mihomet Root TProxy")
+            .setContentTitle(getString(R.string.root_notification_title))
             .setContentText(text)
             .setSmallIcon(R.drawable.ic_proxy_tile)
             .setContentIntent(pendingIntent)
-            .addAction(R.drawable.ic_proxy_tile, "Disconnect", stopIntent)
+            .addAction(R.drawable.ic_proxy_tile, getString(R.string.action_disconnect), stopIntent)
             .setOngoing(true)
             .build()
     }

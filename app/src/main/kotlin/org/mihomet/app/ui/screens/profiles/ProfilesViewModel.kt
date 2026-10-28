@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.mihomet.app.R
 import org.mihomet.app.core.config.ConversionOutcome
 import org.mihomet.app.core.config.UniversalConfigConverter
 import org.mihomet.app.data.db.ProfileDao
@@ -108,9 +109,9 @@ class ProfilesViewModel(
                     profileDao.selectProfile(newId)
                 }
                 errorMessageFlow.value = null
-                successMessageFlow.value = appendWarnings("Подписка «$name» добавлена", outcome)
+                successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_added, name), outcome)
             } catch (e: Exception) {
-                errorMessageFlow.value = "Не удалось загрузить подписку: ${e.message ?: "неизвестная ошибка"}"
+                errorMessageFlow.value = context.getString(R.string.profiles_add_failed, e.message ?: context.getString(R.string.profiles_unknown_error))
             }
         }
     }
@@ -143,7 +144,7 @@ class ProfilesViewModel(
     ) {
         val trimmed = text.trim()
         if (trimmed.isBlank()) {
-            onError("Буфер обмена пуст")
+            onError(context.getString(R.string.clipboard_empty))
             return
         }
 
@@ -152,7 +153,11 @@ class ProfilesViewModel(
                 if (trimmed.startsWith("http://", ignoreCase = true) || trimmed.startsWith("https://", ignoreCase = true)) {
                     val url = trimmed.lines().first { it.isNotBlank() }.trim()
                     val host = runCatching { java.net.URI(url).host }.getOrNull()?.removePrefix("www.") ?: ""
-                    val autoName = if (host.isNotBlank()) "Подписка $host" else "Подписка из буфера"
+                    val autoName = if (host.isNotBlank()) {
+                        context.getString(R.string.profile_auto_name, host)
+                    } else {
+                        context.getString(R.string.profile_auto_name_clipboard)
+                    }
 
                     val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
                     val content = downloadProfileContent(url)
@@ -171,7 +176,7 @@ class ProfilesViewModel(
                     if (isFirst) {
                         profileDao.selectProfile(newId)
                     }
-                    onSuccess("Подписка «$autoName» успешно добавлена")
+                    onSuccess(context.getString(R.string.profiles_imported, autoName))
                 } else {
                     val outcome = withContext(Dispatchers.Default) {
                         UniversalConfigConverter.convertToMihomoYamlWithOutcome(trimmed)
@@ -183,7 +188,7 @@ class ProfilesViewModel(
                     val proxies = (parsed?.get("proxies") as? List<*>) ?: emptyList<Any>()
 
                     if (proxies.isEmpty() && !convertedYaml.contains("proxies:")) {
-                        onError("Не удалось распознать формат узлов в буфере обмена")
+                        onError(context.getString(R.string.profiles_unrecognized))
                         return@launch
                     }
 
@@ -192,9 +197,9 @@ class ProfilesViewModel(
                     val autoName = if (proxies.size == 1 && !firstName.isNullOrBlank()) {
                         firstName
                     } else if (proxies.isNotEmpty()) {
-                        "Импорт (${proxies.size} узлов)"
+                        context.resources.getQuantityString(R.plurals.profile_auto_name_import_count, proxies.size, proxies.size)
                     } else {
-                        "Импортированная конфигурация"
+                        context.getString(R.string.profile_auto_name_import)
                     }
 
                     val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
@@ -214,15 +219,15 @@ class ProfilesViewModel(
                     }
                     onSuccess(
                         if (proxies.isNotEmpty()) {
-                            appendWarnings("Импортировано $autoName", outcome)
+                            appendWarnings(context.getString(R.string.profiles_import_done, autoName), outcome)
                         } else {
-                            "Конфигурация успешно добавлена"
+                            context.getString(R.string.profiles_config_added)
                         }
                     )
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                onError("Ошибка импорта: ${e.localizedMessage ?: e.message}")
+                onError(context.getString(R.string.profiles_import_error, e.localizedMessage ?: e.message))
             }
         }
     }
@@ -235,10 +240,10 @@ class ProfilesViewModel(
                 File(profile.filePath).writeText(outcome.yaml)
                 profileDao.updateProfile(profile.copy(lastUpdated = System.currentTimeMillis()))
                 errorMessageFlow.value = null
-                successMessageFlow.value = appendWarnings("Подписка обновлена", outcome)
+                successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_updated), outcome)
             } catch (e: Exception) {
                 errorMessageFlow.value =
-                    "Не удалось обновить подписку: ${e.message ?: "неизвестная ошибка"}"
+                    context.getString(R.string.profiles_update_failed, e.message ?: context.getString(R.string.profiles_unknown_error))
             }
         }
     }
@@ -247,7 +252,7 @@ class ProfilesViewModel(
         return if (outcome.warnings.isEmpty()) {
             message
         } else {
-            "$message (пропущено элементов: ${outcome.warnings.size})"
+            "$message ${context.getString(R.string.profiles_warnings_suffix, outcome.warnings.size)}"
         }
     }
 
@@ -323,7 +328,7 @@ class ProfilesViewModel(
                 if (resp.status.value in 200..299) {
                     val contentLength = resp.headers["Content-Length"]?.toLongOrNull()
                     if (contentLength != null && contentLength > MAX_SUBSCRIPTION_BYTES) {
-                        throw IllegalStateException("Ответ подписки слишком большой (>20 МБ)")
+                        throw IllegalStateException(context.getString(R.string.profiles_too_large))
                     }
                     val body: String = resp.body()
                     if (body.isNotBlank()) {

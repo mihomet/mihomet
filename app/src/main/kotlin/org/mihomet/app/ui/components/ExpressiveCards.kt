@@ -13,11 +13,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.mihomet.app.R
 import org.mihomet.app.ui.theme.*
 
 /**
@@ -130,12 +132,17 @@ fun ExpressiveLatencyBadge(
     delayMs: Long,
     modifier: Modifier = Modifier
 ) {
-    val (dotColor, textColor, text) = when {
-        delayMs > 0 && delayMs < 120 -> Triple(AccentGreen, AccentGreenLight, "$delayMs мс")
-        delayMs in 120..280 -> Triple(AccentOrange, AccentOrange, "$delayMs мс")
-        delayMs > 280 -> Triple(AccentRed, AccentRed, "$delayMs мс")
-        delayMs < 0 -> Triple(AccentRed, AccentRed, "Таймаут")
-        else -> Triple(Color.Gray, MaterialTheme.colorScheme.onSurfaceVariant, "—")
+    val (dotColor, textColor) = when {
+        delayMs > 0 && delayMs < 120 -> AccentGreen to AccentGreenLight
+        delayMs in 120..280 -> AccentOrange to AccentOrange
+        delayMs > 280 -> AccentRed to AccentRed
+        delayMs < 0 -> AccentRed to AccentRed
+        else -> Color.Gray to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val text = when {
+        delayMs > 0 -> stringResource(R.string.latency_ms, delayMs)
+        delayMs < 0 -> stringResource(R.string.latency_timeout)
+        else -> "—"
     }
 
     Surface(

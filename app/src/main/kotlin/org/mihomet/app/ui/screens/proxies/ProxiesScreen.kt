@@ -27,12 +27,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
+import org.mihomet.app.R
 import org.mihomet.app.core.network.ConnectionTestResult
 import org.mihomet.app.core.network.PingProtocol
 import org.mihomet.app.ui.components.ProtocolBadge
@@ -91,15 +93,17 @@ fun ProxiesScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(state.statusMessage) {
-        state.statusMessage?.let {
-            snackbarHostState.showSnackbar(it)
+    LaunchedEffect(state.statusMessageRes) {
+        state.statusMessageRes?.let { resId ->
+            snackbarHostState.showSnackbar(
+                context.getString(resId, *state.statusMessageArgs.toTypedArray())
+            )
         }
     }
 
     LaunchedEffect(state.error) {
         state.error?.let {
-            snackbarHostState.showSnackbar("Ошибка загрузки узлов: $it", withDismissAction = true)
+            snackbarHostState.showSnackbar(context.getString(R.string.proxies_error_load, it), withDismissAction = true)
         }
     }
 
@@ -114,7 +118,7 @@ fun ProxiesScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Серверы",
+                            text = stringResource(R.string.nav_proxies),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Black
                         )
@@ -159,7 +163,7 @@ fun ProxiesScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Пинг...",
+                                    text = stringResource(R.string.proxies_pinging),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -173,7 +177,7 @@ fun ProxiesScreen(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "Тест всех",
+                                    text = stringResource(R.string.proxies_test_all),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -197,7 +201,7 @@ fun ProxiesScreen(
                         ) {
                             Icon(
                                 Icons.Default.Tune,
-                                contentDescription = "Инструменты",
+                                contentDescription = stringResource(R.string.cd_proxies_tools),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -280,7 +284,7 @@ fun ProxiesScreen(
                         onValueChange = { viewModel.updateSearchQuery(it) },
                         placeholder = {
                             Text(
-                                "Поиск сервера по имени или IP...",
+                                stringResource(R.string.proxies_search_hint),
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -303,7 +307,7 @@ fun ProxiesScreen(
                         ) {
                             Icon(
                                 Icons.Default.Clear,
-                                contentDescription = "Очистить",
+                                contentDescription = stringResource(R.string.cd_clear),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -335,7 +339,7 @@ fun ProxiesScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (state.searchQuery.isNotBlank()) "Ничего не найдено" else "Нет доступных серверов",
+                        text = if (state.searchQuery.isNotBlank()) stringResource(R.string.common_not_found) else stringResource(R.string.proxies_empty),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -403,7 +407,7 @@ fun ProxiesScreen(
             onCopy = { text ->
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 clipboard.setPrimaryClip(ClipData.newPlainText("Mihomet Config", text))
-                Toast.makeText(context, "Конфигурация скопирована в буфер обмена", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.config_copied), Toast.LENGTH_SHORT).show()
             }
         )
     }
@@ -526,7 +530,7 @@ fun ExpressiveServerNodeCard(
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             Icons.Default.Check,
-                            contentDescription = "Выбран",
+                            contentDescription = stringResource(R.string.cd_selected),
                             tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(14.dp)
                         )
@@ -550,13 +554,19 @@ fun PingLatencyBadge(
     isTesting: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
-    val (dotColor, textColor, text) = when {
-        isTesting -> Triple(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary, "...")
-        delayMs > 0 && delayMs < 120 -> Triple(AccentGreen, AccentGreenLight, "$delayMs мс")
-        delayMs in 120..280 -> Triple(AccentOrange, AccentOrange, "$delayMs мс")
-        delayMs > 280 -> Triple(AccentRed, AccentRed, "$delayMs мс")
-        delayMs == -1L -> Triple(AccentRed, AccentRed, "Таймаут")
-        else -> Triple(Color.Gray, MaterialTheme.colorScheme.onSurfaceVariant, "—")
+    val (dotColor, textColor) = when {
+        isTesting -> MaterialTheme.colorScheme.primary to MaterialTheme.colorScheme.primary
+        delayMs > 0 && delayMs < 120 -> AccentGreen to AccentGreenLight
+        delayMs in 120..280 -> AccentOrange to AccentOrange
+        delayMs > 280 -> AccentRed to AccentRed
+        delayMs == -1L -> AccentRed to AccentRed
+        else -> Color.Gray to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val text = when {
+        isTesting -> "..."
+        delayMs > 0 -> stringResource(R.string.latency_ms, delayMs)
+        delayMs == -1L -> stringResource(R.string.latency_timeout)
+        else -> "—"
     }
 
     Surface(
@@ -640,15 +650,15 @@ fun CurrentConnectionCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (result.isSuccess) "Текущее соединение активно" else "Ошибка подключения",
+                    text = if (result.isSuccess) stringResource(R.string.connection_active) else stringResource(R.string.connection_error),
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 )
                 Text(
                     text = if (result.isSuccess) {
-                        "IP: ${result.ip} • ${result.location} • ${result.latencyMs} ms"
+                        stringResource(R.string.connection_active_details, result.ip, result.location, result.latencyMs)
                     } else {
-                        result.errorMessage ?: "Сбой соединения"
+                        result.errorMessage ?: stringResource(R.string.connection_failed)
                     },
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -656,7 +666,7 @@ fun CurrentConnectionCard(
             }
 
             IconButton(onClick = onRetest) {
-                Icon(Icons.Default.Refresh, contentDescription = "Повторить")
+                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_retry))
             }
         }
     }
@@ -681,7 +691,7 @@ fun ExpressiveToolsSheetContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "Инструменты и диагностика",
+            text = stringResource(R.string.proxies_tools_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Black
         )
@@ -701,7 +711,7 @@ fun ExpressiveToolsSheetContent(
             ) {
                 Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Пинг всех", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.proxies_ping_all), fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
 
             FilledTonalButton(
@@ -717,7 +727,7 @@ fun ExpressiveToolsSheetContent(
                 } else {
                     Icon(Icons.Default.Public, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Тест сети", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.proxies_network_test), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -735,7 +745,7 @@ fun ExpressiveToolsSheetContent(
 
         // Ping Protocol Selector
         Text(
-            text = "Метод проверки пинга",
+            text = stringResource(R.string.proxies_ping_method),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold
         )
@@ -759,7 +769,7 @@ fun ExpressiveToolsSheetContent(
 
         // Sort Order
         Text(
-            text = "Сортировка списка",
+            text = stringResource(R.string.proxies_sort_title),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold
         )
@@ -782,7 +792,7 @@ fun ExpressiveToolsSheetContent(
                         .clickable { onSelectSortOrder(order) }
                 ) {
                     Text(
-                        text = order.title,
+                        text = stringResource(order.titleRes),
                         fontSize = 12.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                         color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -802,7 +812,7 @@ fun ExpressiveToolsSheetContent(
         ) {
             Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Просмотр конфигурации (JSON / YAML)", fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.proxies_view_config), fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -825,7 +835,7 @@ fun ConfigViewerDialog(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Конфигурация", fontWeight = FontWeight.Black, fontSize = 18.sp)
+                Text(stringResource(R.string.proxies_config_title), fontWeight = FontWeight.Black, fontSize = 18.sp)
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.width(160.dp)) {
                     SegmentedButton(
                         selected = selectedTab == 0,
@@ -855,7 +865,7 @@ fun ConfigViewerDialog(
                     .verticalScroll(rememberScrollState())
             ) {
                 Text(
-                    text = displayContent.ifBlank { "Конфигурация пуста" },
+                    text = displayContent.ifBlank { stringResource(R.string.proxies_config_empty) },
                     fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp,
                     lineHeight = 15.sp,
@@ -870,12 +880,12 @@ fun ConfigViewerDialog(
             ) {
                 Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Копировать")
+                Text(stringResource(R.string.action_copy))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Закрыть")
+                Text(stringResource(R.string.action_close))
             }
         }
     )

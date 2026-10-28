@@ -13,12 +13,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import org.mihomet.app.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,6 +34,7 @@ fun YamlEditorScreen(
     var isLoading by remember { mutableStateOf(true) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     LaunchedEffect(profileId) {
         yamlText = viewModel.getProfileContent(profileId)
@@ -41,10 +45,10 @@ fun YamlEditorScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("YAML Editor") },
+                title = { Text(stringResource(R.string.yaml_editor_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                     }
                 },
                 actions = {
@@ -53,15 +57,15 @@ fun YamlEditorScreen(
                             scope.launch {
                                 viewModel.saveProfileContent(profileId, yamlText)
                                     .onSuccess {
-                                        snackbarHostState.showSnackbar("Configuration saved successfully")
+                                        snackbarHostState.showSnackbar(context.getString(R.string.yaml_saved))
                                     }
                                     .onFailure {
-                                        snackbarHostState.showSnackbar("YAML Syntax Error: ${it.message}")
+                                        snackbarHostState.showSnackbar(context.getString(R.string.yaml_syntax_error, it.message ?: ""))
                                     }
                             }
                         }
                     ) {
-                        Icon(Icons.Default.Save, contentDescription = "Save")
+                        Icon(Icons.Default.Save, contentDescription = stringResource(R.string.cd_save))
                     }
                 }
             )

@@ -24,13 +24,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
+import org.mihomet.app.R
 import org.mihomet.app.ui.theme.AccentBlue
 import org.mihomet.app.ui.theme.AccentGreen
 import org.mihomet.app.ui.theme.ExpressiveShapes
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,7 +58,7 @@ fun ConnectionsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Соединения",
+                            text = stringResource(R.string.nav_connections),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Black
                         )
@@ -87,7 +88,7 @@ fun ConnectionsScreen(
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Назад",
+                                contentDescription = stringResource(R.string.cd_back),
                                 tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -106,7 +107,7 @@ fun ConnectionsScreen(
                         ) {
                             Icon(
                                 Icons.Default.DeleteSweep,
-                                contentDescription = "Закрыть все соединения",
+                                contentDescription = stringResource(R.string.cd_close_all_connections),
                                 tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -136,7 +137,7 @@ fun ConnectionsScreen(
                     horizontalArrangement = Arrangement.SpaceAround
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Входящий трафик", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.connections_download_total), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(formatData(state.downloadTotal), fontWeight = FontWeight.Black, fontSize = 16.sp, color = AccentGreen)
                     }
@@ -150,7 +151,7 @@ fun ConnectionsScreen(
                     )
 
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Исходящий трафик", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.connections_upload_total), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(formatData(state.uploadTotal), fontWeight = FontWeight.Black, fontSize = 16.sp, color = AccentBlue)
                     }
@@ -184,7 +185,7 @@ fun ConnectionsScreen(
                         onValueChange = { viewModel.updateSearchQuery(it) },
                         placeholder = {
                             Text(
-                                "Поиск по хосту, IP или приложению...",
+                                stringResource(R.string.connections_search_hint),
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -207,7 +208,7 @@ fun ConnectionsScreen(
                         ) {
                             Icon(
                                 Icons.Default.Clear,
-                                contentDescription = "Очистить",
+                                contentDescription = stringResource(R.string.cd_clear),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -223,7 +224,7 @@ fun ConnectionsScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Нет активных соединений", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+                    Text(stringResource(R.string.connections_empty), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                 }
             } else {
                 LazyColumn(
@@ -301,7 +302,7 @@ fun ExpressiveConnectionCard(
                 IconButton(onClick = onClose) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = "Закрыть соединение",
+                        contentDescription = stringResource(R.string.cd_close_connection),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(16.dp)
                     )
@@ -311,11 +312,12 @@ fun ExpressiveConnectionCard(
     }
 }
 
+@Composable
 private fun formatData(bytes: Long): String {
     return when {
-        bytes >= 1024 * 1024 * 1024 -> String.format(Locale.US, "%.2f ГБ", bytes / (1024.0 * 1024.0 * 1024.0))
-        bytes >= 1024 * 1024 -> String.format(Locale.US, "%.1f МБ", bytes / (1024.0 * 1024.0))
-        bytes >= 1024 -> String.format(Locale.US, "%.1f КБ", bytes / 1024.0)
-        else -> "$bytes Б"
+        bytes >= 1024 * 1024 * 1024 -> stringResource(R.string.data_gb, bytes / (1024.0 * 1024.0 * 1024.0))
+        bytes >= 1024 * 1024 -> stringResource(R.string.data_mb, bytes / (1024.0 * 1024.0))
+        bytes >= 1024 -> stringResource(R.string.data_kb, bytes / 1024.0)
+        else -> stringResource(R.string.data_b, bytes)
     }
 }

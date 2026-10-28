@@ -21,10 +21,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
+import org.mihomet.app.R
 import org.mihomet.app.data.preferences.ProxyMode
 import org.mihomet.app.ui.theme.*
 
@@ -52,7 +54,7 @@ fun SettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Настройки",
+                        text = stringResource(R.string.nav_settings),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Black
                     )
@@ -70,7 +72,7 @@ fun SettingsScreen(
         ) {
             // 1. Connection Mode Grouped Card
             item {
-                SettingsSectionTitle("Режим подключения")
+                SettingsSectionTitle(stringResource(R.string.settings_connection_mode))
                 Spacer(modifier = Modifier.height(6.dp))
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -86,8 +88,8 @@ fun SettingsScreen(
                             icon = Icons.Default.VpnKey,
                             iconBg = MaterialTheme.colorScheme.primaryContainer,
                             iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            title = "Без Root (VPN)",
-                            description = "Стандартный безопасный режим VPN для любых устройств Android. Не требует root-прав.",
+                            title = stringResource(R.string.settings_mode_vpn_title),
+                            description = stringResource(R.string.settings_mode_vpn_desc),
                             selected = !settings.isRootMode,
                             onSelect = {
                                 AppHaptics.perform(context, HapticType.CLICK, view)
@@ -101,8 +103,8 @@ fun SettingsScreen(
                             icon = Icons.Default.AdminPanelSettings,
                             iconBg = AccentOrangeContainer,
                             iconTint = AccentOrange,
-                            title = "Root (TProxy)",
-                            description = "Прозрачное проксирование сетевого стека через netfilter (nftables/iptables). Требует KernelSU или Magisk.",
+                            title = stringResource(R.string.settings_mode_root_title),
+                            description = stringResource(R.string.settings_mode_root_desc),
                             selected = settings.isRootMode,
                             onSelect = {
                                 AppHaptics.perform(context, HapticType.CLICK, view)
@@ -115,7 +117,7 @@ fun SettingsScreen(
 
             // 2. Routing & App Rules Card
             item {
-                SettingsSectionTitle("Маршрутизация и правила")
+                SettingsSectionTitle(stringResource(R.string.settings_routing_section))
                 Spacer(modifier = Modifier.height(6.dp))
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -128,7 +130,7 @@ fun SettingsScreen(
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Text(
-                            text = "Режим проксирования",
+                            text = stringResource(R.string.settings_proxy_mode),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -142,7 +144,7 @@ fun SettingsScreen(
                                 },
                                 shape = SegmentedButtonDefaults.itemShape(0, 3)
                             ) {
-                                Text("Умный", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.mode_rule), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                             SegmentedButton(
                                 selected = settings.proxyMode == ProxyMode.GLOBAL,
@@ -152,7 +154,7 @@ fun SettingsScreen(
                                 },
                                 shape = SegmentedButtonDefaults.itemShape(1, 3)
                             ) {
-                                Text("Все сайты", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.mode_global), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                             SegmentedButton(
                                 selected = settings.proxyMode == ProxyMode.DIRECT,
@@ -162,7 +164,7 @@ fun SettingsScreen(
                                 },
                                 shape = SegmentedButtonDefaults.itemShape(2, 3)
                             ) {
-                                Text("Прямой", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.mode_direct_short), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
 
@@ -204,12 +206,12 @@ fun SettingsScreen(
 
                                 Column {
                                     Text(
-                                        text = "Исключения приложений",
+                                        text = stringResource(R.string.settings_app_exclusions),
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 15.sp
                                     )
                                     Text(
-                                        text = "Выбрать приложения в обход прокси (банки, Госуслуги)",
+                                        text = stringResource(R.string.settings_app_exclusions_desc),
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -228,7 +230,7 @@ fun SettingsScreen(
 
             // 3. Notifications Card
             item {
-                SettingsSectionTitle("Уведомления")
+                SettingsSectionTitle(stringResource(R.string.settings_notifications))
                 Spacer(modifier = Modifier.height(6.dp))
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -268,12 +270,12 @@ fun SettingsScreen(
 
                                 Column {
                                     Text(
-                                        text = "Скорость в уведомлении",
+                                        text = stringResource(R.string.settings_speed_notification),
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "Отображать текущую скорость передачи данных",
+                                        text = stringResource(R.string.settings_speed_notification_desc),
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -300,7 +302,7 @@ fun SettingsScreen(
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "Android требует постоянное фоновое уведомление для непрерывной работы VPN без выгрузки системой из памяти.",
+                                text = stringResource(R.string.settings_notification_note),
                                 fontSize = 12.sp,
                                 lineHeight = 16.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -312,7 +314,7 @@ fun SettingsScreen(
 
             // 4. Appearance Card
             item {
-                SettingsSectionTitle("Оформление")
+                SettingsSectionTitle(stringResource(R.string.settings_appearance))
                 Spacer(modifier = Modifier.height(6.dp))
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -328,8 +330,8 @@ fun SettingsScreen(
                             icon = Icons.Default.Palette,
                             iconBg = MaterialTheme.colorScheme.primaryContainer,
                             iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            title = "Динамические цвета Material You",
-                            subtitle = "Цвета адаптируются под обои рабочего стола",
+                            title = stringResource(R.string.settings_dynamic_colors),
+                            subtitle = stringResource(R.string.settings_dynamic_colors_desc),
                             checked = settings.dynamicColor,
                             onCheckedChange = {
                                 AppHaptics.perform(context, HapticType.CLICK, view)
@@ -343,8 +345,8 @@ fun SettingsScreen(
                             icon = Icons.Default.DarkMode,
                             iconBg = SecondaryContainerDark,
                             iconTint = SecondaryDark,
-                            title = "Темная тема",
-                            subtitle = "Комфортный режим для темного времени суток",
+                            title = stringResource(R.string.settings_dark_theme),
+                            subtitle = stringResource(R.string.settings_dark_theme_desc),
                             checked = settings.darkTheme,
                             onCheckedChange = {
                                 AppHaptics.perform(context, HapticType.CLICK, view)
@@ -359,8 +361,8 @@ fun SettingsScreen(
                                 icon = Icons.Default.Brightness2,
                                 iconBg = DarkSurfaceContainerHighest,
                                 iconTint = Color.White,
-                                title = "Глубокий черный (AMOLED)",
-                                subtitle = "Идеальный черный цвет и экономия батареи",
+                                title = stringResource(R.string.settings_amoled),
+                                subtitle = stringResource(R.string.settings_amoled_desc),
                                 checked = settings.amoledBlack,
                                 onCheckedChange = {
                                     AppHaptics.perform(context, HapticType.CLICK, view)
@@ -409,7 +411,7 @@ fun SettingsScreen(
                                     }
                                 }
                                 Spacer(modifier = Modifier.width(14.dp))
-                                Text("Продвинутые настройки", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Text(stringResource(R.string.settings_advanced), fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             }
 
                             Icon(
@@ -438,9 +440,12 @@ fun SettingsScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Column {
-                                        Text("Сетевые порты", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                        Text(stringResource(R.string.settings_ports), fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                         Text(
-                                            "Mixed: ${settings.mixedPort} • TProxy: ${settings.tproxyPort} • DNS: ${settings.dnsPort}",
+                                            stringResource(
+                                                R.string.settings_ports_summary,
+                                                settings.mixedPort, settings.tproxyPort, settings.dnsPort
+                                            ),
                                             fontSize = 12.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -464,14 +469,14 @@ fun SettingsScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                        Text("Проверка задержки узлов (Ping)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                        Text(stringResource(R.string.settings_latency), fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                         val shortUrl = when (settings.testUrl) {
                                             "http://www.gstatic.com/generate_204" -> "Google (204)"
                                             "http://cp.cloudflare.com/generate_204", "https://cp.cloudflare.com/generate_204" -> "Cloudflare (204)"
                                             else -> settings.testUrl
                                         }
                                         Text(
-                                            "URL: $shortUrl • Таймаут: ${settings.testTimeoutMs / 1000} сек.",
+                                            stringResource(R.string.settings_latency_summary, shortUrl, settings.testTimeoutMs / 1000),
                                             fontSize = 12.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -495,15 +500,15 @@ fun SettingsScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                        Text("DNS-сервер", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                        Text(stringResource(R.string.settings_dns), fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                         val dnsSubtitle = when {
-                                            settings.customDns.isBlank() -> "По умолчанию (Smart DoH + Bypass)"
-                                            settings.customDns == "https://dns.adguard-dns.com/dns-query" -> "AdGuard DNS (Блокировка рекламы)"
-                                            settings.customDns == "https://cloudflare-dns.com/dns-query" -> "Cloudflare DoH (1.1.1.1)"
-                                            settings.customDns == "https://dns.google/dns-query" -> "Google DoH (8.8.8.8)"
-                                            settings.customDns == "https://common.dot.dns.yandex.net/dns-query" -> "Яндекс DNS DoH"
-                                            settings.customDns == "https://dns.comss.one/dns-query" -> "Comss.one DoH"
-                                            settings.customDns == "https://dns.quad9.net/dns-query" -> "Quad9 DoH"
+                                            settings.customDns.isBlank() -> stringResource(R.string.settings_dns_default)
+                                            settings.customDns == "https://dns.adguard-dns.com/dns-query" -> stringResource(R.string.settings_dns_adguard)
+                                            settings.customDns == "https://cloudflare-dns.com/dns-query" -> stringResource(R.string.settings_dns_cloudflare)
+                                            settings.customDns == "https://dns.google/dns-query" -> stringResource(R.string.settings_dns_google)
+                                            settings.customDns == "https://common.dot.dns.yandex.net/dns-query" -> stringResource(R.string.settings_dns_yandex)
+                                            settings.customDns == "https://dns.comss.one/dns-query" -> stringResource(R.string.settings_dns_comss)
+                                            settings.customDns == "https://dns.quad9.net/dns-query" -> stringResource(R.string.settings_dns_quad9)
                                             else -> settings.customDns
                                         }
                                         Text(
@@ -523,7 +528,7 @@ fun SettingsScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("Поддержка IPv6", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(stringResource(R.string.settings_ipv6), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                                     Switch(
                                         checked = settings.ipv6Enabled,
                                         onCheckedChange = {
@@ -542,8 +547,8 @@ fun SettingsScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Column {
-                                        Text("Ядро Mihomo", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                        Text("Версия: ${state.coreVersion}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(stringResource(R.string.settings_core), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                        Text(stringResource(R.string.settings_core_version, state.coreVersion), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     FilledTonalButton(
                                         onClick = {
@@ -556,7 +561,7 @@ fun SettingsScreen(
                                         if (state.isCheckingUpdate) {
                                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                                         } else {
-                                            Text("Проверить", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            Text(stringResource(R.string.settings_check), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -574,7 +579,7 @@ fun SettingsScreen(
                                         if (state.isDownloadingUpdate) {
                                             CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary)
                                         } else {
-                                            Text("Обновить ядро до ${state.latestRelease?.tag_name}", fontWeight = FontWeight.Bold)
+                                            Text(stringResource(R.string.settings_update_core_to, state.latestRelease?.tag_name ?: ""), fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 } else if (state.latestRelease != null) {
@@ -590,14 +595,15 @@ fun SettingsScreen(
                                         if (state.isDownloadingUpdate) {
                                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                                         } else {
-                                            Text("Переустановить ядро (${state.latestRelease?.tag_name})", fontWeight = FontWeight.Bold)
+                                            Text(stringResource(R.string.settings_reinstall_core, state.latestRelease?.tag_name ?: ""), fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
 
-                                if (state.updateMessage != null) {
+                                val updateMessageRes = state.updateMessageRes
+                                if (updateMessageRes != null) {
                                     Text(
-                                        text = state.updateMessage ?: "",
+                                        text = stringResource(updateMessageRes, *state.updateMessageArgs.toTypedArray()),
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -613,7 +619,7 @@ fun SettingsScreen(
                                 ) {
                                     Icon(Icons.Default.Terminal, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Открыть системный журнал (Logs)", fontWeight = FontWeight.SemiBold)
+                                    Text(stringResource(R.string.settings_open_logs), fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         }
@@ -650,15 +656,15 @@ fun SettingsScreen(
                             }
 
                             Column {
-                                Text("Mihomet v1.0", fontWeight = FontWeight.Black, fontSize = 15.sp)
-                                Text("Material 3 Expressive Edition", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.settings_about_title), fontWeight = FontWeight.Black, fontSize = 15.sp)
+                                Text(stringResource(R.string.settings_about_edition), fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                             }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
-                            text = "Высокоскоростной прокси-клиент на базе ядра Mihomo с поддержкой Root TProxy, Non-Root VPN Service, VLESS Reality и Hysteria 2.",
+                            text = stringResource(R.string.settings_about_desc),
                             fontSize = 12.sp,
                             lineHeight = 17.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -853,9 +859,12 @@ fun PortsConfigDialog(
     var dnsPort by remember { mutableStateOf(currentSettings.dnsPort.toString()) }
     var controllerPort by remember { mutableStateOf(currentSettings.controllerPort.toString()) }
 
+    val numberError = stringResource(R.string.settings_port_error_number)
+    val rangeError = stringResource(R.string.settings_port_error_range)
+
     fun validate(value: String): String? {
-        val port = value.toIntOrNull() ?: return "Введите число"
-        if (port !in 1024..65535) return "Диапазон 1024–65535"
+        val port = value.toIntOrNull() ?: return numberError
+        if (port !in 1024..65535) return rangeError
         return null
     }
 
@@ -867,7 +876,7 @@ fun PortsConfigDialog(
     val parsedPorts = listOf(mixedPort, tproxyPort, dnsPort, controllerPort).mapNotNull { it.toIntOrNull() }
     val duplicateError =
         if (parsedPorts.size == 4 && parsedPorts.size != parsedPorts.distinct().size) {
-            "Порты не должны повторяться"
+            stringResource(R.string.settings_port_error_duplicate)
         } else {
             null
         }
@@ -876,13 +885,13 @@ fun PortsConfigDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Настройка сетевых портов", fontWeight = FontWeight.Black) },
+        title = { Text(stringResource(R.string.settings_ports_dialog_title), fontWeight = FontWeight.Black) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = mixedPort,
                     onValueChange = { mixedPort = it },
-                    label = { Text("Mixed Port (HTTP + SOCKS5)") },
+                    label = { Text(stringResource(R.string.settings_port_mixed)) },
                     shape = ExpressiveShapes.Small,
                     singleLine = true,
                     isError = mixedError != null,
@@ -892,7 +901,7 @@ fun PortsConfigDialog(
                 OutlinedTextField(
                     value = tproxyPort,
                     onValueChange = { tproxyPort = it },
-                    label = { Text("TProxy Port (Root Mode)") },
+                    label = { Text(stringResource(R.string.settings_port_tproxy)) },
                     shape = ExpressiveShapes.Small,
                     singleLine = true,
                     isError = tproxyError != null,
@@ -902,7 +911,7 @@ fun PortsConfigDialog(
                 OutlinedTextField(
                     value = dnsPort,
                     onValueChange = { dnsPort = it },
-                    label = { Text("DNS Port") },
+                    label = { Text(stringResource(R.string.settings_port_dns)) },
                     shape = ExpressiveShapes.Small,
                     singleLine = true,
                     isError = dnsError != null,
@@ -912,7 +921,7 @@ fun PortsConfigDialog(
                 OutlinedTextField(
                     value = controllerPort,
                     onValueChange = { controllerPort = it },
-                    label = { Text("Mihomo API Controller Port") },
+                    label = { Text(stringResource(R.string.settings_port_controller)) },
                     shape = ExpressiveShapes.Small,
                     singleLine = true,
                     isError = controllerError != null,
@@ -936,12 +945,12 @@ fun PortsConfigDialog(
                 enabled = isValid,
                 shape = ExpressiveShapes.Small
             ) {
-                Text("Сохранить", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.action_save), fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Отмена")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
@@ -959,13 +968,13 @@ fun LatencyTestConfigDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Проверка задержки (Ping)", fontWeight = FontWeight.Black) },
+        title = { Text(stringResource(R.string.settings_latency_dialog_title), fontWeight = FontWeight.Black) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
-                    label = { Text("URL проверки (204 No Content)") },
+                    label = { Text(stringResource(R.string.settings_latency_url_label)) },
                     placeholder = { Text("http://www.gstatic.com/generate_204") },
                     shape = ExpressiveShapes.Small,
                     singleLine = true,
@@ -975,7 +984,7 @@ fun LatencyTestConfigDialog(
                 OutlinedTextField(
                     value = timeoutSec,
                     onValueChange = { timeoutSec = it },
-                    label = { Text("Таймаут (секунды)") },
+                    label = { Text(stringResource(R.string.settings_latency_timeout_label)) },
                     shape = ExpressiveShapes.Small,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -1010,12 +1019,12 @@ fun LatencyTestConfigDialog(
                 },
                 shape = ExpressiveShapes.Small
             ) {
-                Text("Сохранить", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.action_save), fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Отмена")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
@@ -1032,19 +1041,19 @@ fun CustomDnsDialog(
     val scrollState = rememberScrollState()
 
     val presets = listOf(
-        "По умолчанию (Smart DoH)" to "",
-        "AdGuard DNS (Антиреклама)" to "https://dns.adguard-dns.com/dns-query",
-        "Cloudflare DoH" to "https://cloudflare-dns.com/dns-query",
-        "Google DoH" to "https://dns.google/dns-query",
-        "Яндекс DoH (Россия)" to "https://common.dot.dns.yandex.net/dns-query",
-        "Comss.one DoH" to "https://dns.comss.one/dns-query",
-        "Quad9 DoH (Безопасность)" to "https://dns.quad9.net/dns-query"
+        stringResource(R.string.dns_preset_default) to "",
+        stringResource(R.string.dns_preset_adguard) to "https://dns.adguard-dns.com/dns-query",
+        stringResource(R.string.dns_preset_cloudflare) to "https://cloudflare-dns.com/dns-query",
+        stringResource(R.string.dns_preset_google) to "https://dns.google/dns-query",
+        stringResource(R.string.dns_preset_yandex) to "https://common.dot.dns.yandex.net/dns-query",
+        stringResource(R.string.dns_preset_comss) to "https://dns.comss.one/dns-query",
+        stringResource(R.string.dns_preset_quad9) to "https://dns.quad9.net/dns-query"
     )
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("Пользовательский DNS", fontWeight = FontWeight.Black)
+            Text(stringResource(R.string.settings_dns_dialog_title), fontWeight = FontWeight.Black)
         },
         text = {
             Column(
@@ -1054,7 +1063,7 @@ fun CustomDnsDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Задает первичный DNS-сервер для разрешения доменов через ядро Mihomo. Поддерживаются DoH (https://...), DoT (tls://...), UDP/TCP IP-адреса.",
+                    text = stringResource(R.string.settings_dns_dialog_desc),
                     fontSize = 12.sp,
                     lineHeight = 16.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1063,7 +1072,7 @@ fun CustomDnsDialog(
                 OutlinedTextField(
                     value = dnsInput,
                     onValueChange = { dnsInput = it },
-                    label = { Text("URL или IP DNS-сервера") },
+                    label = { Text(stringResource(R.string.settings_dns_input_label)) },
                     placeholder = { Text("https://dns.adguard-dns.com/dns-query") },
                     shape = ExpressiveShapes.Small,
                     singleLine = true,
@@ -1074,7 +1083,7 @@ fun CustomDnsDialog(
                                 IconButton(onClick = { dnsInput = "" }) {
                                     Icon(
                                         Icons.Default.Clear,
-                                        contentDescription = "Очистить",
+                                        contentDescription = stringResource(R.string.cd_clear),
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -1086,7 +1095,7 @@ fun CustomDnsDialog(
                             }) {
                                 Icon(
                                     Icons.Default.ContentPaste,
-                                    contentDescription = "Вставить",
+                                    contentDescription = stringResource(R.string.cd_paste),
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -1095,7 +1104,7 @@ fun CustomDnsDialog(
                 )
 
                 Text(
-                    text = "Популярные пресеты:",
+                    text = stringResource(R.string.settings_dns_presets_title),
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.primary,
@@ -1146,7 +1155,7 @@ fun CustomDnsDialog(
                                     )
                                 } else {
                                     Text(
-                                        text = "Встроенный быстрый DoH пул с защитой от блокировок",
+                                        text = stringResource(R.string.settings_dns_default_desc),
                                         fontSize = 11.sp,
                                         color = if (isSelected) {
                                             MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
@@ -1175,12 +1184,12 @@ fun CustomDnsDialog(
                 onClick = { onSave(dnsInput.trim()) },
                 shape = ExpressiveShapes.Small
             ) {
-                Text("Сохранить", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.action_save), fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Отмена")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

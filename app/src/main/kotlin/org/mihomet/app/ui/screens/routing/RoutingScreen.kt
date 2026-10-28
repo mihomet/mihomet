@@ -25,10 +25,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import org.koin.androidx.compose.koinViewModel
+import org.mihomet.app.R
 import org.mihomet.app.data.preferences.PerAppMode
 import org.mihomet.app.ui.theme.AppHaptics
 import org.mihomet.app.ui.theme.ExpressiveShapes
@@ -51,7 +53,7 @@ fun RoutingScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Исключения приложений",
+                        text = stringResource(R.string.settings_app_exclusions),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Black
                     )
@@ -68,7 +70,7 @@ fun RoutingScreen(
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Назад",
+                                contentDescription = stringResource(R.string.cd_back),
                                 tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -99,7 +101,7 @@ fun RoutingScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "Режим туннелирования",
+                            text = stringResource(R.string.routing_tunnel_mode),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -114,7 +116,7 @@ fun RoutingScreen(
                                 shape = SegmentedButtonDefaults.itemShape(0, 3),
                                 icon = {}
                             ) {
-                                Text("Все", fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                                Text(stringResource(R.string.routing_mode_all), fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                             }
                             SegmentedButton(
                                 selected = settings.perAppMode == PerAppMode.WHITELIST,
@@ -125,7 +127,7 @@ fun RoutingScreen(
                                 shape = SegmentedButtonDefaults.itemShape(1, 3),
                                 icon = {}
                             ) {
-                                Text("Только они", fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                                Text(stringResource(R.string.routing_mode_whitelist), fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                             }
                             SegmentedButton(
                                 selected = settings.perAppMode == PerAppMode.BLACKLIST,
@@ -136,14 +138,14 @@ fun RoutingScreen(
                                 shape = SegmentedButtonDefaults.itemShape(2, 3),
                                 icon = {}
                             ) {
-                                Text("Исключить", fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                                Text(stringResource(R.string.routing_mode_blacklist), fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                             }
                         }
 
                         val modeDescription = when (settings.perAppMode) {
-                            PerAppMode.ALL -> "Трафик всех приложений устройства направляется через прокси."
-                            PerAppMode.WHITELIST -> "Только отмеченные приложения направляются через прокси. Остальные работают напрямую."
-                            PerAppMode.BLACKLIST -> "Все приложения работают через прокси, кроме отмеченных (например, банки, Госуслуги)."
+                            PerAppMode.ALL -> stringResource(R.string.routing_mode_all_desc)
+                            PerAppMode.WHITELIST -> stringResource(R.string.routing_mode_whitelist_desc)
+                            PerAppMode.BLACKLIST -> stringResource(R.string.routing_mode_blacklist_desc)
                         }
 
                         Text(
@@ -185,7 +187,7 @@ fun RoutingScreen(
                                     onValueChange = { viewModel.updateSearchQuery(it) },
                                     placeholder = {
                                         Text(
-                                            "Поиск по названию или пакету...",
+                                            stringResource(R.string.routing_search_hint),
                                             fontSize = 13.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -208,7 +210,7 @@ fun RoutingScreen(
                                     ) {
                                         Icon(
                                             Icons.Default.Clear,
-                                            contentDescription = "Очистить",
+                                            contentDescription = stringResource(R.string.cd_clear),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(18.dp)
                                         )
@@ -229,7 +231,7 @@ fun RoutingScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Выбрано: ${settings.selectedAppUids.size} из ${visibleApps.size}",
+                                text = stringResource(R.string.routing_selected_count, settings.selectedAppUids.size, visibleApps.size),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -247,7 +249,7 @@ fun RoutingScreen(
                                         .clickable { viewModel.toggleShowSystemApps() }
                                 ) {
                                     Text(
-                                        text = "Системные",
+                                        text = stringResource(R.string.routing_system_apps),
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = if (state.showSystemApps) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -263,7 +265,7 @@ fun RoutingScreen(
                                         .clickable { viewModel.selectAllApps() }
                                 ) {
                                     Text(
-                                        text = "Все",
+                                        text = stringResource(R.string.routing_mode_all),
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -279,7 +281,7 @@ fun RoutingScreen(
                                         .clickable { viewModel.clearAllSelectedApps() }
                                 ) {
                                     Text(
-                                        text = "Сброс",
+                                        text = stringResource(R.string.routing_reset),
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 1,
@@ -321,7 +323,7 @@ fun RoutingScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Приложения не найдены",
+                                text = stringResource(R.string.routing_empty),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 14.sp
                             )
@@ -394,7 +396,7 @@ fun RoutingScreen(
                                                     shape = CircleShape
                                                 ) {
                                                     Text(
-                                                        text = "Система",
+                                                        text = stringResource(R.string.routing_system_badge),
                                                         fontSize = 9.sp,
                                                         fontWeight = FontWeight.Bold,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant,

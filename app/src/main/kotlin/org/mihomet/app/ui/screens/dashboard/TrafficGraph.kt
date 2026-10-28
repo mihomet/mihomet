@@ -16,9 +16,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.mihomet.app.R
 import org.mihomet.app.data.api.TrafficSample
 import org.mihomet.app.ui.theme.AccentBlue
 import org.mihomet.app.ui.theme.AccentGreen
@@ -53,7 +55,7 @@ fun TrafficGraph(
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = "Входящий",
+                text = stringResource(R.string.dashboard_download),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -69,7 +71,7 @@ fun TrafficGraph(
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = "Исходящий",
+                text = stringResource(R.string.dashboard_upload),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant

@@ -24,10 +24,12 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import org.mihomet.app.R
 import org.mihomet.app.data.db.ProfileEntity
 import org.mihomet.app.data.db.ProfileType
 import org.mihomet.app.ui.theme.AppHaptics
@@ -75,7 +77,7 @@ fun ProfilesScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Подписки",
+                            text = stringResource(R.string.nav_profiles),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Black
                         )
@@ -106,7 +108,7 @@ fun ProfilesScreen(
                             .clickable {
                                 val clip = clipboardManager.getText()?.text ?: ""
                                 if (clip.isBlank()) {
-                                    scope.launch { snackbarHostState.showSnackbar("Буфер обмена пуст") }
+                                    scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.clipboard_empty)) }
                                 } else {
                                     AppHaptics.perform(context, HapticType.CLICK, view)
                                     viewModel.importFromClipboard(
@@ -129,7 +131,7 @@ fun ProfilesScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Импорт",
+                                text = stringResource(R.string.profiles_import),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -149,7 +151,7 @@ fun ProfilesScreen(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Добавить подписку", modifier = Modifier.size(24.dp))
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_profiles_add), modifier = Modifier.size(24.dp))
             }
         }
     ) { innerPadding ->
@@ -187,13 +189,13 @@ fun ProfilesScreen(
                         }
 
                         Text(
-                            text = "Нет добавленных подписок",
+                            text = stringResource(R.string.profiles_empty_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
 
                         Text(
-                            text = "Импортируйте ссылку из буфера обмена или добавьте конфигурацию вручную.",
+                            text = stringResource(R.string.profiles_empty_subtitle),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 13.sp,
                             textAlign = TextAlign.Center,
@@ -204,7 +206,7 @@ fun ProfilesScreen(
                             onClick = {
                                 val clip = clipboardManager.getText()?.text ?: ""
                                 if (clip.isBlank()) {
-                                    scope.launch { snackbarHostState.showSnackbar("Буфер обмена пуст") }
+                                    scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.clipboard_empty)) }
                                 } else {
                                     AppHaptics.perform(context, HapticType.CLICK, view)
                                     viewModel.importFromClipboard(
@@ -218,7 +220,7 @@ fun ProfilesScreen(
                         ) {
                             Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Импорт из буфера", fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.profiles_import_clipboard), fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -351,7 +353,7 @@ fun ExpressiveProfileCard(
                                 color = if (profile.type == ProfileType.REMOTE) SecondaryTeal.copy(alpha = 0.15f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
                             ) {
                                 Text(
-                                    text = if (profile.type == ProfileType.REMOTE) "Онлайн" else "Локальный",
+                                    text = if (profile.type == ProfileType.REMOTE) stringResource(R.string.profile_type_remote) else stringResource(R.string.profile_type_local),
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (profile.type == ProfileType.REMOTE) SecondaryTeal else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -400,7 +402,7 @@ fun ExpressiveProfileCard(
 
                     Box {
                         IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Меню", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.cd_menu), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         DropdownMenu(
                             expanded = showMenu,
@@ -408,7 +410,7 @@ fun ExpressiveProfileCard(
                         ) {
                             if (profile.type == ProfileType.REMOTE) {
                                 DropdownMenuItem(
-                                    text = { Text("Обновить сейчас") },
+                                    text = { Text(stringResource(R.string.profiles_update_now)) },
                                     onClick = {
                                         showMenu = false
                                         onUpdate()
@@ -417,7 +419,7 @@ fun ExpressiveProfileCard(
                                 )
                             }
                             DropdownMenuItem(
-                                text = { Text("Редактировать YAML") },
+                                text = { Text(stringResource(R.string.profiles_edit_yaml)) },
                                 onClick = {
                                     showMenu = false
                                     onEditYaml()
@@ -425,7 +427,7 @@ fun ExpressiveProfileCard(
                                 leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
                             )
                             DropdownMenuItem(
-                                text = { Text("Удалить", color = MaterialTheme.colorScheme.error) },
+                                text = { Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error) },
                                 onClick = {
                                     showMenu = false
                                     onDelete()
@@ -451,10 +453,11 @@ fun AddProfileDialog(
     var url by remember { mutableStateOf("") }
     var customHeaders by remember { mutableStateOf("") }
     val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Добавить подписку", fontWeight = FontWeight.Black) },
+        title = { Text(stringResource(R.string.profiles_add_title), fontWeight = FontWeight.Black) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -466,22 +469,22 @@ fun AddProfileDialog(
                         onClick = { isRemote = true },
                         shape = SegmentedButtonDefaults.itemShape(0, 2)
                     ) {
-                        Text("Ссылка (URL)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.profiles_type_url), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                     SegmentedButton(
                         selected = !isRemote,
                         onClick = { isRemote = false },
                         shape = SegmentedButtonDefaults.itemShape(1, 2)
                     ) {
-                        Text("Локальный файл", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.profiles_type_local_file), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
 
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Название подписки") },
-                    placeholder = { Text("Мой VPN") },
+                    label = { Text(stringResource(R.string.profiles_name_label)) },
+                    placeholder = { Text(stringResource(R.string.profiles_name_placeholder)) },
                     shape = ExpressiveShapes.Small,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -491,7 +494,7 @@ fun AddProfileDialog(
                     OutlinedTextField(
                         value = url,
                         onValueChange = { url = it },
-                        label = { Text("Ссылка на подписку (URL)") },
+                        label = { Text(stringResource(R.string.profiles_url_label)) },
                         placeholder = { Text("https://...") },
                         shape = ExpressiveShapes.Small,
                         singleLine = true,
@@ -503,12 +506,12 @@ fun AddProfileDialog(
                                     if (name.isBlank()) {
                                         val host = runCatching { java.net.URI(clip).host }.getOrNull()?.removePrefix("www.")
                                         if (!host.isNullOrBlank()) {
-                                            name = "Подписка $host"
+                                            name = context.getString(R.string.profile_auto_name, host)
                                         }
                                     }
                                 }
                             }) {
-                                Icon(Icons.Default.ContentPaste, contentDescription = "Вставить из буфера")
+                                Icon(Icons.Default.ContentPaste, contentDescription = stringResource(R.string.cd_paste_clipboard))
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -516,8 +519,8 @@ fun AddProfileDialog(
                     OutlinedTextField(
                         value = customHeaders,
                         onValueChange = { customHeaders = it },
-                        label = { Text("Заголовки (JSON или Ключ: Значение)") },
-                        placeholder = { Text("User-Agent: Happ/3.6.0\nx-hwid: 12345\n(или JSON)") },
+                        label = { Text(stringResource(R.string.profiles_headers_label)) },
+                        placeholder = { Text(stringResource(R.string.profiles_headers_placeholder)) },
                         shape = ExpressiveShapes.Small,
                         singleLine = false,
                         minLines = 1,
@@ -529,7 +532,7 @@ fun AddProfileDialog(
                                     customHeaders = clip
                                 }
                             }) {
-                                Icon(Icons.Default.ContentPaste, contentDescription = "Вставить заголовки")
+                                Icon(Icons.Default.ContentPaste, contentDescription = stringResource(R.string.cd_paste_headers))
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -551,12 +554,12 @@ fun AddProfileDialog(
                 },
                 shape = ExpressiveShapes.Small
             ) {
-                Text("Добавить", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.action_add), fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Отмена")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

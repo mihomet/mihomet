@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -72,6 +73,7 @@ fun ExpressiveNavigationBar(
         ) {
             items.forEach { screen ->
                 val isSelected = currentRoute == screen.route
+                val screenTitle = stringResource(screen.titleRes)
 
                 val pillScale by animateFloatAsState(
                     targetValue = if (isSelected) 1f else 0.85f,
@@ -140,7 +142,7 @@ fun ExpressiveNavigationBar(
                     ) {
                         Icon(
                             imageVector = screen.icon,
-                            contentDescription = screen.title,
+                            contentDescription = screenTitle,
                             tint = iconColor,
                             modifier = Modifier.size(20.dp)
                         )
@@ -149,7 +151,7 @@ fun ExpressiveNavigationBar(
                     Spacer(modifier = Modifier.height(3.dp))
 
                     Text(
-                        text = screen.title,
+                        text = screenTitle,
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 11.sp,
                         fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,

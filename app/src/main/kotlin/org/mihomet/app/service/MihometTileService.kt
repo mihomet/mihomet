@@ -14,6 +14,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import org.mihomet.app.R
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.mihomet.app.core.RunningService
@@ -97,9 +98,9 @@ class MihometTileService : TileService(), KoinComponent {
     private fun updateTileState(isRunning: Boolean = ServiceState.isRunning.value) {
         val tile = qsTile ?: return
         tile.state = if (isRunning) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-        tile.label = "Mihomet"
+        tile.label = getString(R.string.app_name)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            tile.subtitle = if (isRunning) "Подключено" else "Отключено"
+            tile.subtitle = if (isRunning) getString(R.string.tile_connected) else getString(R.string.tile_disconnected)
         }
         tile.updateTile()
     }

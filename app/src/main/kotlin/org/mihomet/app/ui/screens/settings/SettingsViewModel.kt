@@ -1,9 +1,11 @@
 package org.mihomet.app.ui.screens.settings
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import org.mihomet.app.R
 import org.mihomet.app.core.CoreManager
 import org.mihomet.app.core.GitHubRelease
 import org.mihomet.app.data.api.MihomoApiClientProvider
@@ -18,7 +20,8 @@ data class SettingsUiState(
     val isCheckingUpdate: Boolean = false,
     val isDownloadingUpdate: Boolean = false,
     val latestRelease: GitHubRelease? = null,
-    val updateMessage: String? = null
+    val updateMessageRes: Int? = null,
+    val updateMessageArgs: List<String> = emptyList()
 )
 
 class SettingsViewModel(
@@ -77,7 +80,7 @@ class SettingsViewModel(
 
     fun checkForCoreUpdate() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isCheckingUpdate = true, updateMessage = null) }
+            _uiState.update { it.copy(isCheckingUpdate = true, updateMessageRes = null, updateMessageArgs = emptyList()) }
             coreManager.checkLatestRelease()
                 .onSuccess { release ->
                     val cleanLatest = release.tag_name.trim().removePrefix("v")
@@ -87,11 +90,8 @@ class SettingsViewModel(
                         it.copy(
                             isCheckingUpdate = false,
                             latestRelease = release,
-                            updateMessage = if (isNewer) {
-                                "Доступна новая версия: ${release.tag_name}"
-                            } else {
-                                "У вас установлена актуальная версия ядра (${release.tag_name})"
-                            }
+                            updateMessageRes = if (isNewer) R.string.settings_update_available else R.string.settings_update_up_to_date,
+                            updateMessageArgs = listOf(release.tag_name)
                         )
                     }
                 }
@@ -99,7 +99,8 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isCheckingUpdate = false,
-                            updateMessage = "Ошибка проверки: ${error.message}"
+                            updateMessageRes = R.string.settings_check_error,
+                            updateMessageArgs = listOf(error.message ?: "")
                         )
                     }
                 }
@@ -109,14 +110,21 @@ class SettingsViewModel(
     fun installCoreUpdate() {
         val release = _uiState.value.latestRelease ?: return
         viewModelScope.launch {
-            _uiState.update { it.copy(isDownloadingUpdate = true, updateMessage = "Загрузка и установка...") }
+            _uiState.update {
+                it.copy(
+                    isDownloadingUpdate = true,
+                    updateMessageRes = R.string.settings_downloading,
+                    updateMessageArgs = emptyList()
+                )
+            }
             coreManager.downloadAndUpdateCore(release)
                 .onSuccess {
                     _uiState.update {
                         it.copy(
                             isDownloadingUpdate = false,
                             coreVersion = release.tag_name,
-                            updateMessage = "Ядро успешно обновлено до ${release.tag_name}!"
+                            updateMessageRes = R.string.settings_update_success,
+                            updateMessageArgs = listOf(release.tag_name)
                         )
                     }
                 }
@@ -124,7 +132,8 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isDownloadingUpdate = false,
-                            updateMessage = "Ошибка обновления: ${error.message}"
+                            updateMessageRes = R.string.settings_update_error,
+                            updateMessageArgs = listOf(error.message ?: "")
                         )
                     }
                 }

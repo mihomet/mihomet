@@ -24,11 +24,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
+import org.mihomet.app.R
 import org.mihomet.app.ui.theme.AccentGreen
 import org.mihomet.app.ui.theme.AccentOrange
 import org.mihomet.app.ui.theme.AccentRed
@@ -67,7 +69,7 @@ fun LogsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Журнал",
+                            text = stringResource(R.string.nav_logs),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Black
                         )
@@ -97,7 +99,7 @@ fun LogsScreen(
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Назад",
+                                contentDescription = stringResource(R.string.cd_back),
                                 tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -121,7 +123,7 @@ fun LogsScreen(
                         ) {
                             Icon(
                                 Icons.Default.ContentCopy,
-                                contentDescription = "Копировать",
+                                contentDescription = stringResource(R.string.cd_copy),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -142,7 +144,7 @@ fun LogsScreen(
                         ) {
                             Icon(
                                 Icons.Default.Delete,
-                                contentDescription = "Очистить",
+                                contentDescription = stringResource(R.string.cd_clear),
                                 tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -167,14 +169,15 @@ fun LogsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 val levels = listOf(
-                    "all" to "Все",
-                    "info" to "Инфо",
-                    "warning" to "Внимание",
-                    "error" to "Ошибки",
-                    "debug" to "Debug"
+                    "all" to R.string.logs_level_all,
+                    "info" to R.string.logs_level_info,
+                    "warning" to R.string.logs_level_warning,
+                    "error" to R.string.logs_level_error,
+                    "debug" to R.string.logs_level_debug
                 )
 
-                levels.forEach { (level, title) ->
+                levels.forEach { (level, titleRes) ->
+                    val title = stringResource(titleRes)
                     val isSelected = state.selectedLevel == level
                     Surface(
                         shape = CircleShape,
@@ -212,7 +215,7 @@ fun LogsScreen(
             ) {
                 if (filteredLogs.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Журнал пуст", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                        Text(stringResource(R.string.logs_empty), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                     }
                 } else {
                     LazyColumn(

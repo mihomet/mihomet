@@ -64,8 +64,9 @@ app/src/main/kotlin/org/mihomet/app/
    `warnings` to the user; new protocols must be added to `parseUriToMihomoProxy` dispatch + tests.
 8. **Cancellation hygiene**: services own `SupervisorJob` scopes and cancel them in `onDestroy`;
    per-node network tests are capped by semaphores.
-9. **Russian UI copy** during the strings-extraction transition: keep new user-facing text Russian
-   in `strings.xml` (both EN and RU entries) until TODO Phase 3 completes.
+9. **Localization**: strings live in `res/values/strings.xml` (English, default) and `res/values-ru/strings.xml`
+   (Russian). All UI text must go through `stringResource` (or `getString` in services/ViewModels) — never
+   hardcode user-facing text, and every new string **must be added to both locales**.
 
 ## 4. UI Guidelines (Material 3 Expressive)
 

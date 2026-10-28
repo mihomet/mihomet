@@ -1,6 +1,7 @@
 package org.mihomet.app.ui.screens.proxies
 
 import android.content.Context
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -12,6 +13,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.mihomet.app.R
 import org.mihomet.app.core.CoreManager
 import org.mihomet.app.core.ServiceState
 import org.mihomet.app.core.config.ConfigGenerator
@@ -26,10 +28,10 @@ import org.mihomet.app.data.preferences.SettingsRepository
 import org.yaml.snakeyaml.Yaml
 import java.io.File
 
-enum class ServerSortOrder(val title: String) {
-    DEFAULT("По порядку"),
-    BY_PING("По задержке"),
-    BY_NAME("По имени")
+enum class ServerSortOrder(@StringRes val titleRes: Int) {
+    DEFAULT(R.string.sort_default),
+    BY_PING(R.string.sort_by_ping),
+    BY_NAME(R.string.sort_by_name)
 }
 
 data class ServerNodeItem(
@@ -63,7 +65,8 @@ data class ProxiesUiState(
     val rawConfigYaml: String = "",
     val searchQuery: String = "",
     val error: String? = null,
-    val statusMessage: String? = null
+    val statusMessageRes: Int? = null,
+    val statusMessageArgs: List<String> = emptyList()
 )
 
 class ProxiesViewModel(
@@ -381,7 +384,7 @@ class ProxiesViewModel(
         val currentProtocol = _uiState.value.pingProtocol
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isTestingAll = true, statusMessage = null) }
+            _uiState.update { it.copy(isTestingAll = true, statusMessageRes = null, statusMessageArgs = emptyList()) }
 
             val isCoreOnline = apiClientProvider.current().getVersion().isSuccess || ServiceState.isRunning.value
 
@@ -395,8 +398,7 @@ class ProxiesViewModel(
                     }
                     if (probeResult.isFailure) {
                         runDirectNetworkTestAll(
-                            protocol = currentProtocol,
-                            notice = null
+                            protocol = currentProtocol
                         )
                     }
                 }
@@ -470,14 +472,14 @@ class ProxiesViewModel(
             state.copy(
                 isTestingAll = false,
                 allServers = updated,
-                statusMessage = if (bestDelay > 0) "$protocolName тест завершен (лучший: ${bestDelay} ms)" else "$protocolName: серверы недоступны"
+                statusMessageRes = if (bestDelay > 0) R.string.proxies_status_test_done else R.string.proxies_status_unavailable,
+                statusMessageArgs = if (bestDelay > 0) listOf(protocolName, bestDelay.toString()) else listOf(protocolName)
             )
         }
     }
 
     private suspend fun runDirectNetworkTestAll(
-        protocol: PingProtocol,
-        notice: String? = null
+        protocol: PingProtocol
     ) = withContext(Dispatchers.IO) {
         val results = NodePingTester.testAllNodes(parsedNodes, protocol = protocol, timeoutMs = 2500)
         val bestDelay = results.values.filter { it > 0 }.minOrNull() ?: -1L
@@ -491,15 +493,11 @@ class ProxiesViewModel(
                     item.copy(delayMs = if (latency != 0L) latency else item.delayMs)
                 }
             }
-            val desc = notice ?: when (protocol) {
-                PingProtocol.TCP -> "TCP пинг завершен"
-                PingProtocol.ICMP -> "ICMP пинг завершен"
-                else -> "${protocol.shortName} пинг завершен"
-            }
             state.copy(
                 isTestingAll = false,
                 allServers = updated,
-                statusMessage = if (bestDelay > 0) "$desc (мин. ${bestDelay} ms)" else desc
+                statusMessageRes = if (bestDelay > 0) R.string.proxies_status_ping_done_min else R.string.proxies_status_ping_done,
+                statusMessageArgs = if (bestDelay > 0) listOf(protocol.shortName, bestDelay.toString()) else listOf(protocol.shortName)
             )
         }
     }
