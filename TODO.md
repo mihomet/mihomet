@@ -17,27 +17,24 @@
 | S-UI | ✅ tested | fixture; base64url SS2022 SIP002 form + singbox + clash |
 | Hiddify Panel | ✅ tested | fixture; 96 links incl. ssh/snell/wg, expiry pseudo-link dropped with warning |
 | Sub-Store | ✅ tested | fixture (mihomo/sing-box/v2ray targets); legacy `target=Clash` drops nodes — documented |
-| subconverter | ❌ untested | exotic output variants |
+| subconverter | ⏸ skipped | legacy tool, rarely used by RU services in 2026; re-open on demand |
 | Deep-link импорт (happ/incy/clash/v2rayng/sing-box) | ✅ implemented | `core/DeepLinkParser.kt`, live-tested on emulator |
 | Управление по ссылкам (incy://connect|toggle, mihomet://) | ✅ implemented | MainActivity.handleControlLink |
 | Автообновление подписок (profile-update-interval) | ✅ implemented | WorkManager 6h, Room v3 |
 
-### Phase 1: Docker test bench
-- [ ] **1.1. Testing directory**: `docker/test-bench/` with modular compose files and docs.
-- [ ] **1.2. 3X-UI deployment** (`ghcr.io/mhsanaei/3x-ui`): pre-configured SQLite with VLESS Reality, VMess+WS, SS-2022, Trojan+gRPC inbounds; exposed subscription endpoint.
-- [ ] **1.3. Marzban deployment** (`gozargah/marzban`): test admin/users, Clash & sing-box subscription endpoints, `Subscription-Userinfo` header verification.
-- [ ] **1.4. Marzneshin deployment**: both subscription formats, user-info headers.
-- [ ] **1.5. Remnawave deployment**: HWID enforcement (`x-hwid`), UA validation, balancer grouping.
-- [ ] **1.6. S-UI and Hiddify deployments**: subscription output snapshots.
+### Phase 1: Docker test bench — ✅ done
+- [x] **1.1–1.6**: all panels deployed live in `/mnt/Data/mihomet-panel-bench/` (kept out of the repo):
+      3x-ui, Marzban, Marzneshin, Remnawave (full stack + node), S-UI, Hiddify (bridge profile),
+      Sub-Store. REPORT.md per panel with endpoints/credentials; containers left running.
 
 ### Phase 2: Converter integration tests
 - [x] **2.1. Fixture-based unit tests**: `PanelsSubscriptionTest` scans `app/src/test/resources/panels/<panel>/`
       (real payloads captured from the live docker bench) and asserts every node survives conversion.
       Any new fixture is picked up automatically.
-- [ ] **2.2. Base64 resilience**: RFC 4648 without padding, URL-safe variants, multi-line payloads.
+- [x] **2.2. Base64 resilience**: unpadded/URL-safe/multi-line covered by ConverterCombinationsTest.
 - [x] **2.3. `Subscription-Userinfo` support**: parsed on add/update, quota bar + expiry date (colored by remaining days) in profile cards. Room 1→2 migration written without data loss.
-- [ ] **2.4. Header retention**: keep custom headers (`x-hwid`, custom `User-Agent`) during background profile updates.
-- [ ] **2.5. Group alignment**: panel-defined selectors/url-test groups import into `ProxiesScreen` without conflicts.
+- [x] **2.4. Header retention**: custom headers (incl. `x-hwid`, custom `User-Agent`) kept in auto-refresh via SubscriptionRepository.
+- [x] **2.5. Group alignment**: urltest/selector preserved (Sing-Box tests), fallback/load-balance passthrough (CombinationTest), panel fixtures assert groups.
 
 ### Phase 3: Localization RU/EN — ✅ done
 - [x] ~215 hardcoded strings extracted into `res/values/strings.xml` (EN default) and `values-ru/strings.xml` (235 entries each).
