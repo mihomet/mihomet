@@ -789,7 +789,7 @@ fun getNodeFlagEmoji(nodeName: String): String {
         has("RU") || hasAny("РОССИЯ", "RUSSIA", "MOSCOW", "МОСКВА") -> "🇷🇺"
         has("NL") || hasAny("НИДЕРЛАНД", "NETHERLAND", "AMSTERDAM") -> "🇳🇱"
         has("DE") || hasAny("ГЕРМАНИ", "GERMANY", "FRANKFURT", "БЕРЛИН") -> "🇩🇪"
-        has("US") || hasAny("USA", "США", "AMERICA", "AMERIKA") -> "🇺🇸"
+        has("US") || hasAny("USA", "UNITED STATES", "США", "AMERICA", "AMERIKA") -> "🇺🇸"
         has("GB") || has("UK") || hasAny("АНГЛИ", "LONDON", "ENGLAND", "БРИТАН") -> "🇬🇧"
         has("FI") || hasAny("ФИНЛЯНД", "FINLAND", "HELSINKI") -> "🇫🇮"
         has("SE") || hasAny("ШВЕЦИ", "SWEDEN", "STOCKHOLM") -> "🇸🇪"
