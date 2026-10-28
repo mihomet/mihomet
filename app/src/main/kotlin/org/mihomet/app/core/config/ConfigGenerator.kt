@@ -65,7 +65,15 @@ object ConfigGenerator {
         //    encrypted) and foreign encrypted resolvers are blocked by TSPU — so only the
         //    plain Russian resolvers are used. Without this, Mihomo falls back to
         //    default-nameserver or nameserver.
-        existingDns["proxy-server-nameserver"] = DnsPresets.byCategory(DnsCategory.PLAINTEXT_RU).map { it.uri }
+        //    The trailing "system" is critical in root TProxy mode: the core's own
+        //    queries to 77.88.8.8:53 are transparently redirected by iptables back
+        //    into the tproxy chain (loop) and die with "deadline exceeded" →
+        //    "dns resolve failed: all DNS requests failed". The system resolver
+        //    (router DNS; Private DNS is disabled by RootShellManager in root mode)
+        //    bypasses that loop. In VPN mode "system" is the core's own 127.0.0.1
+        //    listener — bounded recursion that worked before.
+        existingDns["proxy-server-nameserver"] =
+            DnsPresets.byCategory(DnsCategory.PLAINTEXT_RU).map { it.uri } + "system"
 
         // 3. direct-nameserver: Used for direct connections (bootstrap + system resolver).
         existingDns["direct-nameserver"] = DnsPresets.BOOTSTRAP_RU_PLAIN + "system"

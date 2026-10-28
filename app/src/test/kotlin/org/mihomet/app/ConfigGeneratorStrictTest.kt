@@ -145,8 +145,8 @@ class ConfigGeneratorStrictTest {
 
         val proxyServerDns = dns["proxy-server-nameserver"] as List<String>
         assertEquals(
-            "proxy-server-nameserver must be only plain Russian resolvers",
-            listOf("77.88.8.8", "77.88.8.1"),
+            "proxy-server-nameserver must be plain Russian resolvers plus system (iptables loop escape in root mode)",
+            listOf("77.88.8.8", "77.88.8.1", "system"),
             proxyServerDns
         )
         assertFalse("Must not contain blocked 1.1.1.1", proxyServerDns.contains("1.1.1.1"))
@@ -274,7 +274,7 @@ class ConfigGeneratorStrictTest {
         )
         assertEquals(
             "proxy-server-nameserver must never contain GLOBAL/DoH entries",
-            listOf("77.88.8.8", "77.88.8.1"),
+            listOf("77.88.8.8", "77.88.8.1", "system"),
             dns["proxy-server-nameserver"]
         )
     }

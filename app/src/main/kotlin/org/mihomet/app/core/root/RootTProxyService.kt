@@ -168,10 +168,22 @@ class RootTProxyService : Service(), KoinComponent {
     }
 
     private suspend fun stopProxy() {
-        val settings = settingsRepository.settingsFlow.first()
-        firewallManager.teardown(settings.ipv6Enabled)
-        RootShellManager.stopDaemon()
-        ServiceState.stopService(org.mihomet.app.core.RunningService.ROOT)
+        // Teardown must never skip ServiceState.stopService: a failing root shell
+        // (e.g. firewallManager.teardown throwing) would otherwise leave the UI
+        // stuck on "connected" until the app is restarted.
+        try {
+            try {
+                val settings = settingsRepository.settingsFlow.first()
+                firewallManager.teardown(settings.ipv6Enabled)
+            } finally {
+                // Stop the daemon even if the firewall teardown failed
+                RootShellManager.stopDaemon()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("RootTProxyService", "Root proxy teardown failed", e)
+        } finally {
+            ServiceState.stopService(org.mihomet.app.core.RunningService.ROOT)
+        }
     }
 
     override fun onDestroy() {
