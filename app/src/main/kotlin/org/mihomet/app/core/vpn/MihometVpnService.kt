@@ -126,8 +126,38 @@ class MihometVpnService : VpnService(), KoinComponent {
                     stopSelf()
                 }
             }
+            // System restarted the service (Always-on VPN / START_STICKY path):
+            // restore the tunnel from persisted settings, like CMFA does
+            null -> {
+                val notification = buildNotification(getString(R.string.vpn_notification_starting))
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    startForeground(
+                        NOTIFICATION_ID,
+                        notification,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED
+                    )
+                } else {
+                    startForeground(NOTIFICATION_ID, notification)
+                }
+                serviceScope.launch {
+                    startVpn()
+                }
+            }
         }
-        return START_NOT_STICKY
+        return START_STICKY
+    }
+
+    override fun onRevoke() {
+        // VPN revoked by the user/system (Always-on off, another VPN chosen):
+        // stop cleanly instead of leaving a zombie foreground state
+        serviceScope.launch {
+            vpnMutex.withLock {
+                stopVpn()
+            }
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
+        super.onRevoke()
     }
 
     /**
