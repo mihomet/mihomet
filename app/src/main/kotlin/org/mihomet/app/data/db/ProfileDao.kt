@@ -17,6 +17,10 @@ interface ProfileDao {
     @Query("SELECT * FROM profiles WHERE id = :id LIMIT 1")
     suspend fun getProfileById(id: Long): ProfileEntity?
 
+    /** One-shot list of all profiles (background worker / non-reactive callers). */
+    @Query("SELECT * FROM profiles")
+    suspend fun getAllProfilesOnce(): List<ProfileEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertProfile(profile: ProfileEntity): Long
 

@@ -9,6 +9,7 @@ import org.mihomet.app.core.firewall.FirewallManager
 import org.mihomet.app.data.api.MihomoApiClientProvider
 import org.mihomet.app.data.db.AppDatabase
 import org.mihomet.app.data.preferences.SettingsRepository
+import org.mihomet.app.data.subs.SubscriptionRepository
 import org.mihomet.app.ui.screens.connections.ConnectionsViewModel
 import org.mihomet.app.ui.screens.dashboard.DashboardViewModel
 import org.mihomet.app.ui.screens.logs.LogsViewModel
@@ -24,7 +25,7 @@ val appModule = module {
             androidContext(),
             AppDatabase::class.java,
             "mihomet.db"
-        ).addMigrations(AppDatabase.MIGRATION_1_2).build()
+        ).addMigrations(*AppDatabase.MIGRATIONS).build()
     }
 
     single { get<AppDatabase>().profileDao() }
@@ -33,6 +34,7 @@ val appModule = module {
     single { SettingsRepository(androidContext()) }
     single { CoreManager(androidContext()) }
     single { FirewallManager() }
+    single { SubscriptionRepository(androidContext(), get()) }
 
     // API Client (recreated only when controller port/secret changes)
     single { MihomoApiClientProvider(get()) }
@@ -40,7 +42,7 @@ val appModule = module {
     // ViewModels
     viewModel { DashboardViewModel(get(), get(), get(), get()) }
     viewModel { ProxiesViewModel(get(), get(), get(), get(), androidContext()) }
-    viewModel { ProfilesViewModel(androidContext(), get()) }
+    viewModel { ProfilesViewModel(androidContext(), get(), get()) }
     viewModel { RoutingViewModel(androidContext(), get()) }
     viewModel { ConnectionsViewModel(get()) }
     viewModel { LogsViewModel(get()) }

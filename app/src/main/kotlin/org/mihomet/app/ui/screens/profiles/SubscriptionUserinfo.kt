@@ -93,8 +93,8 @@ fun formatTrafficBytes(bytes: Long, locale: Locale = Locale.getDefault()): Strin
  * - `profile-title` — display name of the profile. Incy prefixes encoded titles with
  *   `base64:`; the payload is decoded transparently (standard or URL-safe alphabet).
  * - `profile-update-interval` — panel-recommended update period in **hours**.
- *   Parsed for completeness only; it is intentionally not persisted (the Room
- *   schema is frozen and `ProfileEntity` must not change here).
+ *   Persisted to `ProfileEntity.updateIntervalHours` (Room v3) and honored by
+ *   the background `SubscriptionRefreshWorker` (`data/subs/`).
  * - `New-Url` / `Fallback-Url` — panel-initiated subscription relocation
  *   ("auto-migration"): well-behaved clients are expected to store the new URL
  *   and fetch from it from now on. Only absolute http(s) URLs are accepted.

@@ -5,7 +5,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [ProfileEntity::class], version = 2, exportSchema = true)
+@Database(entities = [ProfileEntity::class], version = 3, exportSchema = true)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun profileDao(): ProfileDao
 
@@ -20,5 +20,16 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE profiles ADD COLUMN expireAt INTEGER NOT NULL DEFAULT 0")
             }
         }
+
+        // v2 -> v3: panel-recommended auto-update interval (profile-update-interval
+        // header, in hours). Non-destructive: existing profiles default to 0, which
+        // keeps them out of the background auto-refresh worker.
+        val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE profiles ADD COLUMN updateIntervalHours INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
     }
 }

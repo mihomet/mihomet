@@ -20,6 +20,9 @@ data class ProfileEntity(
     val lastUpdated: Long = System.currentTimeMillis(),
     val isSelected: Boolean = false,
     val autoUpdateMinutes: Int = 0,
+    // Panel-recommended auto-update interval in hours (`profile-update-interval` header);
+    // 0 = panel did not provide one (background auto-refresh disabled).
+    val updateIntervalHours: Int = 0,
     // Subscription-Userinfo quota (bytes); 0 = unknown/unlimited
     val uploadUsed: Long = 0,
     val downloadUsed: Long = 0,

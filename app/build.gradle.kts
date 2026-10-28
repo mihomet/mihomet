@@ -216,6 +216,9 @@ dependencies {
     // DataStore
     implementation(libs.androidx.datastore.preferences)
 
+    // WorkManager (background subscription refresh)
+    implementation(libs.androidx.work.runtime.ktx)
+
     // LibSu (Root)
     implementation(libs.libsu.core)
     implementation(libs.libsu.service)
