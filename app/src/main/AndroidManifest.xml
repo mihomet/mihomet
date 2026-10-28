@@ -32,6 +32,24 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- One-tap import deep links (Happ / Incy / CMFA / v2rayNG / sing-box compatibility) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="happ" />
+                <data android:scheme="incy" />
+                <data android:scheme="clash" />
+                <data android:scheme="v2rayng" />
+                <data android:scheme="sing-box" />
+                <data android:scheme="mihomet" />
+            </intent-filter>
+            <!-- "Share → Mihomet" from browsers and messenger apps -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
 
         <!-- Root TProxy Mode Foreground Service -->

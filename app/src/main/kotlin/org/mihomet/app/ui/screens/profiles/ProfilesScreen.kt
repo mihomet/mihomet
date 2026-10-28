@@ -72,6 +72,21 @@ fun ProfilesScreen(
         }
     }
 
+    // One-tap import deep links (happ://add, clash://install-config, v2rayng://, sing-box://,
+    // incy://) and "Share → Mihomet" payloads arrive here through DeepLinkBus
+    LaunchedEffect(Unit) {
+        org.mihomet.app.core.DeepLinkBus.flow.collect { text ->
+            if (!text.isNullOrBlank()) {
+                org.mihomet.app.core.DeepLinkBus.consume()
+                viewModel.importFromClipboard(
+                    text = text,
+                    onSuccess = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
+                    onError = { err -> scope.launch { snackbarHostState.showSnackbar(err, withDismissAction = true) } }
+                )
+            }
+        }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { ExpressiveSnackbarHost(hostState = snackbarHostState) },

@@ -33,10 +33,35 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { _ -> }
 
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        handleImportIntent(intent)
+    }
+
+    /**
+     * Accepts one-tap import links (happ://, clash://, v2rayng://, sing-box://, incy:// …)
+     * and plain shared text, queues the payload for the Profiles screen.
+     */
+    private fun handleImportIntent(intent: android.content.Intent?) {
+        when (intent?.action) {
+            android.content.Intent.ACTION_VIEW -> {
+                intent.data?.toString()?.let { raw ->
+                    org.mihomet.app.core.DeepLinkParser.parse(raw)?.let { org.mihomet.app.core.DeepLinkBus.post(it) }
+                }
+            }
+            android.content.Intent.ACTION_SEND -> {
+                intent.getStringExtra(android.content.Intent.EXTRA_TEXT)?.let { text ->
+                    org.mihomet.app.core.DeepLinkParser.parse(text)?.let { org.mihomet.app.core.DeepLinkBus.post(it) }
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        handleImportIntent(intent)
 
         // Request POST_NOTIFICATIONS on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
