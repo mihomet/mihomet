@@ -173,6 +173,30 @@ class SettingsViewModel(
         }
     }
 
+    fun updateOverrideUnifiedDelay(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateOverrideUnifiedDelay(enabled)
+        }
+    }
+
+    fun updateOverrideTcpConcurrent(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateOverrideTcpConcurrent(enabled)
+        }
+    }
+
+    fun updateOverrideLogLevel(level: String) {
+        viewModelScope.launch {
+            settingsRepository.updateOverrideLogLevel(level)
+        }
+    }
+
+    fun updateOverrideSnifferEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateOverrideSnifferEnabled(enabled)
+        }
+    }
+
     /**
      * Extracts the first `major.minor.patch` triple from a version string,
      * tolerating decorations like "v1.19.33", "1.19.33 (Bundled)" or

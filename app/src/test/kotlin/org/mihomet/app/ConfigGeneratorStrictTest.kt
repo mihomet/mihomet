@@ -300,4 +300,120 @@ class ConfigGeneratorStrictTest {
         // AdGuard is classified GLOBAL: plain Russian fallback must follow as second entry.
         assertEquals("GLOBAL preset must keep the plain Russian fallback second", "77.88.8.8", nameserver[1])
     }
+
+    // ---------------------------------------------------------------------
+    // Typed profile override layer (unified-delay / tcp-concurrent / log-level / sniffer)
+    // ---------------------------------------------------------------------
+
+    private val overriddenProfile = """
+        unified-delay: false
+        tcp-concurrent: false
+        log-level: silent
+        sniffer:
+          enable: false
+          sniff:
+            TLS:
+              ports: [443]
+        proxies:
+          - name: "US-Node-1"
+            type: vmess
+            server: 1.2.3.4
+            port: 443
+            uuid: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d"
+            alterId: 0
+            cipher: auto
+            udp: false
+    """.trimIndent()
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test performance overrides set keys and overwrite profile values`() {
+        // Profile ships unified-delay: false / tcp-concurrent: false; the override
+        // layer must win and rewrite both to true.
+        val settings = AppSettings(
+            overrideUnifiedDelay = true,
+            overrideTcpConcurrent = true
+        )
+        val configYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = overriddenProfile,
+            settings = settings,
+            tunFd = null
+        )
+
+        val parsed = Yaml().load<Map<String, Any>>(configYaml)
+
+        assertEquals(
+            "unified-delay override must win over the profile's own false",
+            true,
+            parsed["unified-delay"]
+        )
+        assertEquals(
+            "tcp-concurrent override must win over the profile's own false",
+            true,
+            parsed["tcp-concurrent"]
+        )
+
+        // Defaults must keep writing the same keys: unified-delay off, tcp-concurrent on.
+        val defaultYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = overriddenProfile,
+            settings = AppSettings(),
+            tunFd = null
+        )
+        val defaultParsed = Yaml().load<Map<String, Any>>(defaultYaml)
+        assertEquals("Default unified-delay override is off", false, defaultParsed["unified-delay"])
+        assertEquals("Default tcp-concurrent override is on", true, defaultParsed["tcp-concurrent"])
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test log level override replaces profile log level`() {
+        // Profile says silent, the app-level choice must take priority.
+        val settings = AppSettings(overrideLogLevel = "warning")
+        val configYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = overriddenProfile,
+            settings = settings,
+            tunFd = null
+        )
+
+        val parsed = Yaml().load<Map<String, Any>>(configYaml)
+        assertEquals(
+            "log-level override must replace the profile's own silent",
+            "warning",
+            parsed["log-level"]
+        )
+
+        // Invalid values must never leak into the runtime config: fall back to info.
+        val fallbackYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = overriddenProfile,
+            settings = AppSettings(overrideLogLevel = "verbose"),
+            tunFd = null
+        )
+        val fallbackParsed = Yaml().load<Map<String, Any>>(fallbackYaml)
+        assertEquals("Invalid log-level override must fall back to info", "info", fallbackParsed["log-level"])
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test sniffer can be disabled by override and enabled by default`() {
+        // Profile has sniffer.enable: false; the default override turns it back on.
+        val enabledYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = overriddenProfile,
+            settings = AppSettings(),
+            tunFd = null
+        )
+        val enabledParsed = Yaml().load<Map<String, Any>>(enabledYaml)
+        val enabledSniffer = enabledParsed["sniffer"] as Map<String, Any>
+        assertEquals("Sniffer override must win over the profile's own false", true, enabledSniffer["enable"])
+        assertNotNull("Sniff block must stay configured", enabledSniffer["sniff"])
+
+        // And the toggle off must disable it regardless of the profile.
+        val disabledYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = overriddenProfile,
+            settings = AppSettings(overrideSnifferEnabled = false),
+            tunFd = null
+        )
+        val disabledParsed = Yaml().load<Map<String, Any>>(disabledYaml)
+        val disabledSniffer = disabledParsed["sniffer"] as Map<String, Any>
+        assertEquals("Sniffer must be disabled by the override", false, disabledSniffer["enable"])
+    }
 }

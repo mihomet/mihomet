@@ -4,6 +4,7 @@ import org.mihomet.app.core.CoreConstants
 import org.mihomet.app.core.dns.DnsCategory
 import org.mihomet.app.core.dns.DnsPresets
 import org.mihomet.app.data.preferences.AppSettings
+import org.mihomet.app.data.preferences.ProfileOverrides
 import org.yaml.snakeyaml.DumperOptions
 import org.yaml.snakeyaml.Yaml
 import java.io.StringWriter
@@ -41,7 +42,14 @@ object ConfigGenerator {
         configMap["allow-lan"] = false
         configMap["bind-address"] = "127.0.0.1"
         configMap["mode"] = settings.proxyMode.apiValue
-        configMap["log-level"] = "info"
+        configMap["log-level"] = settings.overrideLogLevel.takeIf { ProfileOverrides.isValidLogLevel(it) }
+            ?: ProfileOverrides.DEFAULT_LOG_LEVEL
+
+        // Typed performance override layer: these keys are app-managed and are written
+        // unconditionally so they always WIN over the same keys in the user's profile
+        // (minimal CMFA-style ConfigurationOverride subset).
+        configMap["unified-delay"] = settings.overrideUnifiedDelay
+        configMap["tcp-concurrent"] = settings.overrideTcpConcurrent
         configMap["ipv6"] = settings.ipv6Enabled
         configMap["external-controller"] = "${CoreConstants.DEFAULT_CONTROLLER_HOST}:${settings.controllerPort}"
         configMap["secret"] = settings.controllerSecret.ifBlank { CoreConstants.generateRandomHexSecret() }
@@ -94,9 +102,9 @@ object ConfigGenerator {
         }
         configMap["dns"] = existingDns
 
-        // Sniffer for domain restoration on TLS/HTTP
+        // Sniffer for domain restoration on TLS/HTTP (enable is an app override)
         configMap["sniffer"] = mapOf(
-            "enable" to true,
+            "enable" to settings.overrideSnifferEnabled,
             "sniff" to mapOf(
                 "TLS" to mapOf("ports" to listOf(443, 8443)),
                 "HTTP" to mapOf("ports" to listOf(80, "8080-8880"))

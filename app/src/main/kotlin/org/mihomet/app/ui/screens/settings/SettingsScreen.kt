@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -29,6 +30,7 @@ import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.R
 import org.mihomet.app.core.dns.DnsCategory
 import org.mihomet.app.core.dns.DnsPresets
+import org.mihomet.app.data.preferences.ProfileOverrides
 import org.mihomet.app.data.preferences.ProxyMode
 import org.mihomet.app.ui.theme.*
 
@@ -533,6 +535,87 @@ fun SettingsScreen(
                                             viewModel.updateIpv6Enabled(it)
                                         }
                                     )
+                                }
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                                // Profile override: unified-delay (RTT smoothing)
+                                ExpressiveSwitchRow(
+                                    icon = Icons.Default.HourglassTop,
+                                    iconBg = AccentGreenContainer,
+                                    iconTint = AccentGreenLight,
+                                    title = stringResource(R.string.settings_override_unified_delay),
+                                    subtitle = stringResource(R.string.settings_override_unified_delay_desc),
+                                    checked = settings.overrideUnifiedDelay,
+                                    onCheckedChange = {
+                                        AppHaptics.perform(context, HapticType.CLICK, view)
+                                        viewModel.updateOverrideUnifiedDelay(it)
+                                    }
+                                )
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                                // Profile override: tcp-concurrent (fast concurrent dial)
+                                ExpressiveSwitchRow(
+                                    icon = Icons.Default.Bolt,
+                                    iconBg = AccentOrangeContainer,
+                                    iconTint = AccentOrange,
+                                    title = stringResource(R.string.settings_override_tcp_concurrent),
+                                    subtitle = stringResource(R.string.settings_override_tcp_concurrent_desc),
+                                    checked = settings.overrideTcpConcurrent,
+                                    onCheckedChange = {
+                                        AppHaptics.perform(context, HapticType.CLICK, view)
+                                        viewModel.updateOverrideTcpConcurrent(it)
+                                    }
+                                )
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                                // Profile override: domain sniffer
+                                ExpressiveSwitchRow(
+                                    icon = Icons.Default.Search,
+                                    iconBg = SecondaryContainerDark,
+                                    iconTint = OnSecondaryContainerDark,
+                                    title = stringResource(R.string.settings_override_sniffer),
+                                    subtitle = stringResource(R.string.settings_override_sniffer_desc),
+                                    checked = settings.overrideSnifferEnabled,
+                                    onCheckedChange = {
+                                        AppHaptics.perform(context, HapticType.CLICK, view)
+                                        viewModel.updateOverrideSnifferEnabled(it)
+                                    }
+                                )
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                                // Profile override: log level (tap to cycle info → warning → error → silent)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(ExpressiveShapes.Small)
+                                        .clickable {
+                                            AppHaptics.perform(context, HapticType.CLICK, view)
+                                            val levels = ProfileOverrides.LOG_LEVELS
+                                            val currentIndex = levels.indexOf(settings.overrideLogLevel)
+                                            val next = levels[(currentIndex + 1).mod(levels.size)]
+                                            viewModel.updateOverrideLogLevel(next)
+                                        }
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                        Text(
+                                            stringResource(R.string.settings_override_log_level),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        )
+                                        Text(
+                                            stringResource(R.string.settings_override_log_level_desc, settings.overrideLogLevel),
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Icon(Icons.AutoMirrored.Filled.Article, contentDescription = null, modifier = Modifier.size(18.dp))
                                 }
 
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))

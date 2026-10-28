@@ -182,6 +182,14 @@
     <string name="settings_dns_comss">Comss.one DoH</string>
     <string name="settings_dns_quad9">Quad9 DoH</string>
     <string name="settings_ipv6">Поддержка IPv6</string>
+    <string name="settings_override_unified_delay">Единая задержка (unified-delay)</string>
+    <string name="settings_override_unified_delay_desc">Сглаживание RTT: стабильные значения задержки при тестах</string>
+    <string name="settings_override_tcp_concurrent">Параллельное TCP-соединение (tcp-concurrent)</string>
+    <string name="settings_override_tcp_concurrent_desc">Одновременное открытие всех адресов узла для быстрейшего подключения</string>
+    <string name="settings_override_sniffer">Сниффер доменов</string>
+    <string name="settings_override_sniffer_desc">Восстановление реальных доменов из TLS/HTTP-трафика</string>
+    <string name="settings_override_log_level">Уровень логов</string>
+    <string name="settings_override_log_level_desc">Текущее значение: %1$s</string>
     <string name="settings_core">Ядро Mihomo</string>
     <string name="settings_core_version">Версия: %1$s</string>
     <string name="settings_check">Проверить</string>

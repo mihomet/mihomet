@@ -180,6 +180,14 @@
     <string name="settings_dns_comss">Comss.one DoH</string>
     <string name="settings_dns_quad9">Quad9 DoH</string>
     <string name="settings_ipv6">IPv6 support</string>
+    <string name="settings_override_unified_delay">Unified delay (unified-delay)</string>
+    <string name="settings_override_unified_delay_desc">Smooth out RTT jitter for stable latency readings</string>
+    <string name="settings_override_tcp_concurrent">Concurrent TCP dial (tcp-concurrent)</string>
+    <string name="settings_override_tcp_concurrent_desc">Dial all node addresses in parallel for a faster connection</string>
+    <string name="settings_override_sniffer">Domain sniffer</string>
+    <string name="settings_override_sniffer_desc">Restore real domains from TLS/HTTP traffic</string>
+    <string name="settings_override_log_level">Log level</string>
+    <string name="settings_override_log_level_desc">Current value: %1$s</string>
     <string name="settings_core">Mihomo core</string>
     <string name="settings_core_version">Version: %1$s</string>
     <string name="settings_check">Check</string>

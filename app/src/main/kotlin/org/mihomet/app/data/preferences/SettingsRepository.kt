@@ -41,6 +41,10 @@ class SettingsRepository(private val context: Context) {
         val CONTROLLER_SECRET = stringPreferencesKey("controller_secret")
         val TEST_URL = stringPreferencesKey("test_url")
         val TEST_TIMEOUT_MS = intPreferencesKey("test_timeout_ms")
+        val OVERRIDE_UNIFIED_DELAY = booleanPreferencesKey("override_unified_delay")
+        val OVERRIDE_TCP_CONCURRENT = booleanPreferencesKey("override_tcp_concurrent")
+        val OVERRIDE_LOG_LEVEL = stringPreferencesKey("override_log_level")
+        val OVERRIDE_SNIFFER_ENABLED = booleanPreferencesKey("override_sniffer_enabled")
     }
 
     val settingsFlow: Flow<AppSettings> = context.dataStore.data
@@ -81,7 +85,13 @@ class SettingsRepository(private val context: Context) {
                         stored.replace("https://", "http://")
                     } else stored
                 } ?: "http://www.gstatic.com/generate_204",
-                testTimeoutMs = preferences[PreferencesKeys.TEST_TIMEOUT_MS] ?: 5000
+                testTimeoutMs = preferences[PreferencesKeys.TEST_TIMEOUT_MS] ?: 5000,
+                overrideUnifiedDelay = preferences[PreferencesKeys.OVERRIDE_UNIFIED_DELAY] ?: false,
+                overrideTcpConcurrent = preferences[PreferencesKeys.OVERRIDE_TCP_CONCURRENT] ?: true,
+                overrideLogLevel = preferences[PreferencesKeys.OVERRIDE_LOG_LEVEL]
+                    ?.takeIf { ProfileOverrides.isValidLogLevel(it) }
+                    ?: ProfileOverrides.DEFAULT_LOG_LEVEL,
+                overrideSnifferEnabled = preferences[PreferencesKeys.OVERRIDE_SNIFFER_ENABLED] ?: true
             )
         }
 
@@ -169,5 +179,24 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun updateCustomDns(dns: String) {
         context.dataStore.edit { it[PreferencesKeys.CUSTOM_DNS] = dns.trim() }
+    }
+
+    suspend fun updateOverrideUnifiedDelay(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.OVERRIDE_UNIFIED_DELAY] = enabled }
+    }
+
+    suspend fun updateOverrideTcpConcurrent(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.OVERRIDE_TCP_CONCURRENT] = enabled }
+    }
+
+    suspend fun updateOverrideLogLevel(level: String) {
+        context.dataStore.edit {
+            it[PreferencesKeys.OVERRIDE_LOG_LEVEL] =
+                if (ProfileOverrides.isValidLogLevel(level)) level else ProfileOverrides.DEFAULT_LOG_LEVEL
+        }
+    }
+
+    suspend fun updateOverrideSnifferEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.OVERRIDE_SNIFFER_ENABLED] = enabled }
     }
 }
