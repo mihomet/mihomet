@@ -41,7 +41,7 @@
 ### Phase 3: Localization RU/EN — ✅ done
 - [x] ~215 hardcoded strings extracted into `res/values/strings.xml` (EN default) and `values-ru/strings.xml` (235 entries each).
 - [x] ViewModel statuses emit resource ids with format args; plurals for import counts.
-- [ ] Remaining: localize converter `warnings` at display time (currently Russian data strings).
+- [x] Remaining done: converter warnings localized at display time (`core/config/WarningLocalizer.kt`, 10 patterns RU/EN).
 
 - [x] **DNS classification for Russia-restricted networks**: presets grouped by
       availability (plaintext RU / encrypted RU / global), bootstrap and
