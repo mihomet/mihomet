@@ -8,13 +8,14 @@
 
 | Panel | Status | Notes |
 |---|---|---|
-| Generic (Base64 URI list, Clash YAML, sing-box JSON) | ✅ working | `UniversalConfigConverter` |
-| Share-links (vless/vmess/trojan/ss/hysteria2/hysteria/tuic) | ✅ working | incl. IPv6 hosts |
-| Marzban | ⚠️ partial | endpoints `/sub/{token}/clash`, `/sing-box`, HTML fallback |
-| Remnawave | ⚠️ partial | `x-hwid` header supported; response format snapshots needed |
-| 3X-UI / S-UI | ⚠️ partial | Base64 URI lists, `/sub` endpoints |
-| Marzneshin | ❌ untested | subscription variants + user-info headers |
-| Hiddify Panel | ❌ untested | `sub?...` formats, remote profiles |
+| Generic (Base64 URI list, Clash YAML, sing-box JSON) | ✅ tested | `UniversalConfigConverter`, fixture-based |
+| Share-links (vless/vmess/trojan/ss/hysteria2/hysteria/tuic) | ✅ tested | incl. IPv6 hosts, SS2022 plain userinfo |
+| Marzban | ✅ tested | fixture from live docker bench; VLESS+Reality, VMess+WS, SS, Trojan |
+| Marzneshin | ✅ tested | fixture from live docker bench; clash + clashmeta + singbox + links |
+| 3x-ui | ✅ tested | fixture; SS2022 plain-userinfo URI gap found & fixed |
+| Remnawave | ✅ tested | fixture; default/clash/mihomo/stash/singbox/xray-json outputs |
+| S-UI | ⏳ in progress | docker bench deployment |
+| Hiddify Panel | ⏳ in progress | docker bench deployment (best-effort) |
 | Sub-Store / subconverter pipelines | ❌ untested | exotic output variants |
 
 ### Phase 1: Docker test bench
@@ -26,7 +27,9 @@
 - [ ] **1.6. S-UI and Hiddify deployments**: subscription output snapshots.
 
 ### Phase 2: Converter integration tests
-- [ ] **2.1. Fixture-based unit tests**: record real subscription payloads from every panel into `app/src/test/resources/panels/<panel>/*.txt` and assert full conversion (proxies, groups, no dropped nodes, no warnings).
+- [x] **2.1. Fixture-based unit tests**: `PanelsSubscriptionTest` scans `app/src/test/resources/panels/<panel>/`
+      (real payloads captured from the live docker bench) and asserts every node survives conversion.
+      Any new fixture is picked up automatically.
 - [ ] **2.2. Base64 resilience**: RFC 4648 without padding, URL-safe variants, multi-line payloads.
 - [ ] **2.3. `Subscription-Userinfo` support**: parse Upload/Download/Total/Expiry, show quota bar + expiry in `ProfilesScreen` cards.
 - [ ] **2.4. Header retention**: keep custom headers (`x-hwid`, custom `User-Agent`) during background profile updates.
