@@ -278,6 +278,7 @@
     <string name="vpn_connected">Подключено (%1$s)</string>
     <string name="vpn_error_core">Ошибка ядра (%1$d)</string>
     <string name="vpn_error">Ошибка VPN: %1$s</string>
+    <string name="vpn_restarting">Перезапуск ядра…</string>
 
     <!-- Root TProxy service notifications -->
     <string name="root_channel_name">Mihomet Root Service</string>

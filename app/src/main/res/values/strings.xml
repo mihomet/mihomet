@@ -276,6 +276,7 @@
     <string name="vpn_connected">Connected (%1$s)</string>
     <string name="vpn_error_core">Core error (%1$d)</string>
     <string name="vpn_error">VPN error: %1$s</string>
+    <string name="vpn_restarting">Restarting core…</string>
 
     <!-- Root TProxy service notifications -->
     <string name="root_channel_name">Mihomet Root Service</string>
