@@ -51,7 +51,7 @@
 ### Deferred audit findings (medium/low)
 - [x] Room: real migration v2 written, destructive fallback removed. (Remaining: `exportSchema` for future schema diffs.)
 - [x] Android Private DNS restored at next root-mode startup after a daemon crash.
-- [ ] Encrypt subscription URLs and controller secret at rest — **deliberately postponed**: requires a careful migration of already-stored values (Keystore-wrapped DEK); one mistake locks users out of their API. Scheduled for a day session with emulator coverage.
+- [x] Encrypt subscription URLs and controller secret at rest — **done**: AndroidKeyStore AES-256-GCM (`enc1:` payloads), Room v4→v5 encrypts url/customHeaders in the migration, DataStore secret re-encrypted on first read; decrypt failures degrade to passthrough. Verified on emulator: legacy data migrated, enc1: confirmed.
 - [x] Unify duplicated UI pieces: `SearchPill`, single latency badge, `CountBadge`.
 - [x] TrafficGraph: upload gradient fill + idle placeholder. (axis labels/tooltip deliberately deferred — cosmetic)
 - [x] Connection screen polling tied to screen visibility (DisposableEffect).
