@@ -1,0 +1,1430 @@
+{
+  "outbounds": [
+    {
+      "type": "selector",
+      "tag": "Select",
+      "outbounds": [
+        "Auto",
+        "grpc vless HC 93.89.217.1 IP4 ",
+        "grpc vless HC 93.89.217.1.sslip.io IP4 ",
+        "grpc vless HC yahoo.com IP4 ",
+        "grpc vless HTTP HC 93.89.217.1 IP4 ",
+        "grpc vless HTTP HC 93.89.217.1.sslip.io IP4 ",
+        "grpc vmess 93.89.217.1 IP4 ",
+        "grpc vmess 93.89.217.1.sslip.io IP4 ",
+        "grpc vmess yahoo.com IP4 ",
+        "grpc vmess HC 93.89.217.1 IP4 ",
+        "grpc vmess HC 93.89.217.1.sslip.io IP4 ",
+        "grpc vmess HC yahoo.com IP4 ",
+        "grpc vmess HTTP 93.89.217.1 IP4 ",
+        "grpc vmess HTTP 93.89.217.1.sslip.io IP4 ",
+        "grpc vmess HTTP HC 93.89.217.1 IP4 ",
+        "grpc vmess HTTP HC 93.89.217.1.sslip.io IP4 ",
+        "httpupgrade vless HC 93.89.217.1 IP4 ",
+        "httpupgrade vless HC 93.89.217.1.sslip.io IP4 ",
+        "httpupgrade vless HTTP HC 93.89.217.1 IP4 ",
+        "httpupgrade vless HTTP HC 93.89.217.1.sslip.io IP4 ",
+        "httpupgrade vmess 93.89.217.1 IP4 ",
+        "httpupgrade vmess 93.89.217.1.sslip.io IP4 ",
+        "httpupgrade vmess HC 93.89.217.1 IP4 ",
+        "httpupgrade vmess HC 93.89.217.1.sslip.io IP4 ",
+        "httpupgrade vmess HTTP 93.89.217.1 IP4 ",
+        "httpupgrade vmess HTTP 93.89.217.1.sslip.io IP4 ",
+        "httpupgrade vmess HTTP HC 93.89.217.1 IP4 ",
+        "httpupgrade vmess HTTP HC 93.89.217.1.sslip.io IP4 ",
+        "rawhttp vless HTTP HC 93.89.217.1 IP4 ",
+        "rawhttp vless HTTP HC 93.89.217.1.sslip.io IP4 ",
+        "rawhttp vmess HTTP 93.89.217.1 IP4 ",
+        "rawhttp vmess HTTP 93.89.217.1.sslip.io IP4 ",
+        "rawhttp vmess HTTP HC 93.89.217.1 IP4 ",
+        "rawhttp vmess HTTP HC 93.89.217.1.sslip.io IP4 ",
+        "raw vless REALITY yahoo.com IP4 ",
+        "SSH HC 93.89.217.1.sslip.io IP4 ",
+        "SSH HC 93.89.217.1 IP4 ",
+        "TUIC QUIC HC 93.89.217.1.sslip.io IP4 ",
+        "TUIC QUIC HC 93.89.217.1 IP4 ",
+        "Hysteria2 QUIC HC 93.89.217.1.sslip.io IP4 ",
+        "Hysteria2 QUIC HC 93.89.217.1 IP4 ",
+        "Hysteria QUIC HC 93.89.217.1.sslip.io IP4 ",
+        "Hysteria QUIC HC 93.89.217.1 IP4 ",
+        "WireGuard HC 93.89.217.1.sslip.io IP4 ",
+        "WireGuard HC 93.89.217.1 IP4 ",
+        "naive H2 HC 93.89.217.1 IP4 ",
+        "naive H2 HC 93.89.217.1.sslip.io IP4 ",
+        "Mieru TCP HC 93.89.217.1.sslip.io IP4 ",
+        "Mieru TCP HC 93.89.217.1 IP4 ",
+        "Mieru UDP HC 93.89.217.1.sslip.io IP4 ",
+        "Mieru UDP HC 93.89.217.1 IP4 "
+      ],
+      "default": "Auto"
+    },
+    {
+      "type": "urltest",
+      "tag": "Auto",
+      "outbounds": [
+        "grpc vless HC 93.89.217.1 IP4 ",
+        "grpc vless HC 93.89.217.1.sslip.io IP4 ",
+        "grpc vless HC yahoo.com IP4 ",
+        "grpc vless HTTP HC 93.89.217.1 IP4 ",
+        "grpc vless HTTP HC 93.89.217.1.sslip.io IP4 ",
+        "grpc vmess 93.89.217.1 IP4 ",
+        "grpc vmess 93.89.217.1.sslip.io IP4 ",
+        "grpc vmess yahoo.com IP4 ",
+        "grpc vmess HC 93.89.217.1 IP4 ",
+        "grpc vmess HC 93.89.217.1.sslip.io IP4 ",
+        "grpc vmess HC yahoo.com IP4 ",
+        "grpc vmess HTTP 93.89.217.1 IP4 ",
+        "grpc vmess HTTP 93.89.217.1.sslip.io IP4 ",
+        "grpc vmess HTTP HC 93.89.217.1 IP4 ",
+        "grpc vmess HTTP HC 93.89.217.1.sslip.io IP4 ",
+        "httpupgrade vless HC 93.89.217.1 IP4 ",
+        "httpupgrade vless HC 93.89.217.1.sslip.io IP4 ",
+        "httpupgrade vless HTTP HC 93.89.217.1 IP4 ",
+        "httpupgrade vless HTTP HC 93.89.217.1.sslip.io IP4 ",
+        "httpupgrade vmess 93.89.217.1 IP4 ",
+        "httpupgrade vmess 93.89.217.1.sslip.io IP4 ",
+        "httpupgrade vmess HC 93.89.217.1 IP4 ",
+        "httpupgrade vmess HC 93.89.217.1.sslip.io IP4 ",
+        "httpupgrade vmess HTTP 93.89.217.1 IP4 ",
+        "httpupgrade vmess HTTP 93.89.217.1.sslip.io IP4 ",
+        "httpupgrade vmess HTTP HC 93.89.217.1 IP4 ",
+        "httpupgrade vmess HTTP HC 93.89.217.1.sslip.io IP4 ",
+        "rawhttp vless HTTP HC 93.89.217.1 IP4 ",
+        "rawhttp vless HTTP HC 93.89.217.1.sslip.io IP4 ",
+        "rawhttp vmess HTTP 93.89.217.1 IP4 ",
+        "rawhttp vmess HTTP 93.89.217.1.sslip.io IP4 ",
+        "rawhttp vmess HTTP HC 93.89.217.1 IP4 ",
+        "rawhttp vmess HTTP HC 93.89.217.1.sslip.io IP4 ",
+        "raw vless REALITY yahoo.com IP4 ",
+        "SSH HC 93.89.217.1.sslip.io IP4 ",
+        "SSH HC 93.89.217.1 IP4 ",
+        "TUIC QUIC HC 93.89.217.1.sslip.io IP4 ",
+        "TUIC QUIC HC 93.89.217.1 IP4 ",
+        "Hysteria2 QUIC HC 93.89.217.1.sslip.io IP4 ",
+        "Hysteria2 QUIC HC 93.89.217.1 IP4 ",
+        "Hysteria QUIC HC 93.89.217.1.sslip.io IP4 ",
+        "Hysteria QUIC HC 93.89.217.1 IP4 ",
+        "WireGuard HC 93.89.217.1.sslip.io IP4 ",
+        "WireGuard HC 93.89.217.1 IP4 ",
+        "naive H2 HC 93.89.217.1 IP4 ",
+        "naive H2 HC 93.89.217.1.sslip.io IP4 ",
+        "Mieru TCP HC 93.89.217.1.sslip.io IP4 ",
+        "Mieru TCP HC 93.89.217.1 IP4 ",
+        "Mieru UDP HC 93.89.217.1.sslip.io IP4 ",
+        "Mieru UDP HC 93.89.217.1 IP4 "
+      ],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "10m",
+      "tolerance": 200
+    },
+    {
+      "tag": "grpc vless HC 93.89.217.1 IP4 ",
+      "type": "vless",
+      "server": "93.89.217.1",
+      "server_port": 443,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "transport": {
+        "type": "grpc",
+        "service_name": "aOX3hBe5QK15x51F8R4FVABM",
+        "idle_timeout": "15s",
+        "ping_timeout": "15s"
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1",
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "insecure": true
+      }
+    },
+    {
+      "tag": "grpc vless HC 93.89.217.1.sslip.io IP4 ",
+      "type": "vless",
+      "server": "93.89.217.1.sslip.io",
+      "server_port": 443,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "transport": {
+        "type": "grpc",
+        "service_name": "aOX3hBe5QK15x51F8R4FVABM",
+        "idle_timeout": "15s",
+        "ping_timeout": "15s"
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1.sslip.io",
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "insecure": true
+      }
+    },
+    {
+      "tag": "grpc vless HC yahoo.com IP4 ",
+      "type": "vless",
+      "server": "93.89.217.1",
+      "server_port": 443,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "transport": {
+        "type": "grpc",
+        "service_name": "aOX3hBe5QK15x51F8R4FVABM",
+        "idle_timeout": "15s",
+        "ping_timeout": "15s"
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "yahoo.com",
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "reality": {
+          "enabled": true,
+          "public_key": "KQaPN3UnOvgsHAbVbaPerXB4yAQfwnX4r8Fb4nSonlw",
+          "short_id": "317ae9"
+        }
+      }
+    },
+    {
+      "tag": "grpc vless HTTP HC 93.89.217.1 IP4 ",
+      "type": "vless",
+      "server": "93.89.217.1",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "transport": {
+        "type": "grpc",
+        "service_name": "GuT8Y1S53Q5iOFbXIp4rhblZDsHb1R",
+        "idle_timeout": "15s",
+        "ping_timeout": "15s"
+      }
+    },
+    {
+      "tag": "grpc vless HTTP HC 93.89.217.1.sslip.io IP4 ",
+      "type": "vless",
+      "server": "93.89.217.1.sslip.io",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "transport": {
+        "type": "grpc",
+        "service_name": "GuT8Y1S53Q5iOFbXIp4rhblZDsHb1R",
+        "idle_timeout": "15s",
+        "ping_timeout": "15s"
+      }
+    },
+    {
+      "tag": "grpc vmess 93.89.217.1 IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1",
+      "server_port": 443,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "grpc",
+        "service_name": "xleyHsrVDNIQ16wDl",
+        "idle_timeout": "15s",
+        "ping_timeout": "15s"
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1",
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "insecure": true
+      }
+    },
+    {
+      "tag": "grpc vmess 93.89.217.1.sslip.io IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1.sslip.io",
+      "server_port": 443,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "grpc",
+        "service_name": "xleyHsrVDNIQ16wDl",
+        "idle_timeout": "15s",
+        "ping_timeout": "15s"
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1.sslip.io",
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "insecure": true
+      }
+    },
+    {
+      "tag": "grpc vmess yahoo.com IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1",
+      "server_port": 443,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "grpc",
+        "service_name": "xleyHsrVDNIQ16wDl",
+        "idle_timeout": "15s",
+        "ping_timeout": "15s"
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "yahoo.com",
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "reality": {
+          "enabled": true,
+          "public_key": "KQaPN3UnOvgsHAbVbaPerXB4yAQfwnX4r8Fb4nSonlw",
+          "short_id": "317ae9"
+        }
+      }
+    },
+    {
+      "tag": "grpc vmess HC 93.89.217.1 IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1",
+      "server_port": 443,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "grpc",
+        "service_name": "rtwYmv3aIvzurOUdyaVEvQ7L",
+        "idle_timeout": "15s",
+        "ping_timeout": "15s"
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1",
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "insecure": true
+      }
+    },
+    {
+      "tag": "grpc vmess HC 93.89.217.1.sslip.io IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1.sslip.io",
+      "server_port": 443,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "grpc",
+        "service_name": "rtwYmv3aIvzurOUdyaVEvQ7L",
+        "idle_timeout": "15s",
+        "ping_timeout": "15s"
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1.sslip.io",
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "insecure": true
+      }
+    },
+    {
+      "tag": "grpc vmess HC yahoo.com IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1",
+      "server_port": 443,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "grpc",
+        "service_name": "rtwYmv3aIvzurOUdyaVEvQ7L",
+        "idle_timeout": "15s",
+        "ping_timeout": "15s"
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "yahoo.com",
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "reality": {
+          "enabled": true,
+          "public_key": "KQaPN3UnOvgsHAbVbaPerXB4yAQfwnX4r8Fb4nSonlw",
+          "short_id": "317ae9"
+        }
+      }
+    },
+    {
+      "tag": "grpc vmess HTTP 93.89.217.1 IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "grpc",
+        "service_name": "hy1t3hE7Vb7rHIW5QMHQIE",
+        "idle_timeout": "15s",
+        "ping_timeout": "15s"
+      }
+    },
+    {
+      "tag": "grpc vmess HTTP 93.89.217.1.sslip.io IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1.sslip.io",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "grpc",
+        "service_name": "hy1t3hE7Vb7rHIW5QMHQIE",
+        "idle_timeout": "15s",
+        "ping_timeout": "15s"
+      }
+    },
+    {
+      "tag": "grpc vmess HTTP HC 93.89.217.1 IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "grpc",
+        "service_name": "RAI4eF21G9fUfHjvtuH",
+        "idle_timeout": "15s",
+        "ping_timeout": "15s"
+      }
+    },
+    {
+      "tag": "grpc vmess HTTP HC 93.89.217.1.sslip.io IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1.sslip.io",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "grpc",
+        "service_name": "RAI4eF21G9fUfHjvtuH",
+        "idle_timeout": "15s",
+        "ping_timeout": "15s"
+      }
+    },
+    {
+      "tag": "httpupgrade vless HC 93.89.217.1 IP4 ",
+      "type": "vless",
+      "server": "93.89.217.1",
+      "server_port": 443,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "transport": {
+        "type": "httpupgrade",
+        "host": "93.89.217.1",
+        "path": "/v7bfw22I5VrEjA6y7REcJA",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1",
+        "alpn": [
+          "http/1.1"
+        ],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "insecure": true
+      }
+    },
+    {
+      "tag": "httpupgrade vless HC 93.89.217.1.sslip.io IP4 ",
+      "type": "vless",
+      "server": "93.89.217.1.sslip.io",
+      "server_port": 443,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "transport": {
+        "type": "httpupgrade",
+        "host": "93.89.217.1.sslip.io",
+        "path": "/v7bfw22I5VrEjA6y7REcJA",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1.sslip.io/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1.sslip.io",
+        "alpn": [
+          "http/1.1"
+        ],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "insecure": true
+      }
+    },
+    {
+      "tag": "httpupgrade vless HTTP HC 93.89.217.1 IP4 ",
+      "type": "vless",
+      "server": "93.89.217.1",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "transport": {
+        "type": "httpupgrade",
+        "host": "93.89.217.1",
+        "path": "/UFZLOyDliI7S1Qt2qqSgsO8slB",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      }
+    },
+    {
+      "tag": "httpupgrade vless HTTP HC 93.89.217.1.sslip.io IP4 ",
+      "type": "vless",
+      "server": "93.89.217.1.sslip.io",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "transport": {
+        "type": "httpupgrade",
+        "host": "93.89.217.1.sslip.io",
+        "path": "/UFZLOyDliI7S1Qt2qqSgsO8slB",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1.sslip.io/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      }
+    },
+    {
+      "tag": "httpupgrade vmess 93.89.217.1 IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1",
+      "server_port": 443,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "httpupgrade",
+        "host": "93.89.217.1",
+        "path": "/6dlJDUQo2rPY46wwOt",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1",
+        "alpn": [
+          "http/1.1"
+        ],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "insecure": true
+      }
+    },
+    {
+      "tag": "httpupgrade vmess 93.89.217.1.sslip.io IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1.sslip.io",
+      "server_port": 443,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "httpupgrade",
+        "host": "93.89.217.1.sslip.io",
+        "path": "/6dlJDUQo2rPY46wwOt",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1.sslip.io/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1.sslip.io",
+        "alpn": [
+          "http/1.1"
+        ],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "insecure": true
+      }
+    },
+    {
+      "tag": "httpupgrade vmess HC 93.89.217.1 IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1",
+      "server_port": 443,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "httpupgrade",
+        "host": "93.89.217.1",
+        "path": "/OMUI95PYrIdZCXKVLf2myPmLHiq3w",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1",
+        "alpn": [
+          "http/1.1"
+        ],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "insecure": true
+      }
+    },
+    {
+      "tag": "httpupgrade vmess HC 93.89.217.1.sslip.io IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1.sslip.io",
+      "server_port": 443,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "httpupgrade",
+        "host": "93.89.217.1.sslip.io",
+        "path": "/OMUI95PYrIdZCXKVLf2myPmLHiq3w",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1.sslip.io/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1.sslip.io",
+        "alpn": [
+          "http/1.1"
+        ],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "insecure": true
+      }
+    },
+    {
+      "tag": "httpupgrade vmess HTTP 93.89.217.1 IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "httpupgrade",
+        "host": "93.89.217.1",
+        "path": "/02rynaIdqeJPdcm08M",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      }
+    },
+    {
+      "tag": "httpupgrade vmess HTTP 93.89.217.1.sslip.io IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1.sslip.io",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "httpupgrade",
+        "host": "93.89.217.1.sslip.io",
+        "path": "/02rynaIdqeJPdcm08M",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1.sslip.io/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      }
+    },
+    {
+      "tag": "httpupgrade vmess HTTP HC 93.89.217.1 IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "httpupgrade",
+        "host": "93.89.217.1",
+        "path": "/lgYj0RmVWGcjDfUurKccreL",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      }
+    },
+    {
+      "tag": "httpupgrade vmess HTTP HC 93.89.217.1.sslip.io IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1.sslip.io",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "httpupgrade",
+        "host": "93.89.217.1.sslip.io",
+        "path": "/lgYj0RmVWGcjDfUurKccreL",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1.sslip.io/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      }
+    },
+    {
+      "tag": "rawhttp vless HTTP HC 93.89.217.1 IP4 ",
+      "type": "vless",
+      "server": "93.89.217.1",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "transport": {
+        "type": "http",
+        "path": "/EcuFWRYwLdZ0Y8Hy49Uz",
+        "host": [
+          "93.89.217.1"
+        ],
+        "idle_timeout": "15s",
+        "ping_timeout": "15s",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      }
+    },
+    {
+      "tag": "rawhttp vless HTTP HC 93.89.217.1.sslip.io IP4 ",
+      "type": "vless",
+      "server": "93.89.217.1.sslip.io",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "transport": {
+        "type": "http",
+        "path": "/EcuFWRYwLdZ0Y8Hy49Uz",
+        "host": [
+          "93.89.217.1.sslip.io"
+        ],
+        "idle_timeout": "15s",
+        "ping_timeout": "15s",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1.sslip.io/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      }
+    },
+    {
+      "tag": "rawhttp vmess HTTP 93.89.217.1 IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "http",
+        "path": "/ima4IiikoM7pFFsAuwBo2",
+        "host": [
+          "93.89.217.1"
+        ],
+        "idle_timeout": "15s",
+        "ping_timeout": "15s",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      }
+    },
+    {
+      "tag": "rawhttp vmess HTTP 93.89.217.1.sslip.io IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1.sslip.io",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "http",
+        "path": "/ima4IiikoM7pFFsAuwBo2",
+        "host": [
+          "93.89.217.1.sslip.io"
+        ],
+        "idle_timeout": "15s",
+        "ping_timeout": "15s",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1.sslip.io/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      }
+    },
+    {
+      "tag": "rawhttp vmess HTTP HC 93.89.217.1 IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "http",
+        "path": "/5j0GYtJmWaKjxMfgcqCi7CjUChqkv",
+        "host": [
+          "93.89.217.1"
+        ],
+        "idle_timeout": "15s",
+        "ping_timeout": "15s",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      }
+    },
+    {
+      "tag": "rawhttp vmess HTTP HC 93.89.217.1.sslip.io IP4 ",
+      "type": "vmess",
+      "server": "93.89.217.1.sslip.io",
+      "server_port": 80,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "transport": {
+        "type": "http",
+        "path": "/5j0GYtJmWaKjxMfgcqCi7CjUChqkv",
+        "host": [
+          "93.89.217.1.sslip.io"
+        ],
+        "idle_timeout": "15s",
+        "ping_timeout": "15s",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "Accept": "*/*",
+          "Accept-Language": "en-US",
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Connection": "keep-alive",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Referer": "https://93.89.217.1.sslip.io/",
+          "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "'Windows']",
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Site": "same-origin"
+        }
+      }
+    },
+    {
+      "tag": "raw vless REALITY yahoo.com IP4 ",
+      "type": "vless",
+      "server": "93.89.217.1",
+      "server_port": 443,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "flow": "xtls-rprx-vision",
+      "tls": {
+        "enabled": true,
+        "server_name": "yahoo.com",
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "reality": {
+          "enabled": true,
+          "public_key": "KQaPN3UnOvgsHAbVbaPerXB4yAQfwnX4r8Fb4nSonlw",
+          "short_id": "317ae9"
+        }
+      }
+    },
+    {
+      "tag": "SSH HC 93.89.217.1.sslip.io IP4 ",
+      "type": "ssh",
+      "server": "93.89.217.1",
+      "server_port": 15544,
+      "user": "83999090-86f8-4009-a889-746a492638d1",
+      "private_key": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtz\nc2gtZWQyNTUxOQAAACBcweUvu1/ssvuzgZSBxDWskcj3O/QeiPajRADEeUGBngAA\nAIiCgbezgoG3swAAAAtzc2gtZWQyNTUxOQAAACBcweUvu1/ssvuzgZSBxDWskcj3\nO/QeiPajRADEeUGBngAAAED9ySUD2ckYvJJNfdlG7E4xUcGGjgaB7EL3gcBINZk7\na1zB5S+7X+yy+7OBlIHENayRyPc79B6I9qNEAMR5QYGeAAAAAAECAwQF\n-----END OPENSSH PRIVATE KEY-----\n",
+      "host_key": [
+        "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDRXPoJoBnMrG6IkAQyYY7hQsv8xgJAAUKttf9B8+gQhVDJm0kfwfbadqpsPIvyLyzN694SW8qn7gDpb73+ff6FlEhgAFJLdiisqZoneiDxZpjaR0iSM09ChKs6HWQIgD/XnECRHi1nxK9JWa24s5P3B1qqd8CdHI0Rw58US0rvNwtdbDuAuLuM69ug6A1GlSqF0bERIiwEAvGfLb6/6OXsv4nyx6SzxpGTvjYYf+enF7ThoNASELihYZjrl4HIRvrJCPsVSA5D7QzeIpNem4+6PiKRjhtiEJCUgdd/du/mmlVM0VgVWzapFy5cUkYYsEpSlwop3sJTmNe72PYLFbSr9THuRFOM2So7Gtr5zuLIyJ8VBaJ4F7zMqY68ME/3UfRBJ2FI9nwhIuhN8nXhXnE+cxTmI+ISGsXK3BOAUlkfFx71q6YclpMQKwG7CiRsNl/VBKRbiKW07pz/s2LmWoIiy9gI/OcI4CcArsCf9+SQLGX3jpRkLW15jrldUNTNJtE= hiddify-panel@27b9eb026154\n",
+        "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBGdEMEaEF7OpbvaWCHpKH1d01T5h5fA25YxbwwP5PyjikZhrhIEyTMFzjg3nP5/2VPgQx2fB8ZKP9u2J6lHtOus= hiddify-panel@27b9eb026154\n",
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMemCp6JCokB76q7Spp31ehD3JIPcAfUG1hWoHD3aH08 hiddify-panel@27b9eb026154\n"
+      ]
+    },
+    {
+      "tag": "SSH HC 93.89.217.1 IP4 ",
+      "type": "ssh",
+      "server": "93.89.217.1",
+      "server_port": 15544,
+      "user": "83999090-86f8-4009-a889-746a492638d1",
+      "private_key": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtz\nc2gtZWQyNTUxOQAAACBcweUvu1/ssvuzgZSBxDWskcj3O/QeiPajRADEeUGBngAA\nAIiCgbezgoG3swAAAAtzc2gtZWQyNTUxOQAAACBcweUvu1/ssvuzgZSBxDWskcj3\nO/QeiPajRADEeUGBngAAAED9ySUD2ckYvJJNfdlG7E4xUcGGjgaB7EL3gcBINZk7\na1zB5S+7X+yy+7OBlIHENayRyPc79B6I9qNEAMR5QYGeAAAAAAECAwQF\n-----END OPENSSH PRIVATE KEY-----\n",
+      "host_key": [
+        "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDRXPoJoBnMrG6IkAQyYY7hQsv8xgJAAUKttf9B8+gQhVDJm0kfwfbadqpsPIvyLyzN694SW8qn7gDpb73+ff6FlEhgAFJLdiisqZoneiDxZpjaR0iSM09ChKs6HWQIgD/XnECRHi1nxK9JWa24s5P3B1qqd8CdHI0Rw58US0rvNwtdbDuAuLuM69ug6A1GlSqF0bERIiwEAvGfLb6/6OXsv4nyx6SzxpGTvjYYf+enF7ThoNASELihYZjrl4HIRvrJCPsVSA5D7QzeIpNem4+6PiKRjhtiEJCUgdd/du/mmlVM0VgVWzapFy5cUkYYsEpSlwop3sJTmNe72PYLFbSr9THuRFOM2So7Gtr5zuLIyJ8VBaJ4F7zMqY68ME/3UfRBJ2FI9nwhIuhN8nXhXnE+cxTmI+ISGsXK3BOAUlkfFx71q6YclpMQKwG7CiRsNl/VBKRbiKW07pz/s2LmWoIiy9gI/OcI4CcArsCf9+SQLGX3jpRkLW15jrldUNTNJtE= hiddify-panel@27b9eb026154\n",
+        "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBGdEMEaEF7OpbvaWCHpKH1d01T5h5fA25YxbwwP5PyjikZhrhIEyTMFzjg3nP5/2VPgQx2fB8ZKP9u2J6lHtOus= hiddify-panel@27b9eb026154\n",
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMemCp6JCokB76q7Spp31ehD3JIPcAfUG1hWoHD3aH08 hiddify-panel@27b9eb026154\n"
+      ]
+    },
+    {
+      "tag": "TUIC QUIC HC 93.89.217.1.sslip.io IP4 ",
+      "type": "tuic",
+      "server": "93.89.217.1",
+      "server_port": 14259,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "password": "83999090-86f8-4009-a889-746a492638d1",
+      "congestion_control": "cubic",
+      "udp_relay_mode": "native",
+      "zero_rtt_handshake": true,
+      "heartbeat": "10s",
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1",
+        "insecure": true,
+        "certificate_public_key_sha256": [
+          "dP9GQr4B8dJzzRb0uc+pTlojNaCdCwGjodwqAuRzHMM="
+        ]
+      }
+    },
+    {
+      "tag": "TUIC QUIC HC 93.89.217.1 IP4 ",
+      "type": "tuic",
+      "server": "93.89.217.1",
+      "server_port": 14259,
+      "uuid": "83999090-86f8-4009-a889-746a492638d1",
+      "password": "83999090-86f8-4009-a889-746a492638d1",
+      "congestion_control": "cubic",
+      "udp_relay_mode": "native",
+      "zero_rtt_handshake": true,
+      "heartbeat": "10s",
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1",
+        "insecure": true,
+        "certificate_public_key_sha256": [
+          "dP9GQr4B8dJzzRb0uc+pTlojNaCdCwGjodwqAuRzHMM="
+        ]
+      }
+    },
+    {
+      "tag": "Hysteria2 QUIC HC 93.89.217.1.sslip.io IP4 ",
+      "type": "hysteria2",
+      "server": "93.89.217.1",
+      "server_port": 36099,
+      "password": "83999090-86f8-4009-a889-746a492638d1",
+      "up_mbps": 150,
+      "down_mbps": 300,
+      "obfs": {
+        "type": "salamander",
+        "password": "R1o1RKQBthkQuKN6E3NDPGYtEma"
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1",
+        "insecure": true,
+        "certificate_public_key_sha256": [
+          "dP9GQr4B8dJzzRb0uc+pTlojNaCdCwGjodwqAuRzHMM="
+        ]
+      }
+    },
+    {
+      "tag": "Hysteria2 QUIC HC 93.89.217.1 IP4 ",
+      "type": "hysteria2",
+      "server": "93.89.217.1",
+      "server_port": 36099,
+      "password": "83999090-86f8-4009-a889-746a492638d1",
+      "up_mbps": 150,
+      "down_mbps": 300,
+      "obfs": {
+        "type": "salamander",
+        "password": "R1o1RKQBthkQuKN6E3NDPGYtEma"
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1",
+        "insecure": true,
+        "certificate_public_key_sha256": [
+          "dP9GQr4B8dJzzRb0uc+pTlojNaCdCwGjodwqAuRzHMM="
+        ]
+      }
+    },
+    {
+      "tag": "Hysteria QUIC HC 93.89.217.1.sslip.io IP4 ",
+      "type": "hysteria",
+      "server": "93.89.217.1",
+      "server_port": 13013,
+      "auth_str": "83999090-86f8-4009-a889-746a492638d1",
+      "up_mbps": 150,
+      "down_mbps": 300,
+      "obfs": "R1o1RKQBthkQuKN6E3NDPGYtEma",
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1",
+        "insecure": true,
+        "certificate_public_key_sha256": [
+          "dP9GQr4B8dJzzRb0uc+pTlojNaCdCwGjodwqAuRzHMM="
+        ]
+      }
+    },
+    {
+      "tag": "Hysteria QUIC HC 93.89.217.1 IP4 ",
+      "type": "hysteria",
+      "server": "93.89.217.1",
+      "server_port": 13013,
+      "auth_str": "83999090-86f8-4009-a889-746a492638d1",
+      "up_mbps": 150,
+      "down_mbps": 300,
+      "obfs": "R1o1RKQBthkQuKN6E3NDPGYtEma",
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1",
+        "insecure": true,
+        "certificate_public_key_sha256": [
+          "dP9GQr4B8dJzzRb0uc+pTlojNaCdCwGjodwqAuRzHMM="
+        ]
+      }
+    },
+    {
+      "tag": "WireGuard HC 93.89.217.1.sslip.io IP4 ",
+      "type": "wireguard",
+      "private_key": "6NhNXZQ/gGTjbXOsZ7l01w8vs5TbpvWK22mCrKLPHHw=",
+      "mtu": 1380,
+      "server": "93.89.217.1",
+      "server_port": 24642,
+      "local_address": "10.90.0.3/32",
+      "peer_public_key": "PxnHjqPPZ0foAtTwGtXDHQGQh0gU0jq99iFlWTEKnmU=",
+      "pre_shared_key": "T4T1NLEL8iDrYSzio1qNqLPkb6l3ogNhyUPGHDZWhjw="
+    },
+    {
+      "tag": "WireGuard HC 93.89.217.1 IP4 ",
+      "type": "wireguard",
+      "private_key": "6NhNXZQ/gGTjbXOsZ7l01w8vs5TbpvWK22mCrKLPHHw=",
+      "mtu": 1380,
+      "server": "93.89.217.1",
+      "server_port": 24642,
+      "local_address": "10.90.0.3/32",
+      "peer_public_key": "PxnHjqPPZ0foAtTwGtXDHQGQh0gU0jq99iFlWTEKnmU=",
+      "pre_shared_key": "T4T1NLEL8iDrYSzio1qNqLPkb6l3ogNhyUPGHDZWhjw="
+    },
+    {
+      "tag": "naive H2 HC 93.89.217.1 IP4 ",
+      "type": "naive",
+      "server": "93.89.217.1",
+      "server_port": 443,
+      "username": "83999090-86f8-4009-a889-746a492638d1",
+      "password": "ddgPVWZOyXRRT6YrrJz24V",
+      "extra_headers": {
+        "X-API-Key": "ddgPVWZOyXRRT6YrrJz24V"
+      },
+      "quic": false,
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1",
+        "insecure": true
+      }
+    },
+    {
+      "tag": "naive H2 HC 93.89.217.1.sslip.io IP4 ",
+      "type": "naive",
+      "server": "93.89.217.1.sslip.io",
+      "server_port": 443,
+      "username": "83999090-86f8-4009-a889-746a492638d1",
+      "password": "ddgPVWZOyXRRT6YrrJz24V",
+      "extra_headers": {
+        "X-API-Key": "ddgPVWZOyXRRT6YrrJz24V"
+      },
+      "quic": false,
+      "tls": {
+        "enabled": true,
+        "server_name": "93.89.217.1.sslip.io",
+        "insecure": true
+      }
+    },
+    {
+      "tag": "Mieru TCP HC 93.89.217.1.sslip.io IP4 ",
+      "type": "mieru",
+      "server": "93.89.217.1",
+      "multiplexing": "MULTIPLEXING_HIGH",
+      "handshake_mode": "HANDSHAKE_NO_WAIT",
+      "username": "83999090-86f8-4009-a889-746a492638d1",
+      "password": "h",
+      "portBindings": [
+        {
+          "protocol": "TCP",
+          "port": 42242
+        }
+      ]
+    },
+    {
+      "tag": "Mieru TCP HC 93.89.217.1 IP4 ",
+      "type": "mieru",
+      "server": "93.89.217.1",
+      "multiplexing": "MULTIPLEXING_HIGH",
+      "handshake_mode": "HANDSHAKE_NO_WAIT",
+      "username": "83999090-86f8-4009-a889-746a492638d1",
+      "password": "h",
+      "portBindings": [
+        {
+          "protocol": "TCP",
+          "port": 42242
+        }
+      ]
+    },
+    {
+      "tag": "Mieru UDP HC 93.89.217.1.sslip.io IP4 ",
+      "type": "mieru",
+      "server": "93.89.217.1",
+      "multiplexing": "MULTIPLEXING_HIGH",
+      "handshake_mode": "HANDSHAKE_NO_WAIT",
+      "username": "83999090-86f8-4009-a889-746a492638d1",
+      "password": "h",
+      "portBindings": [
+        {
+          "protocol": "UDP",
+          "port": 37356
+        }
+      ]
+    },
+    {
+      "tag": "Mieru UDP HC 93.89.217.1 IP4 ",
+      "type": "mieru",
+      "server": "93.89.217.1",
+      "multiplexing": "MULTIPLEXING_HIGH",
+      "handshake_mode": "HANDSHAKE_NO_WAIT",
+      "username": "83999090-86f8-4009-a889-746a492638d1",
+      "password": "h",
+      "portBindings": [
+        {
+          "protocol": "UDP",
+          "port": 37356
+        }
+      ]
+    },
+    {
+      "tag": "direct",
+      "type": "direct"
+    },
+    {
+      "tag": "block",
+      "type": "block"
+    },
+    {
+      "tag": "dns-out",
+      "type": "dns"
+    }
+  ]
+}

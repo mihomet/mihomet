@@ -1,0 +1,29 @@
+.gradle/
+build/
+app/build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+
+# Mihomo core artifacts (downloaded at build time, see gradle/mihomo-core.properties)
+.mihomo-core-cache/
+
+# Signing material must never be committed
+*.jks
+*.keystore
+keystore.properties
+
+# Build artifacts
+*.apk
+*.aab
+*.hprof
+
+# Downloaded build artifacts (see downloadMihomoCore task)
+app/src/main/jniLibs/*/libmihomo.so
+app/src/main/assets/geoip.metadb
+app/src/main/assets/geosite.dat

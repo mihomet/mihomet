@@ -1,0 +1,319 @@
+<resources>
+    <string name="app_name">Mihomet</string>
+    <string name="tile_label">Mihomet</string>
+    <string name="vpn_service_title">Mihomet Proxy Service</string>
+    <string name="root_service_title">Mihomet Root TProxy</string>
+
+    <!-- Common actions -->
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_close">Close</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_add">Add</string>
+    <string name="action_disconnect">Disconnect</string>
+    <string name="clipboard_empty">Clipboard is empty</string>
+    <string name="common_not_found">Nothing found</string>
+    <string name="cd_back">Back</string>
+    <string name="cd_clear">Clear</string>
+    <string name="cd_paste">Paste</string>
+    <string name="cd_menu">Menu</string>
+    <string name="cd_copy">Copy</string>
+    <string name="cd_save">Save</string>
+    <string name="cd_retry">Retry</string>
+    <string name="cd_selected">Selected</string>
+
+    <!-- Speed / data units -->
+    <string name="speed_mb_per_s">%1$.1f MB/s</string>
+    <string name="speed_kb_per_s">%1$.0f KB/s</string>
+    <string name="speed_b_per_s">%1$d B/s</string>
+    <string name="data_gb">%1$.2f GB</string>
+    <string name="data_mb">%1$.1f MB</string>
+    <string name="data_kb">%1$.1f KB</string>
+    <string name="data_b">%1$d B</string>
+
+    <!-- Latency -->
+    <string name="latency_ms">%1$d ms</string>
+    <string name="latency_timeout">Timeout</string>
+
+    <!-- Proxy modes -->
+    <string name="mode_rule">Smart</string>
+    <string name="mode_global">All sites</string>
+    <string name="mode_direct">Direct</string>
+    <string name="mode_direct_short">Direct</string>
+
+    <!-- Navigation -->
+    <string name="nav_dashboard">Home</string>
+    <string name="nav_proxies">Servers</string>
+    <string name="nav_profiles">Profiles</string>
+    <string name="nav_routing">Apps</string>
+    <string name="nav_connections">Connections</string>
+    <string name="nav_logs">Logs</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_yaml_editor">YAML Editor</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_mode_root_tproxy">Root TProxy</string>
+    <string name="dashboard_mode_vpn">VPN Mode</string>
+    <string name="dashboard_download">Download</string>
+    <string name="dashboard_upload">Upload</string>
+    <string name="dashboard_traffic_activity">Traffic activity</string>
+    <string name="graph_placeholder">Start the VPN to see live traffic</string>
+    <string name="cd_dashboard_connect">Connect</string>
+    <string name="dashboard_status_connecting">CONNECTING...</string>
+    <string name="dashboard_status_disconnecting">DISCONNECTING...</string>
+    <string name="dashboard_status_protected">PROTECTED</string>
+    <string name="dashboard_status_disconnected">NOT CONNECTED</string>
+    <string name="dashboard_active_server">Active server</string>
+    <string name="dashboard_select_server">Select server</string>
+    <string name="dashboard_subscription_label">Subscription: %1$s</string>
+    <string name="dashboard_default_profile_name">Default</string>
+    <string name="cd_dashboard_change_server">Change server</string>
+    <string name="dashboard_routing_mode">Routing mode</string>
+    <string name="dashboard_mode_rule_desc">Bypass restrictions: blocked services go through the proxy, Russian sites connect directly.</string>
+    <string name="dashboard_mode_global_desc">Full proxying: all network traffic of the phone is routed through the selected server.</string>
+    <string name="dashboard_mode_direct_desc">Direct connection: all internet traffic goes directly, bypassing the proxy core.</string>
+
+    <!-- Proxies / servers -->
+    <string name="proxies_error_load">Failed to load nodes: %1$s</string>
+    <string name="proxies_pinging">Pinging...</string>
+    <string name="proxies_test_all">Test all</string>
+    <string name="cd_proxies_tools">Tools</string>
+    <string name="proxies_search_hint">Search server by name or IP...</string>
+    <string name="proxies_empty">No servers available</string>
+    <string name="connection_active">Current connection is active</string>
+    <string name="connection_error">Connection error</string>
+    <string name="connection_active_details">IP: %1$s • %2$s • %3$d ms</string>
+    <string name="connection_failed">Connection failed</string>
+    <string name="proxies_tools_title">Tools &amp; diagnostics</string>
+    <string name="proxies_ping_all">Ping all</string>
+    <string name="proxies_network_test">Network test</string>
+    <string name="proxies_ping_method">Ping method</string>
+    <string name="proxies_sort_title">Sort list</string>
+    <string name="proxies_view_config">View configuration (JSON / YAML)</string>
+    <string name="proxies_config_title">Configuration</string>
+    <string name="proxies_config_empty">Configuration is empty</string>
+    <string name="config_copied">Configuration copied to clipboard</string>
+    <string name="sort_default">Default order</string>
+    <string name="sort_by_ping">By latency</string>
+    <string name="sort_by_name">By name</string>
+    <string name="proxies_status_test_done">%1$s test finished (best: %2$s ms)</string>
+    <string name="proxies_status_unavailable">%1$s: servers unreachable</string>
+    <string name="proxies_status_ping_done">%1$s ping finished</string>
+    <string name="proxies_status_ping_done_min">%1$s ping finished (min: %2$s ms)</string>
+
+    <!-- Profiles / subscriptions -->
+    <string name="profiles_import">Import</string>
+    <string name="cd_profiles_add">Add subscription</string>
+    <string name="profiles_empty_title">No subscriptions yet</string>
+    <string name="profiles_empty_subtitle">Import a link from the clipboard or add a configuration manually.</string>
+    <string name="profiles_import_clipboard">Import from clipboard</string>
+    <string name="profile_type_remote">Online</string>
+    <string name="profile_type_local">Local</string>
+    <string name="profiles_update_now">Update now</string>
+    <string name="profiles_edit_yaml">Edit YAML</string>
+    <string name="profile_patch_menu">Override patch</string>
+    <string name="profile_patch_title">Override patch</string>
+    <string name="profile_patch_hint">YAML fragment (deep-merged into the runtime config)</string>
+    <string name="profile_patch_saved">Override patch saved</string>
+    <string name="profile_patch_invalid">Invalid YAML: %1$s</string>
+    <string name="profile_patch_not_map">The patch must be a YAML mapping (key: value), not a scalar or list</string>
+    <string name="profiles_add_title">Add subscription</string>
+    <string name="profiles_type_url">Link (URL)</string>
+    <string name="profiles_type_local_file">Local file</string>
+    <string name="profiles_name_label">Subscription name</string>
+    <string name="profiles_name_placeholder">My VPN</string>
+    <string name="profiles_url_label">Subscription link (URL)</string>
+    <string name="profiles_headers_label">Headers (JSON or Key: Value)</string>
+    <string name="profiles_headers_placeholder">User-Agent: Happ/3.6.0\nx-hwid: 12345\n(or JSON)</string>
+    <string name="cd_paste_clipboard">Paste from clipboard</string>
+    <string name="cd_paste_headers">Paste headers</string>
+    <string name="profile_auto_name">Subscription %1$s</string>
+    <string name="profile_auto_name_clipboard">Subscription from clipboard</string>
+    <string name="profile_auto_name_import">Imported configuration</string>
+    <string name="profiles_added">Subscription «%1$s» added</string>
+    <string name="profiles_add_failed">Failed to download subscription: %1$s</string>
+    <string name="profiles_imported">Subscription «%1$s» added successfully</string>
+    <string name="profiles_unrecognized">Could not recognize node format in the clipboard</string>
+    <string name="profiles_import_done">Imported %1$s</string>
+    <string name="profiles_config_added">Configuration added successfully</string>
+    <string name="profiles_import_error">Import error: %1$s</string>
+    <string name="profiles_updated">Subscription updated</string>
+    <string name="profiles_update_failed">Failed to update subscription: %1$s</string>
+    <string name="profiles_warnings_suffix">(skipped items: %1$d)</string>
+    <string name="profiles_too_large">Subscription response is too large (>20 MB)</string>
+    <string name="profiles_unknown_error">Unknown error</string>
+    <string name="profile_quota_used">Used %1$s of %2$s (%3$d%%)</string>
+    <string name="profile_quota_used_only">Used: %1$s</string>
+    <string name="profile_expires_at">Expires %1$s</string>
+    <plurals name="profile_auto_name_import_count">
+        <item quantity="one">Import (%1$d node)</item>
+        <item quantity="other">Import (%1$d nodes)</item>
+    </plurals>
+
+    <!-- Converter warnings (WarningLocalizer matches the Russian literals emitted by UniversalConfigConverter) -->
+    <string name="conv_warning_unrecognized">Unrecognized node: %1$s</string>
+    <string name="conv_warning_parse_error">Failed to parse node: %1$s</string>
+    <string name="conv_warning_parse_error_details">Failed to parse node: %1$s (%2$s)</string>
+    <string name="conv_error_xray">Xray JSON conversion error: %1$s</string>
+    <string name="conv_error_singbox">Sing-Box JSON conversion error: %1$s</string>
+    <string name="conv_warning_no_nodes">No supported nodes found in the subscription</string>
+    <string name="conv_warning_no_nodes_xray">No supported nodes found in the Xray config</string>
+    <string name="conv_warning_no_nodes_singbox">No supported nodes found in the Sing-Box config</string>
+    <string name="conv_warning_unknown_format">Could not determine the configuration format</string>
+    <string name="conv_warning_unsupported_outbound">Outbound type \'%1$s\' (\'%2$s\') is not supported by the converter</string>
+
+    <!-- Settings -->
+    <string name="settings_connection_mode">Connection mode</string>
+    <string name="settings_mode_vpn_title">No Root (VPN)</string>
+    <string name="settings_mode_vpn_desc">Standard secure VPN mode for any Android device. Does not require root access.</string>
+    <string name="settings_mode_root_title">Root (TProxy)</string>
+    <string name="settings_mode_root_desc">Transparent proxying of the network stack via netfilter (nftables/iptables). Requires KernelSU or Magisk.</string>
+    <string name="settings_routing_section">Routing &amp; rules</string>
+    <string name="settings_proxy_mode">Proxy mode</string>
+    <string name="settings_app_exclusions">App exclusions</string>
+    <string name="settings_app_exclusions_desc">Pick apps to bypass the proxy (banks, government services)</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_speed_notification">Speed in notification</string>
+    <string name="settings_speed_notification_desc">Show the current data transfer speed</string>
+    <string name="settings_notification_note">Android requires a persistent foreground notification so the VPN keeps running without being unloaded from memory by the system.</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_dynamic_colors">Material You dynamic colors</string>
+    <string name="settings_dynamic_colors_desc">Colors adapt to your wallpaper</string>
+    <string name="settings_dark_theme">Dark theme</string>
+    <string name="settings_dark_theme_desc">Comfortable mode for nighttime</string>
+    <string name="settings_amoled">Pure black (AMOLED)</string>
+    <string name="settings_amoled_desc">True black color and battery savings</string>
+    <string name="settings_advanced">Advanced settings</string>
+    <string name="settings_ports">Network ports</string>
+    <string name="settings_ports_summary">Mixed: %1$d • TProxy: %2$d • DNS: %3$d</string>
+    <string name="settings_latency">Node latency test (Ping)</string>
+    <string name="settings_latency_summary">URL: %1$s • Timeout: %2$d sec.</string>
+    <string name="settings_dns">DNS server</string>
+    <string name="settings_dns_default">Default (Smart DoH + Bypass)</string>
+    <string name="settings_dns_adguard">AdGuard DNS (Ad blocking)</string>
+    <string name="settings_dns_cloudflare">Cloudflare DoH (1.1.1.1)</string>
+    <string name="settings_dns_google">Google DoH (8.8.8.8)</string>
+    <string name="settings_dns_yandex">Yandex DNS DoH</string>
+    <string name="settings_dns_comss">Comss.one DoH</string>
+    <string name="settings_dns_quad9">Quad9 DoH</string>
+    <string name="settings_ipv6">IPv6 support</string>
+    <string name="settings_override_unified_delay">Unified delay (unified-delay)</string>
+    <string name="settings_override_unified_delay_desc">Smooth out RTT jitter for stable latency readings</string>
+    <string name="settings_override_tcp_concurrent">Concurrent TCP dial (tcp-concurrent)</string>
+    <string name="settings_override_tcp_concurrent_desc">Dial all node addresses in parallel for a faster connection</string>
+    <string name="settings_override_sniffer">Domain sniffer</string>
+    <string name="settings_override_sniffer_desc">Restore real domains from TLS/HTTP traffic</string>
+    <string name="settings_override_log_level">Log level</string>
+    <string name="settings_override_log_level_desc">Current value: %1$s</string>
+    <string name="settings_happ_keys">Happ crypto keys</string>
+    <string name="settings_happ_key_add">Add key</string>
+    <string name="settings_happ_key_id">Key ID</string>
+    <string name="settings_happ_key_value">AES key (16 bytes)</string>
+    <string name="settings_happ_key_error_length">Invalid key length</string>
+    <string name="settings_core">Mihomo core</string>
+    <string name="settings_core_version">Version: %1$s</string>
+    <string name="settings_check">Check</string>
+    <string name="settings_update_core_to">Update core to %1$s</string>
+    <string name="settings_reinstall_core">Reinstall core (%1$s)</string>
+    <string name="settings_open_logs">Open system log (Logs)</string>
+    <string name="settings_about_title">Mihomet v1.0</string>
+    <string name="settings_about_edition">Material 3 Expressive Edition</string>
+    <string name="settings_about_desc">High-speed proxy client based on the Mihomo core with Root TProxy, Non-Root VPN Service, VLESS Reality and Hysteria 2 support.</string>
+    <string name="settings_port_error_number">Enter a number</string>
+    <string name="settings_port_error_range">Range 1024–65535</string>
+    <string name="settings_port_error_duplicate">Ports must be unique</string>
+    <string name="settings_ports_dialog_title">Network ports configuration</string>
+    <string name="settings_port_mixed">Mixed Port (HTTP + SOCKS5)</string>
+    <string name="settings_port_tproxy">TProxy Port (Root Mode)</string>
+    <string name="settings_port_dns">DNS Port</string>
+    <string name="settings_port_controller">Mihomo API Controller Port</string>
+    <string name="settings_latency_dialog_title">Latency test (Ping)</string>
+    <string name="settings_latency_url_label">Test URL (204 No Content)</string>
+    <string name="settings_latency_timeout_label">Timeout (seconds)</string>
+    <string name="settings_dns_dialog_title">Custom DNS</string>
+    <string name="settings_dns_dialog_desc">Sets the primary DNS server used by the Mihomo core to resolve domains. Supports DoH (https://...), DoT (tls://...), UDP/TCP IP addresses.</string>
+    <string name="settings_dns_input_label">DNS server URL or IP</string>
+    <string name="settings_dns_presets_title">Popular presets:</string>
+    <string name="settings_dns_default_desc">Built-in fast DoH pool with blocking protection</string>
+    <string name="dns_preset_default">Default (Smart DoH)</string>
+    <string name="dns_preset_yandex_plain">Yandex DNS (plain)</string>
+    <string name="dns_preset_adguard">AdGuard DNS (Ad blocking)</string>
+    <string name="dns_preset_cloudflare">Cloudflare DoH</string>
+    <string name="dns_preset_cloudflare_ip">Cloudflare DoH (1.1.1.1)</string>
+    <string name="dns_preset_google">Google DoH</string>
+    <string name="dns_preset_yandex">Yandex DoH (Russia)</string>
+    <string name="dns_preset_comss">Comss.one DoH</string>
+    <string name="dns_preset_quad9">Quad9 DoH (Security)</string>
+    <string name="dns_category_plaintext_ru">Works in Russia</string>
+    <string name="dns_category_encrypted_ru">Encrypted, works in Russia</string>
+    <string name="dns_category_global">Encrypted, may not work directly from Russia</string>
+    <string name="settings_update_available">New version available: %1$s</string>
+    <string name="settings_update_up_to_date">You already have the latest core version (%1$s)</string>
+    <string name="settings_check_error">Check error: %1$s</string>
+    <string name="settings_downloading">Downloading and installing...</string>
+    <string name="settings_update_success">Core successfully updated to %1$s!</string>
+    <string name="settings_update_error">Update error: %1$s</string>
+
+    <!-- Routing / app exclusions -->
+    <string name="routing_tunnel_mode">Tunneling mode</string>
+    <string name="routing_mode_all">All</string>
+    <string name="routing_mode_whitelist">Only selected</string>
+    <string name="routing_mode_blacklist">Exclude</string>
+    <string name="routing_mode_all_desc">Traffic of all apps on the device goes through the proxy.</string>
+    <string name="routing_mode_whitelist_desc">Only the selected apps go through the proxy. Everything else connects directly.</string>
+    <string name="routing_mode_blacklist_desc">All apps go through the proxy except the selected ones (e.g. banks, government services).</string>
+    <string name="routing_search_hint">Search by name or package...</string>
+    <string name="routing_selected_count">Selected: %1$d of %2$d</string>
+    <string name="routing_system_apps">System</string>
+    <string name="routing_reset">Reset</string>
+    <string name="routing_empty">No apps found</string>
+    <string name="routing_system_badge">System</string>
+
+    <!-- Connections -->
+    <string name="connections_download_total">Downloaded</string>
+    <string name="connections_upload_total">Uploaded</string>
+    <string name="connections_search_hint">Search by host, IP or app...</string>
+    <string name="connections_empty">No active connections</string>
+    <string name="cd_close_connection">Close connection</string>
+    <string name="cd_close_all_connections">Close all connections</string>
+
+    <!-- Logs -->
+    <string name="logs_level_all">All</string>
+    <string name="logs_level_info">Info</string>
+    <string name="logs_level_warning">Warning</string>
+    <string name="logs_level_error">Errors</string>
+    <string name="logs_level_debug">Debug</string>
+    <string name="logs_empty">Log is empty</string>
+
+    <!-- YAML editor -->
+    <string name="yaml_editor_title">YAML Editor</string>
+    <string name="yaml_saved">Configuration saved successfully</string>
+    <string name="yaml_syntax_error">YAML Syntax Error: %1$s</string>
+    <string name="yaml_unsaved_changes_title">Unsaved changes</string>
+    <string name="yaml_unsaved_changes_message">Do you want to save your changes before exiting?</string>
+    <string name="yaml_save_and_exit">Save and exit</string>
+    <string name="yaml_exit_without_saving">Exit without saving</string>
+    <string name="yaml_cancel">Cancel</string>
+
+    <!-- Quick settings tile -->
+    <string name="tile_connected">Connected</string>
+    <string name="tile_disconnected">Disconnected</string>
+
+    <!-- VPN service notifications -->
+    <string name="vpn_channel_name">Mihomet VPN Service</string>
+    <string name="vpn_notification_title">Mihomet VPN</string>
+    <string name="vpn_notification_starting">Starting VPN...</string>
+    <string name="vpn_connected">Connected (%1$s)</string>
+    <string name="vpn_error_core">Core error (%1$d)</string>
+    <string name="vpn_error">VPN error: %1$s</string>
+    <string name="vpn_restarting">Restarting core…</string>
+
+    <!-- Root TProxy service notifications -->
+    <string name="root_channel_name">Mihomet Root Service</string>
+    <string name="root_channel_desc">Mihomet Root TProxy background status</string>
+    <string name="root_notification_title">Mihomet Root TProxy</string>
+    <string name="root_notification_starting">Starting Root TProxy...</string>
+    <string name="root_running">Running (%1$s)</string>
+    <string name="root_error">Error: %1$s</string>
+</resources>

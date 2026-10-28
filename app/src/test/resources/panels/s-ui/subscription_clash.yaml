@@ -1,0 +1,88 @@
+allow-lan: false
+dns:
+    default-nameserver:
+        - 8.8.8.8
+        - 1.1.1.1
+    enable: true
+    enhanced-mode: fake-ip
+    fake-ip-filter:
+        - '*.lan'
+        - localhost
+        - '*.local'
+    fake-ip-range: 198.18.0.1/16
+    fallback:
+        - tcp://9.9.9.9:53
+    ipv6: false
+    nameserver:
+        - https://doh.pub/dns-query
+        - https://1.0.0.1/dns-query
+external-controller: 127.0.0.1:9090
+log-level: info
+mixed-port: 7890
+mode: rule
+proxies:
+    - client-fingerprint: chrome
+      flow: xtls-rprx-vision
+      name: inbound-10020
+      port: 10020
+      reality-opts:
+        public-key: ubqbzlUSWfyv06LAWTMXO42BNASlhq74aDtEwlfPwSk
+        short-id: b099f007
+      server: localhost
+      servername: www.microsoft.com
+      tls: true
+      type: vless
+      uuid: c977159f-d5d6-4759-a553-ee3369bf8820
+    - alterId: 0
+      cipher: auto
+      name: inbound-10021
+      network: ws
+      port: 10021
+      server: localhost
+      type: vmess
+      uuid: c51e0c81-bc41-4c21-a796-0687cf97cde4
+      ws-opts:
+        path: /ws
+    - cipher: 2022-blake3-aes-128-gcm
+      name: inbound-10022
+      password: A6beDiWfjeiG/v48qQ1IZw==:pwPJQHEVtilCyqP79n1kpg==
+      port: 10022
+      server: localhost
+      type: ss
+    - grpc-opts:
+        grpc-service-name: GunService
+      name: inbound-10023
+      network: grpc
+      password: 290d4db1f0f1f3f7b87072f86bbf02f7
+      port: 10023
+      server: localhost
+      type: trojan
+proxy-groups:
+    - name: Proxy
+      proxies:
+        - Auto
+        - inbound-10020
+        - inbound-10021
+        - inbound-10022
+        - inbound-10023
+      type: select
+    - interval: 300
+      name: Auto
+      proxies:
+        - inbound-10020
+        - inbound-10021
+        - inbound-10022
+        - inbound-10023
+      tolerance: 50
+      type: url-test
+      url: http://www.gstatic.com/generate_204
+rules:
+    - GEOIP,Private,DIRECT
+    - MATCH,Proxy
+tun:
+    auto-detect-interface: true
+    auto-route: true
+    dns-hijack:
+        - any:53
+    enable: true
+    stack: system

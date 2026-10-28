@@ -1,0 +1,321 @@
+<resources>
+    <string name="app_name">Mihomet</string>
+    <string name="tile_label">Mihomet</string>
+    <string name="vpn_service_title">Mihomet Proxy Service</string>
+    <string name="root_service_title">Mihomet Root TProxy</string>
+
+    <!-- Common actions -->
+    <string name="action_save">Сохранить</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="action_copy">Копировать</string>
+    <string name="action_close">Закрыть</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_add">Добавить</string>
+    <string name="action_disconnect">Отключить</string>
+    <string name="clipboard_empty">Буфер обмена пуст</string>
+    <string name="common_not_found">Ничего не найдено</string>
+    <string name="cd_back">Назад</string>
+    <string name="cd_clear">Очистить</string>
+    <string name="cd_paste">Вставить</string>
+    <string name="cd_menu">Меню</string>
+    <string name="cd_copy">Копировать</string>
+    <string name="cd_save">Сохранить</string>
+    <string name="cd_retry">Повторить</string>
+    <string name="cd_selected">Выбран</string>
+
+    <!-- Speed / data units -->
+    <string name="speed_mb_per_s">%1$.1f МБ/с</string>
+    <string name="speed_kb_per_s">%1$.0f КБ/с</string>
+    <string name="speed_b_per_s">%1$d Б/с</string>
+    <string name="data_gb">%1$.2f ГБ</string>
+    <string name="data_mb">%1$.1f МБ</string>
+    <string name="data_kb">%1$.1f КБ</string>
+    <string name="data_b">%1$d Б</string>
+
+    <!-- Latency -->
+    <string name="latency_ms">%1$d мс</string>
+    <string name="latency_timeout">Таймаут</string>
+
+    <!-- Proxy modes -->
+    <string name="mode_rule">Умный</string>
+    <string name="mode_global">Все сайты</string>
+    <string name="mode_direct">Напрямую</string>
+    <string name="mode_direct_short">Прямой</string>
+
+    <!-- Navigation -->
+    <string name="nav_dashboard">Главная</string>
+    <string name="nav_proxies">Серверы</string>
+    <string name="nav_profiles">Подписки</string>
+    <string name="nav_routing">Приложения</string>
+    <string name="nav_connections">Соединения</string>
+    <string name="nav_logs">Журнал</string>
+    <string name="nav_settings">Настройки</string>
+    <string name="nav_yaml_editor">Редактор YAML</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_mode_root_tproxy">Root TProxy</string>
+    <string name="dashboard_mode_vpn">VPN Режим</string>
+    <string name="dashboard_download">Входящий</string>
+    <string name="dashboard_upload">Исходящий</string>
+    <string name="dashboard_traffic_activity">Активность трафика</string>
+    <string name="graph_placeholder">Запустите VPN, чтобы увидеть трафик</string>
+    <string name="cd_dashboard_connect">Подключение</string>
+    <string name="dashboard_status_connecting">ПОДКЛЮЧЕНИЕ...</string>
+    <string name="dashboard_status_disconnecting">ОТКЛЮЧЕНИЕ...</string>
+    <string name="dashboard_status_protected">ЗАЩИЩЕНО</string>
+    <string name="dashboard_status_disconnected">НЕ ПОДКЛЮЧЕНО</string>
+    <string name="dashboard_active_server">Активный сервер</string>
+    <string name="dashboard_select_server">Выбрать сервер</string>
+    <string name="dashboard_subscription_label">Подписка: %1$s</string>
+    <string name="dashboard_default_profile_name">По умолчанию</string>
+    <string name="cd_dashboard_change_server">Сменить сервер</string>
+    <string name="dashboard_routing_mode">Режим маршрутизации</string>
+    <string name="dashboard_mode_rule_desc">Обход блокировок: заблокированные сервисы через прокси, российские сайты напрямую.</string>
+    <string name="dashboard_mode_global_desc">Полное проксирование: весь сетевой трафик смартфона направляется через выбранный сервер.</string>
+    <string name="dashboard_mode_direct_desc">Прямое подключение: весь интернет-трафик идет напрямую в обход ядра прокси.</string>
+
+    <!-- Proxies / servers -->
+    <string name="proxies_error_load">Ошибка загрузки узлов: %1$s</string>
+    <string name="proxies_pinging">Пинг...</string>
+    <string name="proxies_test_all">Тест всех</string>
+    <string name="cd_proxies_tools">Инструменты</string>
+    <string name="proxies_search_hint">Поиск сервера по имени или IP...</string>
+    <string name="proxies_empty">Нет доступных серверов</string>
+    <string name="connection_active">Текущее соединение активно</string>
+    <string name="connection_error">Ошибка подключения</string>
+    <string name="connection_active_details">IP: %1$s • %2$s • %3$d ms</string>
+    <string name="connection_failed">Сбой соединения</string>
+    <string name="proxies_tools_title">Инструменты и диагностика</string>
+    <string name="proxies_ping_all">Пинг всех</string>
+    <string name="proxies_network_test">Тест сети</string>
+    <string name="proxies_ping_method">Метод проверки пинга</string>
+    <string name="proxies_sort_title">Сортировка списка</string>
+    <string name="proxies_view_config">Просмотр конфигурации (JSON / YAML)</string>
+    <string name="proxies_config_title">Конфигурация</string>
+    <string name="proxies_config_empty">Конфигурация пуста</string>
+    <string name="config_copied">Конфигурация скопирована в буфер обмена</string>
+    <string name="sort_default">По порядку</string>
+    <string name="sort_by_ping">По задержке</string>
+    <string name="sort_by_name">По имени</string>
+    <string name="proxies_status_test_done">%1$s тест завершен (лучший: %2$s ms)</string>
+    <string name="proxies_status_unavailable">%1$s: серверы недоступны</string>
+    <string name="proxies_status_ping_done">%1$s пинг завершен</string>
+    <string name="proxies_status_ping_done_min">%1$s пинг завершен (мин. %2$s ms)</string>
+
+    <!-- Profiles / subscriptions -->
+    <string name="profiles_import">Импорт</string>
+    <string name="cd_profiles_add">Добавить подписку</string>
+    <string name="profiles_empty_title">Нет добавленных подписок</string>
+    <string name="profiles_empty_subtitle">Импортируйте ссылку из буфера обмена или добавьте конфигурацию вручную.</string>
+    <string name="profiles_import_clipboard">Импорт из буфера</string>
+    <string name="profile_type_remote">Онлайн</string>
+    <string name="profile_type_local">Локальный</string>
+    <string name="profiles_update_now">Обновить сейчас</string>
+    <string name="profiles_edit_yaml">Редактировать YAML</string>
+    <string name="profile_patch_menu">Override-патч</string>
+    <string name="profile_patch_title">Override-патч</string>
+    <string name="profile_patch_hint">YAML-фрагмент (глубоко встраивается в runtime-конфиг)</string>
+    <string name="profile_patch_saved">Override-патч сохранён</string>
+    <string name="profile_patch_invalid">Ошибка YAML: %1$s</string>
+    <string name="profile_patch_not_map">Патч должен быть YAML-отображением (ключ: значение), а не скаляром или списком</string>
+    <string name="profiles_add_title">Добавить подписку</string>
+    <string name="profiles_type_url">Ссылка (URL)</string>
+    <string name="profiles_type_local_file">Локальный файл</string>
+    <string name="profiles_name_label">Название подписки</string>
+    <string name="profiles_name_placeholder">Мой VPN</string>
+    <string name="profiles_url_label">Ссылка на подписку (URL)</string>
+    <string name="profiles_headers_label">Заголовки (JSON или Ключ: Значение)</string>
+    <string name="profiles_headers_placeholder">User-Agent: Happ/3.6.0\nx-hwid: 12345\n(или JSON)</string>
+    <string name="cd_paste_clipboard">Вставить из буфера</string>
+    <string name="cd_paste_headers">Вставить заголовки</string>
+    <string name="profile_auto_name">Подписка %1$s</string>
+    <string name="profile_auto_name_clipboard">Подписка из буфера</string>
+    <string name="profile_auto_name_import">Импортированная конфигурация</string>
+    <string name="profiles_added">Подписка «%1$s» добавлена</string>
+    <string name="profiles_add_failed">Не удалось загрузить подписку: %1$s</string>
+    <string name="profiles_imported">Подписка «%1$s» успешно добавлена</string>
+    <string name="profiles_unrecognized">Не удалось распознать формат узлов в буфере обмена</string>
+    <string name="profiles_import_done">Импортировано %1$s</string>
+    <string name="profiles_config_added">Конфигурация успешно добавлена</string>
+    <string name="profiles_import_error">Ошибка импорта: %1$s</string>
+    <string name="profiles_updated">Подписка обновлена</string>
+    <string name="profiles_update_failed">Не удалось обновить подписку: %1$s</string>
+    <string name="profiles_warnings_suffix">(пропущено элементов: %1$d)</string>
+    <string name="profiles_too_large">Ответ подписки слишком большой (>20 МБ)</string>
+    <string name="profiles_unknown_error">неизвестная ошибка</string>
+    <string name="profile_quota_used">Использовано %1$s из %2$s (%3$d%%)</string>
+    <string name="profile_quota_used_only">Использовано: %1$s</string>
+    <string name="profile_expires_at">Действует до %1$s</string>
+    <plurals name="profile_auto_name_import_count">
+        <item quantity="one">Импорт (%1$d узел)</item>
+        <item quantity="few">Импорт (%1$d узла)</item>
+        <item quantity="many">Импорт (%1$d узлов)</item>
+        <item quantity="other">Импорт (%1$d узлов)</item>
+    </plurals>
+
+    <!-- Предупреждения конвертера (WarningLocalizer сопоставляет русские литералы UniversalConfigConverter) -->
+    <string name="conv_warning_unrecognized">Не удалось распознать узел: %1$s</string>
+    <string name="conv_warning_parse_error">Ошибка разбора узла: %1$s</string>
+    <string name="conv_warning_parse_error_details">Ошибка разбора узла: %1$s (%2$s)</string>
+    <string name="conv_error_xray">Ошибка конвертации Xray JSON: %1$s</string>
+    <string name="conv_error_singbox">Ошибка конвертации Sing-Box JSON: %1$s</string>
+    <string name="conv_warning_no_nodes">В подписке не найдено ни одного поддерживаемого узла</string>
+    <string name="conv_warning_no_nodes_xray">В Xray-конфиге не найдено ни одного поддерживаемого узла</string>
+    <string name="conv_warning_no_nodes_singbox">В Sing-Box конфиге не найдено ни одного поддерживаемого узла</string>
+    <string name="conv_warning_unknown_format">Не удалось определить формат конфигурации</string>
+    <string name="conv_warning_unsupported_outbound">Тип outbound \'%1$s\' (\'%2$s\') не поддерживается конвертером</string>
+
+    <!-- Settings -->
+    <string name="settings_connection_mode">Режим подключения</string>
+    <string name="settings_mode_vpn_title">Без Root (VPN)</string>
+    <string name="settings_mode_vpn_desc">Стандартный безопасный режим VPN для любых устройств Android. Не требует root-прав.</string>
+    <string name="settings_mode_root_title">Root (TProxy)</string>
+    <string name="settings_mode_root_desc">Прозрачное проксирование сетевого стека через netfilter (nftables/iptables). Требует KernelSU или Magisk.</string>
+    <string name="settings_routing_section">Маршрутизация и правила</string>
+    <string name="settings_proxy_mode">Режим проксирования</string>
+    <string name="settings_app_exclusions">Исключения приложений</string>
+    <string name="settings_app_exclusions_desc">Выбрать приложения в обход прокси (банки, Госуслуги)</string>
+    <string name="settings_notifications">Уведомления</string>
+    <string name="settings_speed_notification">Скорость в уведомлении</string>
+    <string name="settings_speed_notification_desc">Отображать текущую скорость передачи данных</string>
+    <string name="settings_notification_note">Android требует постоянное фоновое уведомление для непрерывной работы VPN без выгрузки системой из памяти.</string>
+    <string name="settings_appearance">Оформление</string>
+    <string name="settings_dynamic_colors">Динамические цвета Material You</string>
+    <string name="settings_dynamic_colors_desc">Цвета адаптируются под обои рабочего стола</string>
+    <string name="settings_dark_theme">Темная тема</string>
+    <string name="settings_dark_theme_desc">Комфортный режим для темного времени суток</string>
+    <string name="settings_amoled">Глубокий черный (AMOLED)</string>
+    <string name="settings_amoled_desc">Идеальный черный цвет и экономия батареи</string>
+    <string name="settings_advanced">Продвинутые настройки</string>
+    <string name="settings_ports">Сетевые порты</string>
+    <string name="settings_ports_summary">Mixed: %1$d • TProxy: %2$d • DNS: %3$d</string>
+    <string name="settings_latency">Проверка задержки узлов (Ping)</string>
+    <string name="settings_latency_summary">URL: %1$s • Таймаут: %2$d сек.</string>
+    <string name="settings_dns">DNS-сервер</string>
+    <string name="settings_dns_default">По умолчанию (Smart DoH + Bypass)</string>
+    <string name="settings_dns_adguard">AdGuard DNS (Блокировка рекламы)</string>
+    <string name="settings_dns_cloudflare">Cloudflare DoH (1.1.1.1)</string>
+    <string name="settings_dns_google">Google DoH (8.8.8.8)</string>
+    <string name="settings_dns_yandex">Яндекс DNS DoH</string>
+    <string name="settings_dns_comss">Comss.one DoH</string>
+    <string name="settings_dns_quad9">Quad9 DoH</string>
+    <string name="settings_ipv6">Поддержка IPv6</string>
+    <string name="settings_override_unified_delay">Единая задержка (unified-delay)</string>
+    <string name="settings_override_unified_delay_desc">Сглаживание RTT: стабильные значения задержки при тестах</string>
+    <string name="settings_override_tcp_concurrent">Параллельное TCP-соединение (tcp-concurrent)</string>
+    <string name="settings_override_tcp_concurrent_desc">Одновременное открытие всех адресов узла для быстрейшего подключения</string>
+    <string name="settings_override_sniffer">Сниффер доменов</string>
+    <string name="settings_override_sniffer_desc">Восстановление реальных доменов из TLS/HTTP-трафика</string>
+    <string name="settings_override_log_level">Уровень логов</string>
+    <string name="settings_override_log_level_desc">Текущее значение: %1$s</string>
+    <string name="settings_happ_keys">Happ crypto-ключи</string>
+    <string name="settings_happ_key_add">Добавить ключ</string>
+    <string name="settings_happ_key_id">ID ключа</string>
+    <string name="settings_happ_key_value">AES-ключ (16 байт)</string>
+    <string name="settings_happ_key_error_length">Неверная длина ключа</string>
+    <string name="settings_core">Ядро Mihomo</string>
+    <string name="settings_core_version">Версия: %1$s</string>
+    <string name="settings_check">Проверить</string>
+    <string name="settings_update_core_to">Обновить ядро до %1$s</string>
+    <string name="settings_reinstall_core">Переустановить ядро (%1$s)</string>
+    <string name="settings_open_logs">Открыть системный журнал (Logs)</string>
+    <string name="settings_about_title">Mihomet v1.0</string>
+    <string name="settings_about_edition">Material 3 Expressive Edition</string>
+    <string name="settings_about_desc">Высокоскоростной прокси-клиент на базе ядра Mihomo с поддержкой Root TProxy, Non-Root VPN Service, VLESS Reality и Hysteria 2.</string>
+    <string name="settings_port_error_number">Введите число</string>
+    <string name="settings_port_error_range">Диапазон 1024–65535</string>
+    <string name="settings_port_error_duplicate">Порты не должны повторяться</string>
+    <string name="settings_ports_dialog_title">Настройка сетевых портов</string>
+    <string name="settings_port_mixed">Mixed Port (HTTP + SOCKS5)</string>
+    <string name="settings_port_tproxy">TProxy Port (Root Mode)</string>
+    <string name="settings_port_dns">DNS Port</string>
+    <string name="settings_port_controller">Mihomo API Controller Port</string>
+    <string name="settings_latency_dialog_title">Проверка задержки (Ping)</string>
+    <string name="settings_latency_url_label">URL проверки (204 No Content)</string>
+    <string name="settings_latency_timeout_label">Таймаут (секунды)</string>
+    <string name="settings_dns_dialog_title">Пользовательский DNS</string>
+    <string name="settings_dns_dialog_desc">Задает первичный DNS-сервер для разрешения доменов через ядро Mihomo. Поддерживаются DoH (https://...), DoT (tls://...), UDP/TCP IP-адреса.</string>
+    <string name="settings_dns_input_label">URL или IP DNS-сервера</string>
+    <string name="settings_dns_presets_title">Популярные пресеты:</string>
+    <string name="settings_dns_default_desc">Встроенный быстрый DoH пул с защитой от блокировок</string>
+    <string name="dns_preset_default">По умолчанию (Smart DoH)</string>
+    <string name="dns_preset_yandex_plain">Яндекс DNS (без шифрования)</string>
+    <string name="dns_preset_adguard">AdGuard DNS (Антиреклама)</string>
+    <string name="dns_preset_cloudflare">Cloudflare DoH</string>
+    <string name="dns_preset_cloudflare_ip">Cloudflare DoH (1.1.1.1)</string>
+    <string name="dns_preset_google">Google DoH</string>
+    <string name="dns_preset_yandex">Яндекс DoH (Россия)</string>
+    <string name="dns_preset_comss">Comss.one DoH</string>
+    <string name="dns_preset_quad9">Quad9 DoH (Безопасность)</string>
+    <string name="dns_category_plaintext_ru">Работает в РФ</string>
+    <string name="dns_category_encrypted_ru">Зашифрованный, работает в РФ</string>
+    <string name="dns_category_global">Зашифрованный, из РФ напрямую может не работать</string>
+    <string name="settings_update_available">Доступна новая версия: %1$s</string>
+    <string name="settings_update_up_to_date">У вас установлена актуальная версия ядра (%1$s)</string>
+    <string name="settings_check_error">Ошибка проверки: %1$s</string>
+    <string name="settings_downloading">Загрузка и установка...</string>
+    <string name="settings_update_success">Ядро успешно обновлено до %1$s!</string>
+    <string name="settings_update_error">Ошибка обновления: %1$s</string>
+
+    <!-- Routing / app exclusions -->
+    <string name="routing_tunnel_mode">Режим туннелирования</string>
+    <string name="routing_mode_all">Все</string>
+    <string name="routing_mode_whitelist">Только они</string>
+    <string name="routing_mode_blacklist">Исключить</string>
+    <string name="routing_mode_all_desc">Трафик всех приложений устройства направляется через прокси.</string>
+    <string name="routing_mode_whitelist_desc">Только отмеченные приложения направляются через прокси. Остальные работают напрямую.</string>
+    <string name="routing_mode_blacklist_desc">Все приложения работают через прокси, кроме отмеченных (например, банки, Госуслуги).</string>
+    <string name="routing_search_hint">Поиск по названию или пакету...</string>
+    <string name="routing_selected_count">Выбрано: %1$d из %2$d</string>
+    <string name="routing_system_apps">Системные</string>
+    <string name="routing_reset">Сброс</string>
+    <string name="routing_empty">Приложения не найдены</string>
+    <string name="routing_system_badge">Система</string>
+
+    <!-- Connections -->
+    <string name="connections_download_total">Входящий трафик</string>
+    <string name="connections_upload_total">Исходящий трафик</string>
+    <string name="connections_search_hint">Поиск по хосту, IP или приложению...</string>
+    <string name="connections_empty">Нет активных соединений</string>
+    <string name="cd_close_connection">Закрыть соединение</string>
+    <string name="cd_close_all_connections">Закрыть все соединения</string>
+
+    <!-- Logs -->
+    <string name="logs_level_all">Все</string>
+    <string name="logs_level_info">Инфо</string>
+    <string name="logs_level_warning">Внимание</string>
+    <string name="logs_level_error">Ошибки</string>
+    <string name="logs_level_debug">Debug</string>
+    <string name="logs_empty">Журнал пуст</string>
+
+    <!-- YAML editor -->
+    <string name="yaml_editor_title">YAML Editor</string>
+    <string name="yaml_saved">Конфигурация сохранена</string>
+    <string name="yaml_syntax_error">Ошибка синтаксиса YAML: %1$s</string>
+    <string name="yaml_unsaved_changes_title">Несохранённые изменения</string>
+    <string name="yaml_unsaved_changes_message">Сохранить изменения перед выходом?</string>
+    <string name="yaml_save_and_exit">Сохранить и выйти</string>
+    <string name="yaml_exit_without_saving">Выйти без сохранения</string>
+    <string name="yaml_cancel">Отмена</string>
+
+    <!-- Quick settings tile -->
+    <string name="tile_connected">Подключено</string>
+    <string name="tile_disconnected">Отключено</string>
+
+    <!-- VPN service notifications -->
+    <string name="vpn_channel_name">Mihomet VPN Service</string>
+    <string name="vpn_notification_title">Mihomet VPN</string>
+    <string name="vpn_notification_starting">Запуск VPN...</string>
+    <string name="vpn_connected">Подключено (%1$s)</string>
+    <string name="vpn_error_core">Ошибка ядра (%1$d)</string>
+    <string name="vpn_error">Ошибка VPN: %1$s</string>
+    <string name="vpn_restarting">Перезапуск ядра…</string>
+
+    <!-- Root TProxy service notifications -->
+    <string name="root_channel_name">Mihomet Root Service</string>
+    <string name="root_channel_desc">Mihomet Root TProxy background status</string>
+    <string name="root_notification_title">Mihomet Root TProxy</string>
+    <string name="root_notification_starting">Запуск Root TProxy...</string>
+    <string name="root_running">Подключено (%1$s)</string>
+    <string name="root_error">Ошибка: %1$s</string>
+</resources>
