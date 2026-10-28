@@ -18,6 +18,8 @@
 | Hiddify Panel | ✅ tested | fixture; 96 links incl. ssh/snell/wg, expiry pseudo-link dropped with warning |
 | Sub-Store | ✅ tested | fixture (mihomo/sing-box/v2ray targets); legacy `target=Clash` drops nodes — documented |
 | subconverter | ⏸ skipped | legacy tool, rarely used by RU services in 2026; re-open on demand |
+| behavior-заголовки (subscription-autoconnect / per-app-proxy-mode+list / tun-mode) | Happ zero-touch | ✅ применяются при импорте/обновлении |
+| keyring-UI для crypto-ключей | Настройки → Продвинутые | ✅ |
 | Deep-link импорт (happ/incy/clash/v2rayng/sing-box) | ✅ implemented | `core/DeepLinkParser.kt`, live-tested on emulator |
 | Управление по ссылкам (incy://connect|toggle, mihomet://) | ✅ implemented | MainActivity.handleControlLink |
 | Автообновление подписок (profile-update-interval) | ✅ implemented | WorkManager 6h, Room v3 |
