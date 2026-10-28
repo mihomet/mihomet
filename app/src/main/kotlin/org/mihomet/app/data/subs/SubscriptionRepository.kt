@@ -12,12 +12,14 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.mihomet.app.R
+import org.mihomet.app.core.HappCrypto
 import org.mihomet.app.core.HwidProvider
 import org.mihomet.app.core.config.ConversionOutcome
 import org.mihomet.app.core.config.UniversalConfigConverter
 import org.mihomet.app.data.db.ProfileDao
 import org.mihomet.app.data.db.ProfileEntity
 import org.mihomet.app.data.db.ProfileType
+import org.mihomet.app.data.preferences.SettingsRepository
 import org.mihomet.app.ui.screens.profiles.SubscriptionMeta
 import org.mihomet.app.ui.screens.profiles.SubscriptionMetaParser
 import org.mihomet.app.ui.screens.profiles.SubscriptionUserinfo
@@ -49,11 +51,14 @@ data class ProfileRefreshResult(
 /**
  * Single owner of the subscription fetch pipeline: UA fallback chain, `x-hwid`
  * device header, 20 MB size cap, Base64 decoding and conversion to mihomo YAML.
- * Also applies refreshes to remote [ProfileEntity]s (file rewrite + DB update).
+ * Also handles Happ encrypted subscriptions (AES-128-GCM: tag in `encrypt-tag`,
+ * key id in the URL, key material from the [SettingsRepository] keyring) and
+ * applies refreshes to remote [ProfileEntity]s (file rewrite + DB update).
  */
 class SubscriptionRepository(
     private val context: Context,
-    private val profileDao: ProfileDao
+    private val profileDao: ProfileDao,
+    private val settingsRepository: SettingsRepository
 ) {
 
     private val httpClient = HttpClient {
@@ -112,6 +117,7 @@ class SubscriptionRepository(
             var userinfo: SubscriptionUserinfo? = null
             var meta = SubscriptionMeta()
             var lastException: Exception? = null
+            var encryptTag: String? = null
 
             for (ua in userAgentsToTry) {
                 try {
@@ -135,6 +141,10 @@ class SubscriptionRepository(
                         val body: String = resp.body()
                         if (body.isNotBlank()) {
                             responseText = body
+                            // Happ encrypted subscriptions: the GCM tag rides in this
+                            // header (Ktor lookup is case-insensitive), the key id in
+                            // the URL (?key=keyNN) and the key material in the keyring.
+                            encryptTag = resp.headers[HappCrypto.ENCRYPT_TAG_HEADER]
                             // Ktor Headers lookup is case-insensitive; format:
                             // "upload=123 download=456 total=789 expire=1700000000"
                             userinfo = SubscriptionUserinfoParser.parse(resp.headers["Subscription-Userinfo"])
@@ -157,9 +167,32 @@ class SubscriptionRepository(
                 throw IllegalStateException("Empty or unsuccessful response from subscription URL")
             }
 
-            // If Base64 encoded subscription, decode it
+            // Happ encrypted subscription (AES-128-GCM): body = base64(ciphertext),
+            // the GCM tag arrives separately in `encrypt-tag`, and the URL carries
+            // only the key id (?key=keyNN) — the key itself lives in the client
+            // keyring (out-of-band distribution). Decryption yields the plaintext
+            // URI list / JSON directly, so no further Base64 decoding is needed.
             val trimmed = responseText.trim()
-            val decoded = if (!trimmed.startsWith("port:") &&
+            val tag = encryptTag
+            val decrypted: String? = if (tag != null) {
+                val keyId = HappCrypto.keyIdFromUrl(url)
+                    ?: throw IllegalArgumentException(
+                        "Зашифрованная подписка: ключ не указан в URL (нет параметра ?key=keyNN)"
+                    )
+                val key = settingsRepository.getCryptoKeys()[keyId]
+                    ?: throw IllegalArgumentException(
+                        "Зашифрованная подписка: в настройках нет ключа $keyId"
+                    )
+                HappCrypto.decrypt(trimmed, tag, key.toByteArray(Charsets.UTF_8))
+                    ?: throw IllegalArgumentException(
+                        "Зашифрованная подписка: не удалось расшифровать ответ (ключ $keyId)"
+                    )
+            } else {
+                null
+            }
+
+            // If Base64 encoded subscription, decode it
+            val decoded = decrypted ?: if (!trimmed.startsWith("port:") &&
                 !trimmed.startsWith("mixed-port:") &&
                 !trimmed.startsWith("proxies:") &&
                 !trimmed.startsWith("{") &&

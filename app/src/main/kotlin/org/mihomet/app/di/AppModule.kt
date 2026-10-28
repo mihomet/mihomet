@@ -34,7 +34,7 @@ val appModule = module {
     single { SettingsRepository(androidContext()) }
     single { CoreManager(androidContext()) }
     single { FirewallManager() }
-    single { SubscriptionRepository(androidContext(), get()) }
+    single { SubscriptionRepository(androidContext(), get(), get()) }
 
     // API Client (recreated only when controller port/secret changes)
     single { MihomoApiClientProvider(get()) }

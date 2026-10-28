@@ -6,9 +6,12 @@ import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.mihomet.app.core.CoreConstants
 import java.io.IOException
 
@@ -45,6 +48,7 @@ class SettingsRepository(private val context: Context) {
         val OVERRIDE_TCP_CONCURRENT = booleanPreferencesKey("override_tcp_concurrent")
         val OVERRIDE_LOG_LEVEL = stringPreferencesKey("override_log_level")
         val OVERRIDE_SNIFFER_ENABLED = booleanPreferencesKey("override_sniffer_enabled")
+        val HAPP_CRYPTO_KEYS = stringPreferencesKey("happ_crypto_keys")
     }
 
     val settingsFlow: Flow<AppSettings> = context.dataStore.data
@@ -199,4 +203,47 @@ class SettingsRepository(private val context: Context) {
     suspend fun updateOverrideSnifferEnabled(enabled: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.OVERRIDE_SNIFFER_ENABLED] = enabled }
     }
+
+    // region Happ crypto keyring (encrypted subscriptions, see core/HappCrypto.kt)
+
+    /**
+     * Returns all stored Happ crypto keys as a mapping of key id → AES key
+     * (the key is kept as a raw 16-byte ASCII string, e.g. "key02" → "key02:+]%4ij#P\"/").
+     */
+    suspend fun getCryptoKeys(): Map<String, String> {
+        val prefs = context.dataStore.data.first()
+        return parseCryptoKeysJson(prefs[PreferencesKeys.HAPP_CRYPTO_KEYS])
+    }
+
+    /** Adds or replaces the key stored under [id]. */
+    suspend fun setCryptoKey(id: String, key: String) {
+        context.dataStore.edit { prefs ->
+            val updated = parseCryptoKeysJson(prefs[PreferencesKeys.HAPP_CRYPTO_KEYS]).toMutableMap()
+            updated[id.trim()] = key.trim()
+            prefs[PreferencesKeys.HAPP_CRYPTO_KEYS] = Json.encodeToString(updated)
+        }
+    }
+
+    /** Removes the key stored under [id] (no-op when absent). */
+    suspend fun removeCryptoKey(id: String) {
+        context.dataStore.edit { prefs ->
+            val updated = parseCryptoKeysJson(prefs[PreferencesKeys.HAPP_CRYPTO_KEYS]).toMutableMap()
+            updated.remove(id.trim())
+            prefs[PreferencesKeys.HAPP_CRYPTO_KEYS] = Json.encodeToString(updated)
+        }
+    }
+
+    /**
+     * Decodes the stored JSON mapping `{"key02": "key", ...}`; a missing or
+     * corrupted entry degrades to an empty keyring instead of crashing.
+     */
+    private fun parseCryptoKeysJson(raw: String?): Map<String, String> {
+        val trimmed = raw?.trim().orEmpty()
+        if (trimmed.isEmpty()) return emptyMap()
+        return runCatching {
+            Json.decodeFromString<Map<String, String>>(trimmed)
+        }.getOrElse { emptyMap() }
+    }
+
+    // endregion
 }
