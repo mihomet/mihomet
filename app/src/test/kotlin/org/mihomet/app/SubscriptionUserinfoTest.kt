@@ -75,12 +75,12 @@ class SubscriptionUserinfoTest {
     @Test
     fun `traffic bytes formatting`() {
         val us = Locale.US
-        assertEquals("0 B", formatTrafficBytes(0L, us))
-        assertEquals("42 B", formatTrafficBytes(42L, us))
-        assertEquals("1.0 KB", formatTrafficBytes(1024L, us))
-        assertEquals("1.5 MB", formatTrafficBytes((1024L * 1024L * 3L / 2L), us))
-        assertEquals("3.2 GB", formatTrafficBytes((3.2 * 1024 * 1024 * 1024).toLong(), us))
-        assertEquals("1.00 TB", formatTrafficBytes(1024L * 1024L * 1024L * 1024L, us))
-        assertEquals("0 B", formatTrafficBytes(-5L, us))
+        assertEquals("0\u00A0B", formatTrafficBytes(0L, us))
+        assertEquals("42\u00A0B", formatTrafficBytes(42L, us))
+        assertEquals("1.0\u00A0KB", formatTrafficBytes(1024L, us))
+        assertEquals("1.5\u00A0MB", formatTrafficBytes((1024L * 1024L * 3L / 2L), us))
+        assertEquals("3.2\u00A0GB", formatTrafficBytes((3.2 * 1024 * 1024 * 1024).toLong(), us))
+        assertEquals("1.00\u00A0TB", formatTrafficBytes(1024L * 1024L * 1024L * 1024L, us))
+        assertEquals("0\u00A0B", formatTrafficBytes(-5L, us))
     }
 }

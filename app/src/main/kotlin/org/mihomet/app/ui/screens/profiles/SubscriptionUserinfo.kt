@@ -72,7 +72,7 @@ object SubscriptionUserinfoParser {
  * Human-readable traffic size, e.g. `3.2 GB`, `512.0 MB`, `42 B`.
  */
 fun formatTrafficBytes(bytes: Long, locale: Locale = Locale.getDefault()): String {
-    if (bytes <= 0L) return "0 B"
+    if (bytes <= 0L) return "0\u00A0B"
     val kb = 1024.0
     val mb = kb * 1024.0
     val gb = mb * 1024.0
@@ -83,7 +83,7 @@ fun formatTrafficBytes(bytes: Long, locale: Locale = Locale.getDefault()): Strin
         bytes >= mb -> String.format(locale, "%.1f MB", bytes / mb)
         bytes >= kb -> String.format(locale, "%.1f KB", bytes / kb)
         else -> "$bytes B"
-    }
+    }.replace(" ", "\u00A0") // non-breaking space: the unit never wraps onto its own line
 }
 
 /**

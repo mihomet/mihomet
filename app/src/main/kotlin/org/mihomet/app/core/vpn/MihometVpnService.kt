@@ -4,8 +4,10 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
 import android.net.Network
@@ -78,6 +80,9 @@ class MihometVpnService : VpnService(), KoinComponent {
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var speedJob: Job? = null
+    private var screenStateReceiver: BroadcastReceiver? = null
+    private var isScreenOn = true
+    private var speedBaseText: String? = null
     private val vpnMutex = Mutex()
 
     /** True while a user-initiated stop is in progress; blocks the core watchdog from restarting. */
@@ -373,18 +378,17 @@ class MihometVpnService : VpnService(), KoinComponent {
             coreRestartAttempts = 0
             val profileLabel = selectedProfile?.name ?: getString(R.string.dashboard_default_profile_name)
             val baseText = getString(R.string.vpn_connected, profileLabel)
+            speedBaseText = baseText
             updateNotification(baseText)
 
-            // Live speed in the notification (optional toggle in settings)
+            registerScreenStateReceiver()
+
+            // Live speed in the notification (optional toggle in settings).
+            // Updates run only while the screen is on (FlClash pattern) — a 1 Hz
+            // notification refresh in the pocket wastes battery for nothing.
             speedJob?.cancel()
-            if (settings.showSpeedInNotification) {
-                speedJob = serviceScope.launch {
-                    apiClientProvider.current().streamTraffic().collect { sample ->
-                        updateNotification(
-                            "$baseText · ↓ ${formatSpeed(sample.down)} ↑ ${formatSpeed(sample.up)}"
-                        )
-                    }
-                }
+            if (settings.showSpeedInNotification && isScreenOn) {
+                startSpeedUpdates()
             }
         } catch (e: Exception) {
             android.util.Log.e("MihometVpn", "startVpn() exception", e)
@@ -480,6 +484,9 @@ class MihometVpnService : VpnService(), KoinComponent {
             if (wakeLock?.isHeld == true) wakeLock?.release()
         }
         wakeLock = null
+
+        screenStateReceiver?.let { runCatching { unregisterReceiver(it) } }
+        screenStateReceiver = null
     }
 
     private fun stopVpn() {
@@ -544,6 +551,50 @@ class MihometVpnService : VpnService(), KoinComponent {
             // Show the foreground notification immediately instead of after the system delay (API 27+)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
+    }
+
+    private fun startSpeedUpdates() {
+        speedJob?.cancel()
+        val baseText = speedBaseText ?: return
+        speedJob = serviceScope.launch {
+            apiClientProvider.current().streamTraffic().collect { sample ->
+                updateNotification(
+                    "$baseText · ↓ ${formatSpeed(sample.down)} ↑ ${formatSpeed(sample.up)}"
+                )
+            }
+        }
+    }
+
+    /**
+     * Pauses the 1 Hz speed updates while the screen is off (battery) and
+     * resumes them on SCREEN_ON, restoring the plain connected text meanwhile.
+     */
+    private fun registerScreenStateReceiver() {
+        if (screenStateReceiver != null) return
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                when (intent.action) {
+                    Intent.ACTION_SCREEN_ON -> {
+                        isScreenOn = true
+                        val settings = runCatching {
+                            kotlinx.coroutines.runBlocking { settingsRepository.settingsFlow.first() }
+                        }.getOrNull()
+                        if (settings?.showSpeedInNotification == true) startSpeedUpdates()
+                    }
+                    Intent.ACTION_SCREEN_OFF -> {
+                        isScreenOn = false
+                        speedJob?.cancel()
+                        speedJob = null
+                        speedBaseText?.let { updateNotification(it) }
+                    }
+                }
+            }
+        }
+        screenStateReceiver = receiver
+        registerReceiver(receiver, IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+        })
     }
 
     private fun updateNotification(text: String) {
