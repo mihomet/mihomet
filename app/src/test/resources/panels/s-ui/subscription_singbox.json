@@ -1,0 +1,131 @@
+{
+  "inbounds": [
+    {
+      "address": [
+        "172.19.0.1/30",
+        "fdfe:dcba:9876::1/126"
+      ],
+      "auto_route": true,
+      "endpoint_independent_nat": false,
+      "mtu": 9000,
+      "platform": {
+        "http_proxy": {
+          "enabled": true,
+          "server": "127.0.0.1",
+          "server_port": 2080
+        }
+      },
+      "stack": "system",
+      "strict_route": false,
+      "type": "tun"
+    },
+    {
+      "listen": "127.0.0.1",
+      "listen_port": 2080,
+      "type": "mixed",
+      "users": []
+    }
+  ],
+  "outbounds": [
+    {
+      "outbounds": [
+        "auto",
+        "direct",
+        "inbound-10020",
+        "inbound-10021",
+        "inbound-10022",
+        "inbound-10023"
+      ],
+      "tag": "proxy",
+      "type": "selector"
+    },
+    {
+      "interval": "10m",
+      "outbounds": [
+        "inbound-10020",
+        "inbound-10021",
+        "inbound-10022",
+        "inbound-10023"
+      ],
+      "tag": "auto",
+      "tolerance": 50,
+      "type": "urltest",
+      "url": "http://www.gstatic.com/generate_204"
+    },
+    {
+      "tag": "direct",
+      "type": "direct"
+    },
+    {
+      "flow": "xtls-rprx-vision",
+      "server": "localhost",
+      "server_port": 10020,
+      "tag": "inbound-10020",
+      "tls": {
+        "enabled": true,
+        "reality": {
+          "enabled": true,
+          "public_key": "ubqbzlUSWfyv06LAWTMXO42BNASlhq74aDtEwlfPwSk",
+          "short_id": "b099f007"
+        },
+        "server_name": "www.microsoft.com",
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        }
+      },
+      "type": "vless",
+      "uuid": "c977159f-d5d6-4759-a553-ee3369bf8820"
+    },
+    {
+      "alter_id": 0,
+      "server": "localhost",
+      "server_port": 10021,
+      "tag": "inbound-10021",
+      "transport": {
+        "path": "/ws",
+        "type": "ws"
+      },
+      "type": "vmess",
+      "uuid": "c51e0c81-bc41-4c21-a796-0687cf97cde4"
+    },
+    {
+      "method": "2022-blake3-aes-128-gcm",
+      "password": "A6beDiWfjeiG/v48qQ1IZw==:pwPJQHEVtilCyqP79n1kpg==",
+      "server": "localhost",
+      "server_port": 10022,
+      "tag": "inbound-10022",
+      "type": "shadowsocks"
+    },
+    {
+      "password": "290d4db1f0f1f3f7b87072f86bbf02f7",
+      "server": "localhost",
+      "server_port": 10023,
+      "tag": "inbound-10023",
+      "transport": {
+        "service_name": "GunService",
+        "type": "grpc"
+      },
+      "type": "trojan"
+    }
+  ],
+  "route": {
+    "auto_detect_interface": true,
+    "final": "proxy",
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "action": "route",
+        "clash_mode": "Direct",
+        "outbound": "direct"
+      },
+      {
+        "action": "route",
+        "clash_mode": "Global",
+        "outbound": "proxy"
+      }
+    ]
+  }
+}

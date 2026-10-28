@@ -1,0 +1,20 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Monochrome layer for Android 13+ themed icons: front M plane only -->
+    <path
+        android:pathData="M28,74.2 L42.3,33.9 L54,63.8 L65.7,33.9 L80,74.2"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="6.8"
+        android:fillColor="#00000000" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M24.1,74.2 a3.9,3.9 0 1,0 7.8,0 a3.9,3.9 0 1,0 -7.8,0" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M76.1,74.2 a3.9,3.9 0 1,0 7.8,0 a3.9,3.9 0 1,0 -7.8,0" />
+</vector>

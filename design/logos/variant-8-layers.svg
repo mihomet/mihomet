@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Variant 8 "Layers" (neutral, large): isometric M stack in graphite/silver -->
+  <rect width="512" height="512" rx="115" fill="#17171A"/>
+  <!-- back plane (dim graphite) -->
+  <path d="M148 258 L196 128 L256 230 L316 128 L364 258"
+        fill="none" stroke="#52525E" stroke-width="30"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- middle plane (silver) -->
+  <path d="M122 336 L190 148 L256 290 L322 148 L390 336"
+        fill="none" stroke="#9A9AA6" stroke-width="36"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- front plane (near-white, largest) -->
+  <path d="M96 416 L184 168 L256 352 L328 168 L416 416"
+        fill="none" stroke="#ECECF2" stroke-width="42"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- neutral endpoint nodes -->
+  <circle cx="96" cy="416" r="24" fill="#FFFFFF"/>
+  <circle cx="416" cy="416" r="24" fill="#A9A9B5"/>
+</svg>

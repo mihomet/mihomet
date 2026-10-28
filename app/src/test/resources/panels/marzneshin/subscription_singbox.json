@@ -1,0 +1,188 @@
+{
+    "log": {
+        "level": "warn"
+    },
+    "dns": {
+        "servers": [
+            {
+                "tag": "dns-remote",
+                "address": "1.1.1.2",
+                "detour": "proxy"
+            },
+            {
+                "tag": "dns-local",
+                "address": "local",
+                "detour": "direct"
+            }
+        ],
+        "rules": [
+            {
+                "outbound": "any",
+                "server": "dns-local"
+            }
+        ],
+        "final": "dns-remote",
+        "strategy": "prefer_ipv4"
+    },
+    "inbounds": [
+        {
+            "type": "tun",
+            "tag": "tun-in",
+            "interface_name": "sbtun0",
+            "address": [
+                "172.19.0.1/30",
+                "fdfe:dcba:9876::1/126"
+            ],
+            "auto_route": true,
+            "route_exclude_address": [
+                "192.168.0.0/16",
+                "fc00::/7"
+            ],
+            "sniff": true,
+            "domain_strategy": "prefer_ipv4"
+        }
+    ],
+    "outbounds": [
+        {
+            "type": "selector",
+            "tag": "proxy",
+            "outbounds": [
+                "Best Latency",
+                "\ud83d\ude80 Marz (mihomettest) [vless - tcp]",
+                "\ud83d\ude80 Marz (mihomettest) [vmess - ws]",
+                "\ud83d\ude80 Marz (mihomettest) [shadowsocks - <missing>]",
+                "Mihomet VLESS Reality",
+                "Mihomet VMess WS",
+                "Mihomet SS2022"
+            ],
+            "interrupt_exist_connections": true
+        },
+        {
+            "type": "urltest",
+            "tag": "Best Latency",
+            "outbounds": [
+                "\ud83d\ude80 Marz (mihomettest) [vless - tcp]",
+                "\ud83d\ude80 Marz (mihomettest) [vmess - ws]",
+                "\ud83d\ude80 Marz (mihomettest) [shadowsocks - <missing>]",
+                "Mihomet VLESS Reality",
+                "Mihomet VMess WS",
+                "Mihomet SS2022"
+            ]
+        },
+        {
+            "type": "direct",
+            "tag": "direct"
+        },
+        {
+            "type": "block",
+            "tag": "block"
+        },
+        {
+            "type": "dns",
+            "tag": "dns-out"
+        },
+        {
+            "type": "vless",
+            "tag": "\ud83d\ude80 Marz (mihomettest) [vless - tcp]",
+            "server": "198.18.0.1",
+            "server_port": 10031,
+            "flow": "xtls-rprx-vision",
+            "tls": {
+                "enabled": true,
+                "server_name": "microsoft.com",
+                "reality": {
+                    "enabled": true,
+                    "public_key": "Ouz0_jVyBK7prtJPjLWqUc2YjodxneFtt-hMpTvEyUM",
+                    "short_id": "4708c1a6"
+                },
+                "utls": {
+                    "enabled": true,
+                    "fingerprint": "chrome"
+                }
+            },
+            "uuid": "a8dddbaa-2614-451b-a961-a3c1eeede929"
+        },
+        {
+            "type": "vmess",
+            "tag": "\ud83d\ude80 Marz (mihomettest) [vmess - ws]",
+            "server": "198.18.0.1",
+            "server_port": 10032,
+            "transport": {
+                "type": "ws",
+                "headers": {},
+                "path": "/mws"
+            },
+            "uuid": "a8dddbaa-2614-451b-a961-a3c1eeede929"
+        },
+        {
+            "type": "shadowsocks",
+            "tag": "\ud83d\ude80 Marz (mihomettest) [shadowsocks - <missing>]",
+            "server": "198.18.0.1",
+            "server_port": 10033,
+            "password": "a8dddbaa2614451ba961a3c1eeede929",
+            "method": "chacha20-ietf-poly1305"
+        },
+        {
+            "type": "vless",
+            "tag": "Mihomet VLESS Reality",
+            "server": "127.0.0.1",
+            "server_port": 10031,
+            "flow": "xtls-rprx-vision",
+            "tls": {
+                "enabled": true,
+                "server_name": "www.microsoft.com",
+                "reality": {
+                    "enabled": true,
+                    "public_key": "Ouz0_jVyBK7prtJPjLWqUc2YjodxneFtt-hMpTvEyUM",
+                    "short_id": "4708c1a6"
+                },
+                "utls": {
+                    "enabled": true,
+                    "fingerprint": "chrome"
+                }
+            },
+            "uuid": "a8dddbaa-2614-451b-a961-a3c1eeede929"
+        },
+        {
+            "type": "vmess",
+            "tag": "Mihomet VMess WS",
+            "server": "127.0.0.1",
+            "server_port": 10032,
+            "transport": {
+                "type": "ws",
+                "headers": {},
+                "path": "/mws"
+            },
+            "uuid": "a8dddbaa-2614-451b-a961-a3c1eeede929"
+        },
+        {
+            "type": "shadowsocks",
+            "tag": "Mihomet SS2022",
+            "server": "127.0.0.1",
+            "server_port": 10033,
+            "password": "a8dddbaa2614451ba961a3c1eeede929",
+            "method": "2022-blake3-aes-256-gcm"
+        }
+    ],
+    "route": {
+        "rules": [
+            {
+                "protocol": "dns",
+                "outbound": "dns-out"
+            },
+            {
+                "ip_is_private": true,
+                "outbound": "direct"
+            }
+        ],
+        "final": "proxy",
+        "auto_detect_interface": true,
+        "override_android_vpn": true
+    },
+    "experimental": {
+        "cache_file": {
+            "enabled": true,
+            "store_rdrc": true
+        }
+    }
+}

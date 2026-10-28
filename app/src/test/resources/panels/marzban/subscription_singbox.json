@@ -1,0 +1,170 @@
+{
+    "log": {
+        "level": "warn"
+    },
+    "dns": {
+        "servers": [
+            {
+                "tag": "dns-remote",
+                "address": "1.1.1.2",
+                "detour": "proxy"
+            },
+            {
+                "tag": "dns-local",
+                "address": "local",
+                "detour": "direct"
+            }
+        ],
+        "rules": [
+            {
+                "outbound": "any",
+                "server": "dns-local"
+            }
+        ],
+        "final": "dns-remote",
+        "strategy": "prefer_ipv4"
+    },
+    "inbounds": [
+        {
+            "type": "tun",
+            "tag": "tun-in",
+            "interface_name": "sing-tun",
+            "address": [
+                "172.19.0.1/30",
+                "fdfe:dcba:9876::1/126"
+            ],
+            "auto_route": true,
+            "route_exclude_address": [
+                "192.168.0.0/16",
+                "fc00::/7"
+            ],
+            "sniff": true,
+            "domain_strategy": "prefer_ipv4"
+        }
+    ],
+    "outbounds": [
+        {
+            "type": "selector",
+            "tag": "proxy",
+            "outbounds": [
+                "Best Latency",
+                "\ud83d\ude80 Marz (MihometTest) [VLESS - tcp]",
+                "\ud83d\ude80 Marz (MihometTest) [VMess - ws]",
+                "\ud83d\ude80 Marz (MihometTest) [Shadowsocks - tcp]",
+                "\ud83d\ude80 Marz (MihometTest) [Trojan - tcp]"
+            ],
+            "interrupt_exist_connections": true
+        },
+        {
+            "type": "urltest",
+            "tag": "Best Latency",
+            "outbounds": [
+                "\ud83d\ude80 Marz (MihometTest) [VLESS - tcp]",
+                "\ud83d\ude80 Marz (MihometTest) [VMess - ws]",
+                "\ud83d\ude80 Marz (MihometTest) [Shadowsocks - tcp]",
+                "\ud83d\ude80 Marz (MihometTest) [Trojan - tcp]"
+            ]
+        },
+        {
+            "type": "direct",
+            "tag": "direct"
+        },
+        {
+            "type": "block",
+            "tag": "block"
+        },
+        {
+            "type": "dns",
+            "tag": "dns-out"
+        },
+        {
+            "type": "vless",
+            "tag": "\ud83d\ude80 Marz (MihometTest) [VLESS - tcp]",
+            "server": "9.247.6.62",
+            "server_port": 10001,
+            "flow": "xtls-rprx-vision",
+            "tls": {
+                "enabled": true,
+                "server_name": "www.microsoft.com",
+                "reality": {
+                    "enabled": true,
+                    "public_key": "imq_4oNAudRtHTgXSdjbe4-VmHsa6FjE7gkRrIn8hF4",
+                    "short_id": "97cc3a6bb2aa"
+                },
+                "utls": {
+                    "enabled": true,
+                    "fingerprint": "chrome"
+                }
+            },
+            "multiplex": {
+                "enabled": false,
+                "protocol": "h2mux",
+                "max_streams": 8
+            },
+            "uuid": "92bc6251-43cd-4436-9d65-9da095d4f6a7"
+        },
+        {
+            "type": "vmess",
+            "tag": "\ud83d\ude80 Marz (MihometTest) [VMess - ws]",
+            "server": "9.247.6.62",
+            "server_port": 10002,
+            "transport": {
+                "headers": {},
+                "path": "/mws",
+                "type": "ws"
+            },
+            "multiplex": {
+                "enabled": false,
+                "protocol": "h2mux",
+                "max_streams": 8
+            },
+            "uuid": "959776f0-b606-44c0-8dc2-fea04c207711"
+        },
+        {
+            "type": "shadowsocks",
+            "tag": "\ud83d\ude80 Marz (MihometTest) [Shadowsocks - tcp]",
+            "server": "9.247.6.62",
+            "server_port": 10003,
+            "multiplex": {
+                "enabled": false,
+                "protocol": "h2mux",
+                "max_streams": 8
+            },
+            "password": "0Gg2OQ7/b8zRlnDCBpUInmuGKSDj4kYZxXFkKMnglPI=",
+            "method": "aes-256-gcm"
+        },
+        {
+            "type": "trojan",
+            "tag": "\ud83d\ude80 Marz (MihometTest) [Trojan - tcp]",
+            "server": "9.247.6.62",
+            "server_port": 10004,
+            "multiplex": {
+                "enabled": false,
+                "protocol": "h2mux",
+                "max_streams": 8
+            },
+            "password": "WxDVHv33BlNHvVo3AyrMdA"
+        }
+    ],
+    "route": {
+        "rules": [
+            {
+                "protocol": "dns",
+                "outbound": "dns-out"
+            },
+            {
+                "ip_is_private": true,
+                "outbound": "direct"
+            }
+        ],
+        "final": "proxy",
+        "auto_detect_interface": true,
+        "override_android_vpn": true
+    },
+    "experimental": {
+        "cache_file": {
+            "enabled": true,
+            "store_rdrc": true
+        }
+    }
+}

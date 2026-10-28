@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network security policy (audit item: replaces blanket usesCleartextTraffic="true").
+
+  RELEASE POLICY: cleartext HTTP is DISABLED globally.
+  - User panel subscriptions served over plain http:// will fail on release
+    builds with a visible fetch error. This is an INTENTIONAL security
+    decision — subscription sources should use https://.
+    TODO (Phase 2): consider a user-visible opt-in toggle that permits
+    cleartext for a specific subscription URL.
+
+  - Exception: the mihomo core external controller (REST/WS API used by the
+    whole UI) is always reached on the device loopback (127.0.0.1 / localhost)
+    over plain HTTP. Loopback traffic never leaves the device, so it is
+    explicitly permitted below; without this exception every screen
+    (dashboard, proxies, connections, logs) would lose access to the core.
+
+  DEBUG BUILDS: cleartext is fully allowed via the debug-only manifest overlay
+  (app/src/debug/AndroidManifest.xml -> @xml/network_security_config_debug),
+  so developers can test http:// subscriptions and local panel instances.
+  Note: the <debug-overrides> element of network-security-config can only
+  relax certificate trust anchors, not the cleartext policy, hence the
+  manifest-overlay approach.
+
+  NOTE: the cleartextTrafficPermitted attribute is honored by the platform
+  starting from API 28 (Android 9). On API 26-27 devices the attribute is
+  ignored by the legacy parser and the platform default applies; the strict
+  policy above is enforced on API 28+ (targetSdk 35).
+-->
+<network-security-config>
+    <!-- Release default: no cleartext HTTP to any remote host -->
+    <base-config cleartextTrafficPermitted="false" />
+
+    <!-- Mihomo core external controller on device loopback only -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

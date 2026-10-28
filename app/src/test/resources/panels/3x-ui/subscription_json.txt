@@ -1,0 +1,463 @@
+[
+  {
+    "dns": {
+      "queryStrategy": "UseIP",
+      "servers": [
+        {
+          "address": "8.8.8.8",
+          "skipFallback": false
+        }
+      ],
+      "tag": "dns_out"
+    },
+    "inbounds": [
+      {
+        "listen": "127.0.0.1",
+        "port": 10808,
+        "protocol": "socks",
+        "settings": {
+          "auth": "noauth",
+          "udp": true,
+          "userLevel": 8
+        },
+        "sniffing": {
+          "destOverride": [
+            "http",
+            "tls",
+            "quic",
+            "fakedns"
+          ],
+          "enabled": true
+        },
+        "tag": "mixed"
+      },
+      {
+        "listen": "127.0.0.1",
+        "port": 10809,
+        "protocol": "http",
+        "settings": {
+          "userLevel": 8
+        },
+        "tag": "http"
+      }
+    ],
+    "log": {
+      "loglevel": "warning"
+    },
+    "outbounds": [
+      {
+        "protocol": "vless",
+        "tag": "proxy",
+        "streamSettings": {
+          "network": "tcp",
+          "realitySettings": {
+            "fingerprint": "chrome",
+            "mldsa65Verify": null,
+            "publicKey": "ubqbzlUSWfyv06LAWTMXO42BNASlhq74aDtEwlfPwSk",
+            "serverName": "www.microsoft.com",
+            "shortId": "b099f007",
+            "show": false,
+            "spiderX": "/de4bd8974309f33"
+          },
+          "security": "reality",
+          "tcpSettings": {
+            "header": {
+              "type": "none"
+            }
+          }
+        },
+        "settings": {
+          "address": "localhost",
+          "encryption": "none",
+          "flow": "xtls-rprx-vision",
+          "id": "2a53a55b-c119-42e7-948c-7ba5cf9cb280",
+          "level": 8,
+          "port": 10010
+        }
+      },
+      {
+        "protocol": "freedom",
+        "settings": {
+          "noises": [],
+          "redirect": ""
+        },
+        "tag": "direct"
+      },
+      {
+        "protocol": "blackhole",
+        "settings": {
+          "response": {
+            "type": "http"
+          }
+        },
+        "tag": "block"
+      }
+    ],
+    "policy": {
+      "levels": {
+        "8": {
+          "connIdle": 300,
+          "downlinkOnly": 1,
+          "handshake": 4,
+          "uplinkOnly": 1
+        }
+      },
+      "system": {
+        "statsOutboundDownlink": true,
+        "statsOutboundUplink": true
+      }
+    },
+    "remarks": "Mihomet VLESS Reality-MihometTest1",
+    "routing": {
+      "domainStrategy": "AsIs",
+      "rules": [
+        {
+          "network": "tcp,udp",
+          "outboundTag": "proxy",
+          "type": "field"
+        }
+      ]
+    },
+    "stats": {}
+  },
+  {
+    "dns": {
+      "queryStrategy": "UseIP",
+      "servers": [
+        {
+          "address": "8.8.8.8",
+          "skipFallback": false
+        }
+      ],
+      "tag": "dns_out"
+    },
+    "inbounds": [
+      {
+        "listen": "127.0.0.1",
+        "port": 10808,
+        "protocol": "socks",
+        "settings": {
+          "auth": "noauth",
+          "udp": true,
+          "userLevel": 8
+        },
+        "sniffing": {
+          "destOverride": [
+            "http",
+            "tls",
+            "quic",
+            "fakedns"
+          ],
+          "enabled": true
+        },
+        "tag": "mixed"
+      },
+      {
+        "listen": "127.0.0.1",
+        "port": 10809,
+        "protocol": "http",
+        "settings": {
+          "userLevel": 8
+        },
+        "tag": "http"
+      }
+    ],
+    "log": {
+      "loglevel": "warning"
+    },
+    "outbounds": [
+      {
+        "protocol": "vmess",
+        "tag": "proxy",
+        "streamSettings": {
+          "network": "ws",
+          "security": "none",
+          "wsSettings": {
+            "earlyDataHeaderName": "",
+            "headers": {},
+            "path": "/ws"
+          }
+        },
+        "settings": {
+          "address": "localhost",
+          "id": "0a8da6d9-a1bc-4679-9635-0296839dcb40",
+          "level": 8,
+          "port": 10011,
+          "security": "auto"
+        }
+      },
+      {
+        "protocol": "freedom",
+        "settings": {
+          "noises": [],
+          "redirect": ""
+        },
+        "tag": "direct"
+      },
+      {
+        "protocol": "blackhole",
+        "settings": {
+          "response": {
+            "type": "http"
+          }
+        },
+        "tag": "block"
+      }
+    ],
+    "policy": {
+      "levels": {
+        "8": {
+          "connIdle": 300,
+          "downlinkOnly": 1,
+          "handshake": 4,
+          "uplinkOnly": 1
+        }
+      },
+      "system": {
+        "statsOutboundDownlink": true,
+        "statsOutboundUplink": true
+      }
+    },
+    "remarks": "Mihomet VMess WS",
+    "routing": {
+      "domainStrategy": "AsIs",
+      "rules": [
+        {
+          "network": "tcp,udp",
+          "outboundTag": "proxy",
+          "type": "field"
+        }
+      ]
+    },
+    "stats": {}
+  },
+  {
+    "dns": {
+      "queryStrategy": "UseIP",
+      "servers": [
+        {
+          "address": "8.8.8.8",
+          "skipFallback": false
+        }
+      ],
+      "tag": "dns_out"
+    },
+    "inbounds": [
+      {
+        "listen": "127.0.0.1",
+        "port": 10808,
+        "protocol": "socks",
+        "settings": {
+          "auth": "noauth",
+          "udp": true,
+          "userLevel": 8
+        },
+        "sniffing": {
+          "destOverride": [
+            "http",
+            "tls",
+            "quic",
+            "fakedns"
+          ],
+          "enabled": true
+        },
+        "tag": "mixed"
+      },
+      {
+        "listen": "127.0.0.1",
+        "port": 10809,
+        "protocol": "http",
+        "settings": {
+          "userLevel": 8
+        },
+        "tag": "http"
+      }
+    ],
+    "log": {
+      "loglevel": "warning"
+    },
+    "outbounds": [
+      {
+        "protocol": "shadowsocks",
+        "tag": "proxy",
+        "streamSettings": {
+          "network": "tcp",
+          "security": "none",
+          "tcpSettings": null
+        },
+        "settings": {
+          "servers": [
+            {
+              "address": "localhost",
+              "level": 8,
+              "method": "2022-blake3-aes-128-gcm",
+              "password": "A6beDiWfjeiG/v48qQ1IZw==:pwPJQHEVtilCyqP79n1kpg==",
+              "port": 10012
+            }
+          ]
+        }
+      },
+      {
+        "protocol": "freedom",
+        "settings": {
+          "noises": [],
+          "redirect": ""
+        },
+        "tag": "direct"
+      },
+      {
+        "protocol": "blackhole",
+        "settings": {
+          "response": {
+            "type": "http"
+          }
+        },
+        "tag": "block"
+      }
+    ],
+    "policy": {
+      "levels": {
+        "8": {
+          "connIdle": 300,
+          "downlinkOnly": 1,
+          "handshake": 4,
+          "uplinkOnly": 1
+        }
+      },
+      "system": {
+        "statsOutboundDownlink": true,
+        "statsOutboundUplink": true
+      }
+    },
+    "remarks": "Mihomet SS2022",
+    "routing": {
+      "domainStrategy": "AsIs",
+      "rules": [
+        {
+          "network": "tcp,udp",
+          "outboundTag": "proxy",
+          "type": "field"
+        }
+      ]
+    },
+    "stats": {}
+  },
+  {
+    "dns": {
+      "queryStrategy": "UseIP",
+      "servers": [
+        {
+          "address": "8.8.8.8",
+          "skipFallback": false
+        }
+      ],
+      "tag": "dns_out"
+    },
+    "inbounds": [
+      {
+        "listen": "127.0.0.1",
+        "port": 10808,
+        "protocol": "socks",
+        "settings": {
+          "auth": "noauth",
+          "udp": true,
+          "userLevel": 8
+        },
+        "sniffing": {
+          "destOverride": [
+            "http",
+            "tls",
+            "quic",
+            "fakedns"
+          ],
+          "enabled": true
+        },
+        "tag": "mixed"
+      },
+      {
+        "listen": "127.0.0.1",
+        "port": 10809,
+        "protocol": "http",
+        "settings": {
+          "userLevel": 8
+        },
+        "tag": "http"
+      }
+    ],
+    "log": {
+      "loglevel": "warning"
+    },
+    "outbounds": [
+      {
+        "protocol": "trojan",
+        "tag": "proxy",
+        "streamSettings": {
+          "grpcSettings": {
+            "authority": "",
+            "health_check_timeout": 20,
+            "idle_timeout": 60,
+            "initial_windows_size": 0,
+            "multiMode": false,
+            "permitWithoutStream": false,
+            "serviceName": "GunService"
+          },
+          "network": "grpc",
+          "security": "none"
+        },
+        "settings": {
+          "servers": [
+            {
+              "address": "localhost",
+              "level": 8,
+              "password": "290d4db1f0f1f3f7b87072f86bbf02f7",
+              "port": 10013
+            }
+          ]
+        }
+      },
+      {
+        "protocol": "freedom",
+        "settings": {
+          "noises": [],
+          "redirect": ""
+        },
+        "tag": "direct"
+      },
+      {
+        "protocol": "blackhole",
+        "settings": {
+          "response": {
+            "type": "http"
+          }
+        },
+        "tag": "block"
+      }
+    ],
+    "policy": {
+      "levels": {
+        "8": {
+          "connIdle": 300,
+          "downlinkOnly": 1,
+          "handshake": 4,
+          "uplinkOnly": 1
+        }
+      },
+      "system": {
+        "statsOutboundDownlink": true,
+        "statsOutboundUplink": true
+      }
+    },
+    "remarks": "Mihomet Trojan gRPC",
+    "routing": {
+      "domainStrategy": "AsIs",
+      "rules": [
+        {
+          "network": "tcp,udp",
+          "outboundTag": "proxy",
+          "type": "field"
+        }
+      ]
+    },
+    "stats": {}
+  }
+]

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Variant 2 "Core Shield": security shield with a heartbeat pulse of the tunnel -->
+  <defs>
+    <linearGradient id="shield" x1="112" y1="96" x2="400" y2="448" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A78BFA"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="115" fill="#17131F"/>
+  <path d="M256 92 L400 146 V268 C400 356 342 414 256 444 C170 414 112 356 112 268 V146 Z"
+        fill="#8B5CF6" fill-opacity="0.10"
+        stroke="url(#shield)" stroke-width="26" stroke-linejoin="round"/>
+  <path d="M152 272 H222 L250 204 L286 336 L312 252 H360"
+        fill="none" stroke="#F472B6" stroke-width="22"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="152" cy="272" r="16" fill="#2DD4BF"/>
+  <circle cx="360" cy="252" r="16" fill="#2DD4BF"/>
+</svg>

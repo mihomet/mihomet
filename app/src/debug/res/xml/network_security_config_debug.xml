@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-only network security policy. Applied in debug builds via the
+  manifest overlay app/src/debug/AndroidManifest.xml (tools:replace of the
+  application attribute). Release builds keep
+  @xml/network_security_config (cleartext disabled, loopback only).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

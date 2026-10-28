@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Variant 7 "Shield M": the monogram locked inside a security shield -->
+  <defs>
+    <linearGradient id="s2" x1="256" y1="80" x2="256" y2="452" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A78BFA"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="115" fill="#17131F"/>
+  <path d="M256 84 L404 140 V276 C404 362 344 420 256 448 C168 420 108 362 108 276 V140 Z"
+        fill="#8B5CF6" fill-opacity="0.10"
+        stroke="url(#s2)" stroke-width="24" stroke-linejoin="round"/>
+  <path d="M186 330 L226 202 L256 272 L286 202 L326 330"
+        fill="none" stroke="#DDD6FE" stroke-width="26"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="186" cy="330" r="17" fill="#2DD4BF"/>
+  <circle cx="326" cy="330" r="17" fill="#F472B6"/>
+</svg>

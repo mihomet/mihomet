@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Variant 1 "M-Network": monogram M drawn as a traffic route with proxy nodes -->
+  <defs>
+    <linearGradient id="stroke" x1="120" y1="152" x2="392" y2="368" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A78BFA"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.45" r="0.55">
+      <stop offset="0" stop-color="#8B5CF6" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#8B5CF6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="115" fill="#17131F"/>
+  <rect width="512" height="512" rx="115" fill="url(#glow)"/>
+  <path d="M120 368 L192 152 L256 296 L320 152 L392 368"
+        fill="none" stroke="url(#stroke)" stroke-width="34"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- endpoint nodes: entry (teal) / exit (pink) -->
+  <circle cx="120" cy="368" r="30" fill="#2DD4BF"/>
+  <circle cx="392" cy="368" r="30" fill="#F472B6"/>
+  <!-- peak + valley nodes -->
+  <circle cx="192" cy="152" r="21" fill="#DDD6FE"/>
+  <circle cx="320" cy="152" r="21" fill="#DDD6FE"/>
+  <circle cx="256" cy="296" r="21" fill="#DDD6FE"/>
+</svg>

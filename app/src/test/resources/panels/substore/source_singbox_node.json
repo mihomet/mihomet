@@ -1,0 +1,28 @@
+{
+  "log": {
+    "level": "info"
+  },
+  "outbounds": [
+    {
+      "type": "vless",
+      "tag": "RawSingBox-VLESS-Reality",
+      "server": "9.247.6.62",
+      "server_port": 10005,
+      "uuid": "e8a597d1-faeb-477c-8f9d-06c9d0b1cabd",
+      "flow": "xtls-rprx-vision",
+      "tls": {
+        "enabled": true,
+        "server_name": "www.microsoft.com",
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "reality": {
+          "enabled": true,
+          "public_key": "imq_4oNAudRtHTgXSdjbe4-VmHsa6FjE7gkRrIn8hF4",
+          "short_id": "97cc3a6bb2aa"
+        }
+      }
+    }
+  ]
+}

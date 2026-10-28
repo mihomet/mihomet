@@ -1,0 +1,28 @@
+HTTP/1.1 200 OK
+Content-Security-Policy: default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data: https:;object-src 'none';script-src 'self' 'wasm-unsafe-eval';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests;connect-src 'self' https://raw.githubusercontent.com https://ungh.cc
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: same-origin
+Origin-Agent-Cluster: ?1
+Referrer-Policy: no-referrer
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-DNS-Prefetch-Control: off
+X-Download-Options: noopen
+X-Frame-Options: SAMEORIGIN
+X-Permitted-Cross-Domain-Policies: none
+X-XSS-Protection: 0
+x-robots-tag: noindex, nofollow, noarchive, nosnippet, noimageindex
+Access-Control-Allow-Origin: *
+content-disposition: attachment; filename=benchuser
+subscription-userinfo: upload=0; download=0; total=0; expire=1893456000
+support-url: https://dummy.docs.rw
+profile-title: base64:UmVtbmF3YXZl
+profile-web-page-url: https://panel.bench.local/api/sub/V7v2Re55xBkU1eUo
+profile-update-interval: 12
+Content-Type: text/yaml; charset=utf-8
+Content-Length: 1419
+ETag: W/"58b-ketY8zhHFh+EumzjM5XrkVrvobY"
+Date: Wed, 28 Oct 2026 16:18:24 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+

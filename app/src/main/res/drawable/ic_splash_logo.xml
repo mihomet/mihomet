@@ -1,0 +1,50 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="240dp"
+    android:height="240dp"
+    android:viewportWidth="240"
+    android:viewportHeight="240">
+    <!-- Splash screen brand glyph: neutral isometric M stack -->
+    <path
+        android:pathData="M83.5,108.7 L99.1,64.8 L120,91.1 L140.9,64.8 L156.5,108.7"
+        android:strokeColor="#52525E"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="10.9"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M71.5,135.5 L87,91.1 L120,120.2 L153,91.1 L168.5,135.5"
+        android:strokeColor="#9A9AA6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="13.1"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M61.9,164.2 L93.6,74.2 L120,141.2 L146.4,74.2 L178.1,164.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="15.1"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="62"
+                android:startY="75"
+                android:endX="178"
+                android:endY="164"
+                android:type="linear">
+                <item
+                    android:offset="0.0"
+                    android:color="#FFF4F4F7" />
+                <item
+                    android:offset="1.0"
+                    android:color="#FFD9D9E0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M53.4,164.2 a8.7,8.7 0 1,0 17.4,0 a8.7,8.7 0 1,0 -17.4,0" />
+    <path
+        android:fillColor="#FFA9A9B5"
+        android:pathData="M169.2,164.2 a8.7,8.7 0 1,0 17.4,0 a8.7,8.7 0 1,0 -17.4,0" />
+</vector>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Variant 6 "Tunnel": traffic flowing through perspective rings -->
+  <defs>
+    <linearGradient id="t1" x1="256" y1="96" x2="256" y2="416" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#2DD4BF"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="115" fill="#17131F"/>
+  <ellipse cx="256" cy="256" rx="176" ry="176" fill="none" stroke="#8B5CF6" stroke-opacity="0.35" stroke-width="14"/>
+  <ellipse cx="256" cy="256" rx="124" ry="124" fill="none" stroke="#8B5CF6" stroke-opacity="0.6" stroke-width="16"/>
+  <ellipse cx="256" cy="256" rx="76" ry="76" fill="none" stroke="url(#t1)" stroke-width="20"/>
+  <!-- packet escaping forward -->
+  <circle cx="256" cy="84" r="20" fill="#F472B6"/>
+  <path d="M256 108 L256 150" stroke="#F472B6" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="26" fill="#2DD4BF"/>
+</svg>

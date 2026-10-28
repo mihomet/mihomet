@@ -1,0 +1,54 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Mihomet brand glyph: neutral isometric M stack (approved variant-8) -->
+    <!-- back plane (dim graphite) -->
+    <path
+        android:pathData="M37.6,48.8 L45.4,29.2 L54,45.6 L62.4,29.2 L70.4,48.8"
+        android:strokeColor="#52525E"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="4.9"
+        android:fillColor="#00000000" />
+    <!-- middle plane (silver) -->
+    <path
+        android:pathData="M32.2,61.2 L40.1,41.3 L54,54.6 L67.9,41.3 L75.8,61.2"
+        android:strokeColor="#9A9AA6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="5.9"
+        android:fillColor="#00000000" />
+    <!-- front plane (near-white, largest) -->
+    <path
+        android:pathData="M28,74.2 L42.3,33.9 L54,63.8 L65.7,33.9 L80,74.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="6.8"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="28"
+                android:startY="34"
+                android:endX="80"
+                android:endY="74"
+                android:type="linear">
+                <item
+                    android:offset="0.0"
+                    android:color="#FFF4F4F7" />
+                <item
+                    android:offset="1.0"
+                    android:color="#FFD9D9E0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- neutral endpoint nodes -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M24.1,74.2 a3.9,3.9 0 1,0 7.8,0 a3.9,3.9 0 1,0 -7.8,0" />
+    <path
+        android:fillColor="#FFA9A9B5"
+        android:pathData="M76.1,74.2 a3.9,3.9 0 1,0 7.8,0 a3.9,3.9 0 1,0 -7.8,0" />
+</vector>

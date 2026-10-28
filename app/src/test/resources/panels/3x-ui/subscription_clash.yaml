@@ -1,0 +1,58 @@
+proxies:
+- client-fingerprint: chrome
+  flow: xtls-rprx-vision
+  name: Mihomet VLESS Reality-MihometTest1
+  network: tcp
+  port: 10010
+  reality-opts:
+    public-key: ubqbzlUSWfyv06LAWTMXO42BNASlhq74aDtEwlfPwSk
+    short-id: b099f007
+    support-x25519mlkem768: true
+  server: localhost
+  servername: www.microsoft.com
+  tls: true
+  type: vless
+  udp: true
+  uuid: 2a53a55b-c119-42e7-948c-7ba5cf9cb280
+- alterId: 0
+  cipher: auto
+  name: Mihomet VMess WS
+  network: ws
+  port: 10011
+  server: localhost
+  tls: false
+  type: vmess
+  udp: true
+  uuid: 0a8da6d9-a1bc-4679-9635-0296839dcb40
+  ws-opts:
+    path: /ws
+- cipher: 2022-blake3-aes-128-gcm
+  name: Mihomet SS2022
+  network: tcp
+  password: A6beDiWfjeiG/v48qQ1IZw==:pwPJQHEVtilCyqP79n1kpg==
+  port: 10012
+  server: localhost
+  tls: false
+  type: ss
+  udp: true
+- grpc-opts:
+    grpc-service-name: GunService
+  name: Mihomet Trojan gRPC
+  network: grpc
+  password: 290d4db1f0f1f3f7b87072f86bbf02f7
+  port: 10013
+  server: localhost
+  tls: false
+  type: trojan
+  udp: true
+proxy-groups:
+- name: PROXY
+  proxies:
+  - Mihomet VLESS Reality-MihometTest1
+  - Mihomet VMess WS
+  - Mihomet SS2022
+  - Mihomet Trojan gRPC
+  - DIRECT
+  type: select
+rules:
+- MATCH,PROXY
