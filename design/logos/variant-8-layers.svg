@@ -1,18 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Variant 8 "Layers": isometric M stack — three tunnel planes in depth -->
-  <rect width="512" height="512" rx="115" fill="#17131F"/>
-  <!-- back plane (dim) -->
-  <path d="M164 210 L216 150 L256 246 L296 150 L348 210"
-        fill="none" stroke="#8B5CF6" stroke-opacity="0.35" stroke-width="24"
+  <!-- Variant 8 "Layers" (neutral, large): isometric M stack in graphite/silver -->
+  <rect width="512" height="512" rx="115" fill="#17171A"/>
+  <!-- back plane (dim graphite) -->
+  <path d="M148 258 L196 128 L256 230 L316 128 L364 258"
+        fill="none" stroke="#52525E" stroke-width="30"
         stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- middle plane -->
-  <path d="M148 250 L204 184 L256 292 L308 184 L364 250"
-        fill="none" stroke="#A78BFA" stroke-opacity="0.7" stroke-width="26"
+  <!-- middle plane (silver) -->
+  <path d="M122 336 L190 148 L256 290 L322 148 L390 336"
+        fill="none" stroke="#9A9AA6" stroke-width="36"
         stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- front plane (bright) -->
-  <path d="M132 296 L192 220 L256 340 L320 220 L380 296"
-        fill="none" stroke="#DDD6FE" stroke-width="30"
+  <!-- front plane (near-white, largest) -->
+  <path d="M96 416 L184 168 L256 352 L328 168 L416 416"
+        fill="none" stroke="#ECECF2" stroke-width="42"
         stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="132" cy="296" r="22" fill="#2DD4BF"/>
-  <circle cx="380" cy="296" r="22" fill="#F472B6"/>
+  <!-- neutral endpoint nodes -->
+  <circle cx="96" cy="416" r="24" fill="#FFFFFF"/>
+  <circle cx="416" cy="416" r="24" fill="#A9A9B5"/>
 </svg>
