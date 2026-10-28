@@ -144,17 +144,139 @@ class ConfigGeneratorStrictTest {
         assertEquals("fake-ip", dns["enhanced-mode"])
 
         val proxyServerDns = dns["proxy-server-nameserver"] as List<String>
-        assertTrue("Must contain 77.88.8.8", proxyServerDns.contains("77.88.8.8"))
-        assertTrue("Must contain system", proxyServerDns.contains("system"))
+        assertEquals(
+            "proxy-server-nameserver must be only plain Russian resolvers",
+            listOf("77.88.8.8", "77.88.8.1"),
+            proxyServerDns
+        )
         assertFalse("Must not contain blocked 1.1.1.1", proxyServerDns.contains("1.1.1.1"))
+        assertFalse("Must not contain 8.8.8.8", proxyServerDns.contains("8.8.8.8"))
+        assertFalse("Must not contain encrypted upstreams", proxyServerDns.any { it.startsWith("https://") })
 
         val defaultDns = dns["default-nameserver"] as List<String>
-        assertTrue("Must contain 77.88.8.8", defaultDns.contains("77.88.8.8"))
+        assertEquals(
+            "default-nameserver must be exactly the Russian plain bootstrap",
+            listOf("77.88.8.8", "77.88.8.1"),
+            defaultDns
+        )
         assertFalse("Must not contain blocked 1.1.1.1", defaultDns.contains("1.1.1.1"))
 
         val sniffer = parsed["sniffer"] as Map<String, Any>
         assertEquals(true, sniffer["enable"])
         assertNotNull(sniffer["sniff"])
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test default nameserver is plain russian resolver when custom dns is empty`() {
+        val settings = AppSettings(customDns = "")
+        val configYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = sampleProfile,
+            settings = settings,
+            tunFd = null
+        )
+
+        val yaml = Yaml()
+        val parsed = yaml.load<Map<String, Any>>(configYaml)
+
+        val dns = parsed["dns"] as Map<String, Any>
+        assertEquals(
+            "Empty customDns must yield the plain Russian default only",
+            listOf("77.88.8.8"),
+            dns["nameserver"]
+        )
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test global encrypted dns choice keeps fallback russian resolver second`() {
+        val globalDoh = "https://dns.google/dns-query"
+        val settings = AppSettings(customDns = globalDoh)
+        val configYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = sampleProfile,
+            settings = settings,
+            tunFd = null
+        )
+
+        val yaml = Yaml()
+        val parsed = yaml.load<Map<String, Any>>(configYaml)
+
+        val dns = parsed["dns"] as Map<String, Any>
+        val nameserver = dns["nameserver"] as List<String>
+        assertEquals(
+            "GLOBAL DoH must be first with plain Russian fallback second",
+            listOf(globalDoh, "77.88.8.8"),
+            nameserver
+        )
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test russian encrypted dns choice is used alone without global fallback`() {
+        val ruDoh = "https://dns.comss.one/dns-query"
+        val settings = AppSettings(customDns = ruDoh)
+        val configYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = sampleProfile,
+            settings = settings,
+            tunFd = null
+        )
+
+        val yaml = Yaml()
+        val parsed = yaml.load<Map<String, Any>>(configYaml)
+
+        val dns = parsed["dns"] as Map<String, Any>
+        assertEquals(
+            "ENCRYPTED_RU choice must be the only nameserver",
+            listOf(ruDoh),
+            dns["nameserver"]
+        )
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test plain russian dns choice is used alone`() {
+        val settings = AppSettings(customDns = "77.88.8.1")
+        val configYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = sampleProfile,
+            settings = settings,
+            tunFd = null
+        )
+
+        val yaml = Yaml()
+        val parsed = yaml.load<Map<String, Any>>(configYaml)
+
+        val dns = parsed["dns"] as Map<String, Any>
+        assertEquals(
+            "PLAINTEXT_RU choice must be the only nameserver",
+            listOf("77.88.8.1"),
+            dns["nameserver"]
+        )
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test bootstrap and proxy-server-nameserver never contain global doh regardless of custom dns`() {
+        val settings = AppSettings(customDns = "https://dns.quad9.net/dns-query")
+        val configYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = sampleProfile,
+            settings = settings,
+            tunFd = null
+        )
+
+        val yaml = Yaml()
+        val parsed = yaml.load<Map<String, Any>>(configYaml)
+
+        val dns = parsed["dns"] as Map<String, Any>
+        assertEquals(
+            "default-nameserver must always be the plain bootstrap",
+            listOf("77.88.8.8", "77.88.8.1"),
+            dns["default-nameserver"]
+        )
+        assertEquals(
+            "proxy-server-nameserver must never contain GLOBAL/DoH entries",
+            listOf("77.88.8.8", "77.88.8.1"),
+            dns["proxy-server-nameserver"]
+        )
     }
 
     @Test
@@ -175,5 +297,7 @@ class ConfigGeneratorStrictTest {
         val nameserver = dns["nameserver"] as List<String>
         assertTrue("Nameserver must not be empty", nameserver.isNotEmpty())
         assertEquals("Custom DNS must be the first (highest priority) nameserver", customDnsUrl, nameserver[0])
+        // AdGuard is classified GLOBAL: plain Russian fallback must follow as second entry.
+        assertEquals("GLOBAL preset must keep the plain Russian fallback second", "77.88.8.8", nameserver[1])
     }
 }

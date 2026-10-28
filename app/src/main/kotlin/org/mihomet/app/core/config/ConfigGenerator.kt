@@ -1,6 +1,8 @@
 package org.mihomet.app.core.config
 
 import org.mihomet.app.core.CoreConstants
+import org.mihomet.app.core.dns.DnsCategory
+import org.mihomet.app.core.dns.DnsPresets
 import org.mihomet.app.data.preferences.AppSettings
 import org.yaml.snakeyaml.DumperOptions
 import org.yaml.snakeyaml.Yaml
@@ -53,40 +55,35 @@ object ConfigGenerator {
             existingDns["enhanced-mode"] = "fake-ip"
             existingDns["fake-ip-range"] = "198.18.0.1/16"
         }
-        // 1. Direct bootstrap DNS: Used exclusively to resolve DoH hostnames and proxy server hostnames.
-        // MUST NEVER contain 1.1.1.1 or 8.8.8.8 over plain UDP 53 because Russian TSPU blocks them!
-        // Yandex DNS (77.88.8.8 / 77.88.8.1) and system (local Wi-Fi / mobile carrier) are 100% accessible.
-        val unblockedBootstrap = listOf("77.88.8.8", "77.88.8.1", "system")
+        // 1. default-nameserver: Bootstrap used by Mihomo to resolve the hostnames of
+        //    encrypted (DoH/DoT) upstream endpoints. MUST be plain direct IPs reachable
+        //    from Russia — foreign plain DNS (1.1.1.1 / 8.8.8.8) is blocked by TSPU.
+        existingDns["default-nameserver"] = DnsPresets.BOOTSTRAP_RU_PLAIN
 
-        // 2. default-nameserver: Used by Mihomo to bootstrap DNS servers. Must only be reachable direct IPs / system.
-        existingDns["default-nameserver"] = unblockedBootstrap
+        // 2. proxy-server-nameserver: Resolves proxy server hostnames (e.g. lv-*.meow.ac)
+        //    directly from Russia. Encryption is pointless here (proxy traffic is already
+        //    encrypted) and foreign encrypted resolvers are blocked by TSPU — so only the
+        //    plain Russian resolvers are used. Without this, Mihomo falls back to
+        //    default-nameserver or nameserver.
+        existingDns["proxy-server-nameserver"] = DnsPresets.byCategory(DnsCategory.PLAINTEXT_RU).map { it.uri }
 
-        // 3. proxy-server-nameserver: The CRITICAL setting Mihomo uses to resolve proxy server hostnames (e.g. lv-*.meow.ac).
-        // Without this, Mihomo falls back to default-nameserver or nameserver.
-        existingDns["proxy-server-nameserver"] = unblockedBootstrap
+        // 3. direct-nameserver: Used for direct connections (bootstrap + system resolver).
+        existingDns["direct-nameserver"] = DnsPresets.BOOTSTRAP_RU_PLAIN + "system"
 
-        // 4. direct-nameserver: Used for direct connections.
-        existingDns["direct-nameserver"] = unblockedBootstrap
-
-        // 5. nameserver: Used for routed app traffic.
-        // If user defined a custom DNS (e.g. AdGuard, NextDNS, custom DoH or IP), place it at top priority.
+        // 4. nameserver: Used for routed app traffic — follows the user's choice.
+        //    - Empty choice → plain Yandex DNS (reachable from Russia by default).
+        //    - GLOBAL category (Cloudflare/Google/Quad9/AdGuard DoH) → user URI first,
+        //      plus a plain Russian resolver SECOND: Mihomo queries nameservers
+        //      concurrently, so when the global DoH endpoint is unreachable from
+        //      Russia, the plain resolver answers instead of DNS breaking entirely,
+        //      while the user's choice keeps top priority when it does respond.
+        //    - RU plaintext/encrypted presets and fully custom servers → as-is.
         val customDns = settings.customDns.trim()
-        val customList = if (customDns.isNotBlank()) listOf(customDns) else emptyList()
-
-        // Use Encrypted DNS over HTTPS (DoH) which works everywhere and bypasses ISP censorship,
-        // plus Yandex fallback. Remove plain UDP 1.1.1.1 / 8.8.8.8 / 114.114.114.114.
-        val userNameserver = (existingDns["nameserver"] as? List<*>)
-            ?.mapNotNull { it?.toString() }
-            ?.filter { it != "1.1.1.1" && it != "1.0.0.1" && it != "8.8.8.8" && it != "8.8.4.4" && it != "114.114.114.114" }
-            ?: emptyList()
-
-        val primaryDoH = listOf(
-            "https://77.88.8.8/dns-query",
-            "https://1.1.1.1/dns-query",
-            "https://dns.google/dns-query",
-            "77.88.8.8"
-        )
-        existingDns["nameserver"] = (customList + primaryDoH + userNameserver).distinct()
+        existingDns["nameserver"] = when (DnsPresets.categoryOf(customDns)) {
+            null -> if (customDns.isBlank()) DnsPresets.DEFAULT_NAMESERVER else listOf(customDns)
+            DnsCategory.GLOBAL -> listOf(customDns) + DnsPresets.DEFAULT_NAMESERVER
+            else -> listOf(customDns)
+        }
         configMap["dns"] = existingDns
 
         // Sniffer for domain restoration on TLS/HTTP

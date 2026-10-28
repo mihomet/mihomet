@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.R
+import org.mihomet.app.core.dns.DnsCategory
+import org.mihomet.app.core.dns.DnsPresets
 import org.mihomet.app.data.preferences.ProxyMode
 import org.mihomet.app.ui.theme.*
 
@@ -501,15 +503,10 @@ fun SettingsScreen(
                                 ) {
                                     Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                         Text(stringResource(R.string.settings_dns), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                        val dnsSubtitle = when {
-                                            settings.customDns.isBlank() -> stringResource(R.string.settings_dns_default)
-                                            settings.customDns == "https://dns.adguard-dns.com/dns-query" -> stringResource(R.string.settings_dns_adguard)
-                                            settings.customDns == "https://cloudflare-dns.com/dns-query" -> stringResource(R.string.settings_dns_cloudflare)
-                                            settings.customDns == "https://dns.google/dns-query" -> stringResource(R.string.settings_dns_google)
-                                            settings.customDns == "https://common.dot.dns.yandex.net/dns-query" -> stringResource(R.string.settings_dns_yandex)
-                                            settings.customDns == "https://dns.comss.one/dns-query" -> stringResource(R.string.settings_dns_comss)
-                                            settings.customDns == "https://dns.quad9.net/dns-query" -> stringResource(R.string.settings_dns_quad9)
-                                            else -> settings.customDns
+                                        val dnsSubtitle = if (settings.customDns.isBlank()) {
+                                            stringResource(R.string.settings_dns_default)
+                                        } else {
+                                            DnsPresetDisplayName(settings.customDns)
                                         }
                                         Text(
                                             dnsSubtitle,
@@ -1040,16 +1037,6 @@ fun CustomDnsDialog(
     val clipboardManager = LocalClipboardManager.current
     val scrollState = rememberScrollState()
 
-    val presets = listOf(
-        stringResource(R.string.dns_preset_default) to "",
-        stringResource(R.string.dns_preset_adguard) to "https://dns.adguard-dns.com/dns-query",
-        stringResource(R.string.dns_preset_cloudflare) to "https://cloudflare-dns.com/dns-query",
-        stringResource(R.string.dns_preset_google) to "https://dns.google/dns-query",
-        stringResource(R.string.dns_preset_yandex) to "https://common.dot.dns.yandex.net/dns-query",
-        stringResource(R.string.dns_preset_comss) to "https://dns.comss.one/dns-query",
-        stringResource(R.string.dns_preset_quad9) to "https://dns.quad9.net/dns-query"
-    )
-
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -1111,69 +1098,26 @@ fun CustomDnsDialog(
                     modifier = Modifier.padding(top = 4.dp)
                 )
 
-                presets.forEach { (name, url) ->
-                    val isSelected = (dnsInput.trim() == url)
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(ExpressiveShapes.Small)
-                            .clickable { dnsInput = url },
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f)
-                        },
-                        shape = ExpressiveShapes.Small,
-                        border = if (isSelected) {
-                            BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
-                        } else null
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                Text(
-                                    text = name,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                    fontSize = 13.sp,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                                )
-                                if (url.isNotBlank()) {
-                                    Text(
-                                        text = url,
-                                        fontSize = 11.sp,
-                                        color = if (isSelected) {
-                                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                        maxLines = 1
-                                    )
-                                } else {
-                                    Text(
-                                        text = stringResource(R.string.settings_dns_default_desc),
-                                        fontSize = 11.sp,
-                                        color = if (isSelected) {
-                                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        }
-                                    )
-                                }
-                            }
+                // Default choice: built-in smart resolver pool, no category badge.
+                DnsPresetRow(
+                    name = stringResource(R.string.dns_preset_default),
+                    url = "",
+                    isSelected = dnsInput.isBlank(),
+                    onSelect = { dnsInput = "" }
+                )
 
-                            if (isSelected) {
-                                Icon(
-                                    Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+                // Presets grouped by reachability category, each group with a colored badge.
+                DnsCategory.entries.forEach { category ->
+                    val categoryPresets = DnsPresets.byCategory(category)
+                    if (categoryPresets.isNotEmpty()) {
+                        DnsCategoryBadge(category)
+                        categoryPresets.forEach { preset ->
+                            DnsPresetRow(
+                                name = DnsPresetDisplayName(preset.uri),
+                                url = preset.uri,
+                                isSelected = dnsInput.trim() == preset.uri,
+                                onSelect = { dnsInput = preset.uri }
+                            )
                         }
                     }
                 }
@@ -1193,4 +1137,117 @@ fun CustomDnsDialog(
             }
         }
     )
+}
+
+/** One selectable DNS preset row inside [CustomDnsDialog]. */
+@Composable
+private fun DnsPresetRow(
+    name: String,
+    url: String,
+    isSelected: Boolean,
+    onSelect: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(ExpressiveShapes.Small)
+            .clickable { onSelect() },
+        color = if (isSelected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f)
+        },
+        shape = ExpressiveShapes.Small,
+        border = if (isSelected) {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+        } else null
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                Text(
+                    text = name,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                )
+                if (url.isNotBlank()) {
+                    Text(
+                        text = url,
+                        fontSize = 11.sp,
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        maxLines = 1
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.settings_dns_default_desc),
+                        fontSize = 11.sp,
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
+            }
+
+            if (isSelected) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+/** Colored reachability badge shown above each preset group in [CustomDnsDialog]. */
+@Composable
+private fun DnsCategoryBadge(category: DnsCategory) {
+    val color = when (category) {
+        // Brand accents: teal = plain, violet = encrypted RU, amber = caution (global).
+        DnsCategory.PLAINTEXT_RU -> Color(0xFF2DD4BF)
+        DnsCategory.ENCRYPTED_RU -> PrimaryViolet
+        DnsCategory.GLOBAL -> AccentOrange
+    }
+    Surface(
+        shape = ExpressiveShapes.Pill,
+        color = color.copy(alpha = 0.15f)
+    ) {
+        Text(
+            text = stringResource(category.labelRes),
+            color = color,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+        )
+    }
+}
+
+/** Human-readable preset name for a saved DNS URI; falls back to the raw URI for custom servers. */
+@Composable
+fun DnsPresetDisplayName(uri: String): String {
+    val preset = DnsPresets.ALL.firstOrNull { it.uri == uri.trim() } ?: return uri
+    return when (preset.id) {
+        "yandex_plain_1", "yandex_plain_2" -> stringResource(R.string.dns_preset_yandex_plain)
+        "yandex_doh" -> stringResource(R.string.dns_preset_yandex)
+        "comss_doh" -> stringResource(R.string.dns_preset_comss)
+        "adguard_doh" -> stringResource(R.string.dns_preset_adguard)
+        "cloudflare_doh_ip" -> stringResource(R.string.dns_preset_cloudflare_ip)
+        "cloudflare_doh" -> stringResource(R.string.dns_preset_cloudflare)
+        "google_doh" -> stringResource(R.string.dns_preset_google)
+        "quad9_doh" -> stringResource(R.string.dns_preset_quad9)
+        else -> preset.uri
+    }
 }

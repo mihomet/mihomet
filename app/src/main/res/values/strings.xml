@@ -205,12 +205,17 @@
     <string name="settings_dns_presets_title">Popular presets:</string>
     <string name="settings_dns_default_desc">Built-in fast DoH pool with blocking protection</string>
     <string name="dns_preset_default">Default (Smart DoH)</string>
+    <string name="dns_preset_yandex_plain">Yandex DNS (plain)</string>
     <string name="dns_preset_adguard">AdGuard DNS (Ad blocking)</string>
     <string name="dns_preset_cloudflare">Cloudflare DoH</string>
+    <string name="dns_preset_cloudflare_ip">Cloudflare DoH (1.1.1.1)</string>
     <string name="dns_preset_google">Google DoH</string>
     <string name="dns_preset_yandex">Yandex DoH (Russia)</string>
     <string name="dns_preset_comss">Comss.one DoH</string>
     <string name="dns_preset_quad9">Quad9 DoH (Security)</string>
+    <string name="dns_category_plaintext_ru">Works in Russia</string>
+    <string name="dns_category_encrypted_ru">Encrypted, works in Russia</string>
+    <string name="dns_category_global">Encrypted, may not work directly from Russia</string>
     <string name="settings_update_available">New version available: %1$s</string>
     <string name="settings_update_up_to_date">You already have the latest core version (%1$s)</string>
     <string name="settings_check_error">Check error: %1$s</string>

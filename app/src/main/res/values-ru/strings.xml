@@ -207,12 +207,17 @@
     <string name="settings_dns_presets_title">Популярные пресеты:</string>
     <string name="settings_dns_default_desc">Встроенный быстрый DoH пул с защитой от блокировок</string>
     <string name="dns_preset_default">По умолчанию (Smart DoH)</string>
+    <string name="dns_preset_yandex_plain">Яндекс DNS (без шифрования)</string>
     <string name="dns_preset_adguard">AdGuard DNS (Антиреклама)</string>
     <string name="dns_preset_cloudflare">Cloudflare DoH</string>
+    <string name="dns_preset_cloudflare_ip">Cloudflare DoH (1.1.1.1)</string>
     <string name="dns_preset_google">Google DoH</string>
     <string name="dns_preset_yandex">Яндекс DoH (Россия)</string>
     <string name="dns_preset_comss">Comss.one DoH</string>
     <string name="dns_preset_quad9">Quad9 DoH (Безопасность)</string>
+    <string name="dns_category_plaintext_ru">Работает в РФ</string>
+    <string name="dns_category_encrypted_ru">Зашифрованный, работает в РФ</string>
+    <string name="dns_category_global">Зашифрованный, из РФ напрямую может не работать</string>
     <string name="settings_update_available">Доступна новая версия: %1$s</string>
     <string name="settings_update_up_to_date">У вас установлена актуальная версия ядра (%1$s)</string>
     <string name="settings_check_error">Ошибка проверки: %1$s</string>
