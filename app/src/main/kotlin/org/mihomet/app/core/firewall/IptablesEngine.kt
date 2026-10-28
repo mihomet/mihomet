@@ -24,7 +24,12 @@ class IptablesEngine : FirewallEngine {
         cmds.add("[ -z \"\$DEFAULT_TABLE\" ] && DEFAULT_TABLE=\"wlan0\"")
 
         // 2. IP routing rules
-        // Critical: Route Mihomo core traffic (fwmark 666) to physical network interface table
+        // Critical: Route Mihomo core traffic (fwmark 666) to physical network interface table.
+        // First purge stale fwmark rules from previous sessions: a rule pointing at a dead
+        // network (e.g. mobile data when the phone is now on Wi-Fi) blackholes every core
+        // DNS query ("dns resolve failed: context deadline exceeded"). Deleting by pref is
+        // safe — pref 100 is reserved for our fwmark rules only.
+        cmds.add("while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done")
         cmds.add("ip rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup \$DEFAULT_TABLE pref ${CoreConstants.POLICY_RULE_PREF_MAIN}")
         // Route marked packets to local loopback table 2025
         cmds.add("ip rule add fwmark ${CoreConstants.TPROXY_MARK_IPV4} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL}")
@@ -115,8 +120,10 @@ class IptablesEngine : FirewallEngine {
             "DEFAULT_TABLE=\$(ip rule show | grep -E '^31000:' | awk '{print \$NF}'); " +
             "[ -z \"\$DEFAULT_TABLE\" ] && DEFAULT_TABLE=\$(ip route show table main | grep default | awk '{print \$5}'); " +
             "[ -z \"\$DEFAULT_TABLE\" ] && DEFAULT_TABLE=\"wlan0\"; " +
-            "ip rule del fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup \$DEFAULT_TABLE pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null || true; " +
-            "ip -6 rule del fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup \$DEFAULT_TABLE pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null || true",
+            // Purge ALL fwmark-666 rules, not just the one for the current default table —
+            // rules left over from a session on another network would otherwise linger forever
+            "while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done; " +
+            "while ip -6 rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done; ",
             "iptables -t mangle -D OUTPUT -p tcp -j MIHOMET_OUTPUT 2>/dev/null || true",
             "iptables -t mangle -D OUTPUT -p udp -j MIHOMET_OUTPUT 2>/dev/null || true",
             "iptables -t mangle -D PREROUTING -p tcp -j MIHOMET_PREROUTING 2>/dev/null || true",

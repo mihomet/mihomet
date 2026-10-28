@@ -21,6 +21,9 @@ class NftablesEngine : FirewallEngine {
             "DEFAULT_TABLE=\$(ip rule show | grep -E '^31000:' | awk '{print \$NF}'); " +
             "[ -z \"\$DEFAULT_TABLE\" ] && DEFAULT_TABLE=\$(ip route show table main | grep default | awk '{print \$5}'); " +
             "[ -z \"\$DEFAULT_TABLE\" ] && DEFAULT_TABLE=\"wlan0\"; " +
+            // Purge stale fwmark-666 rules from previous sessions on other networks —
+            // a rule pointing at a dead network blackholes every core DNS query
+            "while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done; " +
             "ip rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup \$DEFAULT_TABLE pref ${CoreConstants.POLICY_RULE_PREF_MAIN}; " +
             "ip rule add fwmark ${CoreConstants.TPROXY_MARK_IPV4} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL}; " +
             "ip route add local 0.0.0.0/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE}; " +
@@ -28,6 +31,7 @@ class NftablesEngine : FirewallEngine {
             "echo 2 > /proc/sys/net/ipv4/conf/all/rp_filter 2>/dev/null || true; " +
             "echo 2 > /proc/sys/net/ipv4/conf/default/rp_filter 2>/dev/null || true; " +
             if (ipv6Enabled) {
+                "while ip -6 rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done; " +
                 "ip -6 rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup \$DEFAULT_TABLE pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null || true; " +
                 "ip -6 rule add fwmark ${CoreConstants.TPROXY_MARK_IPV6} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL} 2>/dev/null || true; " +
                 "ip -6 route add local ::/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE} 2>/dev/null || true"
@@ -108,8 +112,9 @@ class NftablesEngine : FirewallEngine {
             "DEFAULT_TABLE=\$(ip rule show | grep -E '^31000:' | awk '{print \$NF}'); " +
             "[ -z \"\$DEFAULT_TABLE\" ] && DEFAULT_TABLE=\$(ip route show table main | grep default | awk '{print \$5}'); " +
             "[ -z \"\$DEFAULT_TABLE\" ] && DEFAULT_TABLE=\"wlan0\"; " +
-            "ip rule del fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup \$DEFAULT_TABLE pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null || true; " +
-            "ip -6 rule del fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup \$DEFAULT_TABLE pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null || true",
+            // Purge ALL fwmark-666 rules — stale ones from sessions on other networks linger forever
+            "while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done; " +
+            "while ip -6 rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done; ",
             "nft delete table inet mihomet 2>/dev/null || true",
             "ip rule del fwmark ${CoreConstants.TPROXY_MARK_IPV4} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL} 2>/dev/null || true",
             "ip route del local default dev lo table ${CoreConstants.POLICY_ROUTING_TABLE} 2>/dev/null || true",
