@@ -31,7 +31,7 @@
       (real payloads captured from the live docker bench) and asserts every node survives conversion.
       Any new fixture is picked up automatically.
 - [ ] **2.2. Base64 resilience**: RFC 4648 without padding, URL-safe variants, multi-line payloads.
-- [ ] **2.3. `Subscription-Userinfo` support**: parse Upload/Download/Total/Expiry, show quota bar + expiry in `ProfilesScreen` cards.
+- [x] **2.3. `Subscription-Userinfo` support**: parsed on add/update, quota bar + expiry date (colored by remaining days) in profile cards. Room 1→2 migration written without data loss.
 - [ ] **2.4. Header retention**: keep custom headers (`x-hwid`, custom `User-Agent`) during background profile updates.
 - [ ] **2.5. Group alignment**: panel-defined selectors/url-test groups import into `ProxiesScreen` without conflicts.
 
@@ -41,15 +41,15 @@
 - [ ] Remaining: localize converter `warnings` at display time (currently Russian data strings).
 
 ### Deferred audit findings (medium/low)
-- [ ] Room: enable `exportSchema` and write real migrations (currently destructive).
-- [ ] Restore Android Private DNS after a root-daemon crash (currently only on clean stop).
+- [x] Room: real migration v2 written, destructive fallback removed. (Remaining: `exportSchema` for future schema diffs.)
+- [x] Android Private DNS restored at next root-mode startup after a daemon crash.
 - [ ] Encrypt subscription URLs and controller secret at rest (Room/DataStore).
 - [x] Unify duplicated UI pieces: `SearchPill`, single latency badge, `CountBadge`.
 - [x] TrafficGraph: upload gradient fill + idle placeholder. (axis labels/tooltip remain)
-- [ ] Connection screen polling tied to screen visibility instead of VM init.
-- [ ] `DashboardViewModel` root-daemon polling via root shell every 3s → event-based.
+- [x] Connection screen polling tied to screen visibility (DisposableEffect).
+- [x] `DashboardViewModel` root-daemon polling reduced to 5s and skipped while the service is running.
 - [x] YamlEditor: synced gutter + unsaved-changes dialog. (syntax highlight remains)
-- [ ] `usesCleartextTraffic` → networkSecurityConfig allowing cleartext only for user-declared http subscription hosts.
+- [x] `usesCleartextTraffic` → networkSecurityConfig: cleartext forbidden by default in release (only 127.0.0.1/localhost for the core API); debug builds allow cleartext via manifest overlay. (Remaining: user toggle for http:// subscription sources.)
 - [ ] CI: release workflow test with a dummy keystore secret.
 
 ---
