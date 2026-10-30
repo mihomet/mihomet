@@ -105,13 +105,37 @@ class SettingsRepository(private val context: Context) {
     @Volatile
     private var decryptedSecretCache: Pair<String, String>? = null
 
-    private fun decryptControllerSecret(stored: String): String {
+    /**
+     * Returns the decrypted controller secret, or `null` when the stored value
+     * carries the encrypted marker but cannot be decrypted (Keystore key
+     * replaced or lost). `null` means the caller must regenerate — the
+     * controller secret is app-internal, so a fresh value is always safe.
+     */
+    private fun decryptControllerSecret(stored: String): String? {
         decryptedSecretCache?.let { (encrypted, plain) ->
             if (encrypted == stored) return plain
         }
-        val plain = SecretsCipher.decrypt(stored)
-        decryptedSecretCache = stored to plain
-        return plain
+        return try {
+            val plain = SecretsCipher.decrypt(stored)
+            decryptedSecretCache = stored to plain
+            plain
+        } catch (e: SecretsCipher.SecretDecryptException) {
+            null
+        }
+    }
+
+    private suspend fun regenerateControllerSecret(): String {
+        return secretMutex.withLock {
+            cachedSecret?.let { return it }
+            val generated = CoreConstants.generateRandomHexSecret()
+            val encrypted = SecretsCipher.encrypt(generated)
+            context.dataStore.edit { preferences ->
+                // Overwrite unconditionally: an undecryptable value is garbage
+                preferences[PreferencesKeys.CONTROLLER_SECRET] = encrypted
+            }
+            cachedSecret = generated
+            generated
+        }
     }
 
     /**
@@ -125,6 +149,12 @@ class SettingsRepository(private val context: Context) {
     private suspend fun resolveControllerSecret(stored: String?): String {
         stored?.takeIf { it.isNotBlank() }?.let { existing ->
             val plain = decryptControllerSecret(existing)
+                ?: run {
+                    // Undecryptable (key replaced or lost): the controller secret is
+                    // app-internal — regenerate a fresh one instead of surfacing garbage
+                    android.util.Log.w("SettingsRepository", "Controller secret undecryptable; regenerating")
+                    return regenerateControllerSecret()
+                }
             // One-time legacy migration: a pre-encryption plaintext secret is
             // re-persisted encrypted (no-op when the Keystore is unavailable —
             // the facade passthrough then never yields the marker).
@@ -146,9 +176,8 @@ class SettingsRepository(private val context: Context) {
             val generated = CoreConstants.generateRandomHexSecret()
             val encrypted = SecretsCipher.encrypt(generated)
             context.dataStore.edit { preferences ->
-                if (preferences[PreferencesKeys.CONTROLLER_SECRET].isNullOrBlank()) {
-                    preferences[PreferencesKeys.CONTROLLER_SECRET] = encrypted
-                }
+                // Overwrite unconditionally: an undecryptable value is garbage
+                preferences[PreferencesKeys.CONTROLLER_SECRET] = encrypted
             }
             cachedSecret = generated
             generated
