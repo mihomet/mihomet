@@ -30,6 +30,7 @@ import org.mihomet.app.core.config.ConfigGenerator
 import org.mihomet.app.core.firewall.FirewallManager
 import org.mihomet.app.data.db.ProfileDao
 import org.mihomet.app.data.preferences.SettingsRepository
+import org.mihomet.app.service.MihometWidgetProvider
 import org.mihomet.app.ui.MainActivity
 import java.io.File
 
@@ -197,6 +198,8 @@ class RootTProxyService : Service(), KoinComponent {
             ).getOrThrow()
 
             ServiceState.setRunning(org.mihomet.app.core.RunningService.ROOT)
+            // Refresh home screen widgets (RemoteViews cannot observe the state flow).
+            MihometWidgetProvider.updateAll(this@RootTProxyService)
             // Persist the mode as the autostart signal: the BootReceiver starts this
             // service on the next boot only when the daemon + firewall have started
             // successfully before (settings.autoStartOnBoot gates the feature).
@@ -265,6 +268,8 @@ class RootTProxyService : Service(), KoinComponent {
             android.util.Log.e("RootTProxyService", "Root proxy teardown failed", e)
         } finally {
             ServiceState.stopService(org.mihomet.app.core.RunningService.ROOT)
+            // Refresh home screen widgets after the state flip.
+            MihometWidgetProvider.updateAll(this@RootTProxyService)
             // Release awaiters even when the teardown failed: they proceed with a
             // best-effort torn-down state instead of blocking until a timeout.
             completion?.complete(Unit)

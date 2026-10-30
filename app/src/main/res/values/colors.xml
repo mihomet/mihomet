@@ -1,3 +1,9 @@
 <resources>
     <color name="ic_launcher_background">#17171A</color>
+
+    <!-- Home screen widget -->
+    <color name="widget_background">#17171A</color>
+    <color name="widget_status_on">#2DD4BF</color>
+    <color name="widget_status_off">#9E9E9E</color>
+    <color name="widget_mode_text">#8A8A8E</color>
 </resources>

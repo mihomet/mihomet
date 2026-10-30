@@ -41,6 +41,7 @@ import org.mihomet.app.core.ServiceState
 import org.mihomet.app.core.config.ConfigGenerator
 import org.mihomet.app.data.db.ProfileDao
 import org.mihomet.app.data.preferences.SettingsRepository
+import org.mihomet.app.service.MihometWidgetProvider
 import org.mihomet.app.ui.MainActivity
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -513,6 +514,8 @@ class MihometVpnService : VpnService(), KoinComponent {
 
             android.util.Log.d("MihometVpn", "Core ready — setting ServiceState.setRunning(VPN)")
             ServiceState.setRunning(org.mihomet.app.core.RunningService.VPN)
+            // Refresh home screen widgets (RemoteViews cannot observe the state flow).
+            MihometWidgetProvider.updateAll(this@MihometVpnService)
             // Persist the mode as the autostart signal: the BootReceiver starts this
             // service on the next boot only when the VPN has started successfully
             // before (settings.autoStartOnBoot gates the feature). Best-effort.
@@ -648,6 +651,8 @@ class MihometVpnService : VpnService(), KoinComponent {
 
     private fun cleanupVpnResources() {
         ServiceState.stopService(org.mihomet.app.core.RunningService.VPN)
+        // Refresh home screen widgets — every teardown path goes through here.
+        MihometWidgetProvider.updateAll(this@MihometVpnService)
         mihomoProcess?.let { proc ->
             proc.destroy()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
