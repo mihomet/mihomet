@@ -48,7 +48,10 @@
    tools/mihomo-android-nonroot.patch @ v0.2.5) — core-patch/ в репозитории,
    GPL-3.0 совместим. VERIFIED on API 35 emulator (non-root): TUN adapter up
    (no packages.xml error), real app traffic routed via the selected proxy node
-   (mihomo.log: [TCP] … match Match using → Remnawave[🇫🇷]).
+   (mihomo.log: [TCP] … match Match using → Remnawave[🇫🇷]). Audit tails closed:
+   readiness-gate before 'connected', watchdog stability reset, mode-switch
+   serialization + root-firewall cleanup on VPN start, updater rollback guard,
+   empty-whitelist semantics + own-package loop guard, YAML highlighting.
 3. ✅ Honest UA `Mihomet/<ver>` + `x-hwid` + profile-title / New-Url
 4. ✅ Builder: `setBlocking(false)`, `setMetered(false)`, `setConfigureIntent`
 5. ✅ `FOREGROUND_SERVICE_IMMEDIATE` + core watchdog (auto-restart ×3) + Always-on (null-intent restart, onRevoke) + root-daemon watchdog (10s monitor, backoff ×3) + автообновление подписок по update-interval (WorkManager)
