@@ -2,7 +2,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
 import java.util.Properties
-import java.util.zip.GZIPInputStream
 
 plugins {
     alias(libs.plugins.android.application)
@@ -18,7 +17,7 @@ val coreProperties = Properties().apply {
     val file = rootProject.file("gradle/mihomo-core.properties")
     if (file.exists()) file.inputStream().use { load(it) }
 }
-val coreVersion = coreProperties.getProperty("version") ?: "1.19.33"
+val coreVersion = coreProperties.getProperty("version") ?: "core-v1.19.33-mihomet.1"
 val coreCacheDir = rootProject.layout.projectDirectory.dir(".mihomo-core-cache")
 
 val downloadMihomoCore by tasks.registering {
@@ -56,33 +55,29 @@ val downloadMihomoCore by tasks.registering {
             }
         }
 
-        // Core binary: pinned release, verified by sha256 of the .gz artifact
-        val flavorByAbi = mapOf(
-            "arm64-v8a" to "arm64-v8",
-            "armeabi-v7a" to "armv7",
-            "x86_64" to "amd64"
-        )
-        flavorByAbi.forEach { (abi, flavor) ->
+        // Core binary: Mihomet patched core (mihomo v1.19.33 + non-root TUN fix,
+        // see core-patch/mihomo-android-nonroot.patch, built by core-build/build-core.sh).
+        // Published as raw (non-gzip) libmihomo-<abi>.so on the mihomet GitHub release,
+        // verified by sha256 of the .so itself.
+        listOf("arm64-v8a", "armeabi-v7a", "x86_64").forEach { abi ->
             val target = layout.projectDirectory.file("src/main/jniLibs/$abi/libmihomo.so").asFile
             val expectedSize = coreProperties.getProperty("size.$abi")?.toLongOrNull()
             if (target.isFile && expectedSize != null && target.length() == expectedSize) {
                 return@forEach
             }
-            val gz = coreCacheDir.file("mihomo-android-$flavor-v$coreVersion.gz").asFile
+            val so = coreCacheDir.file("libmihomo-$abi-$coreVersion.so").asFile
             val expectedSha = coreProperties.getProperty("checksum.$abi")
                 ?: throw GradleException("gradle/mihomo-core.properties is missing checksum.$abi")
-            if (!gz.isFile || !sha256(gz).equals(expectedSha, ignoreCase = true)) {
+            if (!so.isFile || !sha256(so).equals(expectedSha, ignoreCase = true)) {
                 download(
-                    "https://github.com/MetaCubeX/mihomo/releases/download/v$coreVersion/mihomo-android-$flavor-v$coreVersion.gz",
-                    gz,
+                    "https://github.com/mihomet/mihomet/releases/download/$coreVersion/libmihomo-$abi.so",
+                    so,
                     expectedSha
                 )
             }
             target.parentFile.mkdirs()
-            GZIPInputStream(gz.inputStream()).use { input ->
-                target.outputStream().use { input.copyTo(it) }
-            }
-            logger.lifecycle("Mihomet: extracted libmihomo.so ($abi) from core v$coreVersion")
+            so.copyTo(target, overwrite = true)
+            logger.lifecycle("Mihomet: installed libmihomo.so ($abi) from core $coreVersion")
         }
 
         // Geo databases: rolling latest, downloaded only when missing, sanity-checked by size.

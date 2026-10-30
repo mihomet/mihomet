@@ -27,3 +27,6 @@ keystore.properties
 app/src/main/jniLibs/*/libmihomo.so
 app/src/main/assets/geoip.metadb
 app/src/main/assets/geosite.dat
+
+# Core build outputs (produced by core-build/build-core.sh, published to GitHub Releases)
+core-build/dist/
