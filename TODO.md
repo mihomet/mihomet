@@ -20,6 +20,10 @@
 | subconverter | ⏸ skipped | legacy tool, rarely used by RU services in 2026; re-open on demand |
 | behavior-заголовки (subscription-autoconnect / per-app-proxy-mode+list / tun-mode) | Happ zero-touch | ✅ применяются при импорте/обновлении |
 | keyring-UI для crypto-ключей | Настройки → Продвинутые | ✅ |
+| Виджет рабочего стола + тумблер | ✅ MihometWidgetProvider |
+| Автостарт на загрузке (последний успешный режим) | ✅ BootReceiver + настройка |
+| TUN-настройки (stack/MTU/bypass-LAN по CMFA-паттерну) | ✅ Настройки → Продвинутые |
+| QR-код подписки + стриминг-лимит 20 МБ | ✅ zxing + поте чтение |
 | Deep-link импорт (happ/incy/clash/v2rayng/sing-box) | ✅ implemented | `core/DeepLinkParser.kt`, live-tested on emulator |
 | Управление по ссылкам (incy://connect|toggle, mihomet://) | ✅ implemented | MainActivity.handleControlLink |
 | Автообновление подписок (profile-update-interval) | ✅ implemented | WorkManager 6h, Room v3 |
