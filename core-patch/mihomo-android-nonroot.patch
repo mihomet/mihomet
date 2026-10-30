@@ -1,0 +1,55 @@
+# mihomo-android-nonroot.patch — Mihomet patched core (tag core-v1.19.33-mihomet.1)
+#
+# Target:   MetaCubeX/mihomo v1.19.33, file listener/sing_tun/server.go.
+#           Applies with `git apply` (verified against the v1.19.33 tag).
+#
+# Problem:  On stock, non-root Android the sing-tun package manager reads
+#           /data/system/packages.xml (sing-tun packages_android.go), which a
+#           regular app is not allowed to do. buildAndroidRules() therefore
+#           fails with "build android rules: read packages list: ... permission
+#           denied", New() aborts, the TUN interface is never created and no
+#           traffic flows — i.e. mihomet's non-root VPN mode is completely dead
+#           on the stock mihomo android build.
+#
+# Fix:      Treat a buildAndroidRules() failure as non-fatal ONLY when the tun
+#           options carry no include-package / exclude-package filters. Without
+#           those options the package list is merely a best-effort UID -> package
+#           map (used for PROCESS-NAME style matching); the TUN works fine
+#           without it, so we log a warning and continue. If filters ARE set,
+#           the error stays fatal: per-package UID rules cannot be built from an
+#           empty package list. The only error path of buildAndroidRules() on
+#           android (listener/sing_tun/server_android.go) is the package manager
+#           start, i.e. exactly the packages.xml read.
+#
+# Idea:     Tropa — https://github.com/nvsbunny/tropa
+#           (tools/mihomo-android-nonroot.patch @ b939009a990d7138b59a5ea875d8df28510f8d41),
+#           adapted for mihomet (comment wording only; hunk logic identical).
+#
+# License:  mihomo is GPL-3.0, Tropa is GPL-3.0; this patch is therefore GPL-3.0
+#           and bundled with Mihomet (GPL-3.0). The complete corresponding source
+#           of the patched core (this patch + core-build/build-core.sh) is
+#           published at https://github.com/mihomet/mihomet.
+
+diff --git a/listener/sing_tun/server.go b/listener/sing_tun/server.go
+index 5415b25..fc31968 100644
+--- a/listener/sing_tun/server.go
++++ b/listener/sing_tun/server.go
+@@ -480,8 +480,16 @@ func New(options LC.Tun, tunnel C.Tunnel, additions ...inbound.Addition) (l *Lis
+ 
+ 	err = l.buildAndroidRules(&tunOptions)
+ 	if err != nil {
+-		err = E.Cause(err, "build android rules")
+-		return
++		// mihomet (idea: Tropa): on stock Android a non-root app cannot read
++		// /data/system/packages.xml, so building android package rules fails.
++		// The package list is only needed for include-package / exclude-package
++		// filters; without them the TUN works fine and the error is not fatal.
++		if len(options.IncludePackage) > 0 || len(options.ExcludePackage) > 0 {
++			err = E.Cause(err, "build android rules")
++			return
++		}
++		log.Warnln("[TUN] skip android package rules: %v", err)
++		err = nil
+ 	}
+ 	tunIf, err := tunNew(tunOptions)
+ 	if err != nil {
