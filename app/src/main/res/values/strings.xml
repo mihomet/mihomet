@@ -271,6 +271,7 @@
     <string name="routing_reset">Reset</string>
     <string name="routing_empty">No apps found</string>
     <string name="routing_system_badge">System</string>
+    <string name="perapp_empty_whitelist">Whitelist is empty — all traffic is proxied. Select apps or switch mode.</string>
 
     <!-- Connections -->
     <string name="connections_download_total">Downloaded</string>
@@ -311,6 +312,7 @@
     <string name="vpn_error">VPN error: %1$s</string>
     <string name="vpn_restarting">Restarting core…</string>
     <string name="vpn_last_good_used">Profile is broken — using the last working version</string>
+    <string name="vpn_error_core_timeout">Core did not respond within 15 seconds</string>
 
     <!-- Root TProxy service notifications -->
     <string name="root_channel_name">Mihomet Root Service</string>

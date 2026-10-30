@@ -35,6 +35,41 @@ data class GitHubAsset(
     val size: Long = 0L
 )
 
+/** Matches a version token like "v1.19.33-mihomet.1" in the core's `-v` output. */
+private val CORE_VERSION_REGEX = Regex("""v[0-9][A-Za-z0-9._+\-]*""")
+
+/**
+ * Pure decision helper for [CoreManager.bootstrapRootBinary]: whether the bundled
+ * core binary should be copied over the already-installed root-mode binary.
+ *
+ * The caller only invokes this when an installed binary exists (size > 0), but the
+ * `installedSize <= 0` guard keeps first-bootstrap semantics ("copy") even if the
+ * contract is ever violated.
+ *
+ * Decision table:
+ *  - installed metadata missing (`installedVersion == null`)  → legacy: copy when sizes differ
+ *  - installed version == bundled version                     → same core: copy when sizes differ
+ *  - installed version != bundled version (user-updated core) → keep (never roll back an update)
+ *  - bundled version unknown (`bundledVersion == null`)       → legacy: copy when sizes differ
+ */
+internal fun shouldCopyBundledCore(
+    installedVersion: String?,
+    bundledVersion: String?,
+    installedSize: Long,
+    bundledSize: Long
+): Boolean {
+    // No usable installed binary (first bootstrap / corrupted install): copy.
+    if (installedSize <= 0L) return true
+    // Version metadata present on both sides and different: the installed core was
+    // updated through the in-app updater — keep it instead of rolling back to the
+    // (differently sized) bundled binary on every app restart.
+    if (installedVersion != null && bundledVersion != null && installedVersion != bundledVersion) {
+        return false
+    }
+    // Same version (or the version is unknown on one side): legacy size-based check.
+    return installedSize != bundledSize
+}
+
 class CoreManager(private val context: Context) {
 
     private val httpClient = HttpClient {
@@ -64,15 +99,67 @@ class CoreManager(private val context: Context) {
         }
     }
 
+    /**
+     * Version of the bundled core binary as reported by the binary itself
+     * (mihomo `-v`, e.g. "v1.19.33-mihomet.1"), or null when it cannot be
+     * determined. Used to compare the installed root core against the bundled one.
+     */
+    private fun getBundledCoreVersion(): String? = runCatching {
+        val process = ProcessBuilder(getBundledLibraryPath(), "-v")
+            .redirectErrorStream(true)
+            .start()
+        if (!process.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)) {
+            process.destroyForcibly()
+            return@runCatching null
+        }
+        val output = process.inputStream.bufferedReader().use { it.readText() }
+        CORE_VERSION_REGEX.find(output)?.value
+    }.getOrNull()
+
+    /**
+     * Version of the core currently installed at [CoreConstants.ROOT_BIN_PATH],
+     * as recorded by [downloadAndUpdateCore] in [CoreConstants.ROOT_CORE_VERSION_FILE].
+     * Null when no metadata exists (the core was never updated through the app).
+     */
+    private fun readInstalledCoreVersion(): String? {
+        return runCatching {
+            val res = Shell.cmd("cat ${CoreConstants.ROOT_CORE_VERSION_FILE} 2>/dev/null").exec()
+            res.out.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() }
+        }.getOrNull()
+    }
+
     suspend fun bootstrapRootBinary(): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val bundledPath = getBundledLibraryPath()
-            val checkResult = Shell.cmd(
-                "if [ ! -f ${CoreConstants.ROOT_BIN_PATH} ] || [ \"\$(stat -c %s ${CoreConstants.ROOT_BIN_PATH} 2>/dev/null)\" != \"\$(stat -c %s \"$bundledPath\" 2>/dev/null)\" ]; then echo UPDATE_NEEDED; else echo UP_TO_DATE; fi"
-            ).exec()
-            val updateNeeded = checkResult.out.any { it.contains("UPDATE_NEEDED") }
+            val installedSize = Shell.cmd("stat -c %s ${CoreConstants.ROOT_BIN_PATH} 2>/dev/null").exec()
+                .out.firstOrNull()?.trim()?.toLongOrNull() ?: 0L
+            val bundledSize = Shell.cmd("stat -c %s \"$bundledPath\" 2>/dev/null").exec()
+                .out.firstOrNull()?.trim()?.toLongOrNull() ?: 0L
 
-            if (updateNeeded) {
+            val copyNeeded = if (installedSize <= 0L) {
+                // First bootstrap (or a broken install): the bundled binary is the
+                // only guaranteed-working core.
+                true
+            } else {
+                // Version-aware check (audit P2 §8): an in-app-updated core must
+                // survive app restarts instead of being rolled back by the old
+                // size-only comparison.
+                val installedVersion = readInstalledCoreVersion()
+                // Only pay the cost of querying the bundled version when version
+                // metadata exists; without metadata the decision is size-based.
+                val bundledVersion = if (installedVersion != null) getBundledCoreVersion() else null
+                val copy = shouldCopyBundledCore(installedVersion, bundledVersion, installedSize, bundledSize)
+                if (!copy) {
+                    android.util.Log.i(
+                        "CoreManager",
+                        "Keeping updated core at ${CoreConstants.ROOT_BIN_PATH} " +
+                                "(installed=$installedVersion, bundled=${bundledVersion ?: "unknown"})"
+                    )
+                }
+                copy
+            }
+
+            if (copyNeeded) {
                 val setupCmds = listOf(
                     "mkdir -p ${CoreConstants.ROOT_BIN_DIR}",
                     "mkdir -p ${CoreConstants.ROOT_RUN_DIR}",
@@ -167,6 +254,20 @@ class CoreManager(private val context: Context) {
 
             if (!result.isSuccess) {
                 throw RuntimeException("Root install failed: ${result.err.joinToString("\n")}")
+            }
+
+            // Record the installed core version (audit P2 §8) so bootstrapRootBinary
+            // can tell a user-updated core apart from a stale copy of the bundled one
+            // and does not roll the update back on the next start.
+            // Sanitize the tag before interpolating it into a root shell command.
+            val installedVersion = release.tag_name.trim().filter {
+                it.isLetterOrDigit() || it == '.' || it == '-' || it == '_' || it == '+'
+            }
+            if (installedVersion.isNotEmpty()) {
+                Shell.cmd(
+                    "mkdir -p ${CoreConstants.ROOT_RUN_DIR}",
+                    "echo '$installedVersion' > ${CoreConstants.ROOT_CORE_VERSION_FILE}"
+                ).exec()
             }
 
             // If root daemon is currently running, restart it with updated binary

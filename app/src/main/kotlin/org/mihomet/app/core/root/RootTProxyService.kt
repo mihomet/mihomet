@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.topjohnwu.superuser.Shell
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -40,6 +41,17 @@ class RootTProxyService : Service(), KoinComponent {
         private const val CHANNEL_ID = "mihomet_root_tproxy_channel"
         private const val NOTIFICATION_ID = 1001
 
+        /**
+         * Completion signal for the most recent [stop] request (audit P1 §5a).
+         * [stop] arms a fresh deferred before delivering ACTION_STOP; [stopProxy]
+         * completes it once the teardown (firewall rules + root daemon) has fully
+         * finished, so callers that must not race the teardown (mode switching in
+         * DashboardViewModel) can await it. Null when no stop was requested yet.
+         */
+        @Volatile
+        var teardownCompleted: CompletableDeferred<Unit>? = null
+            private set
+
         fun start(context: Context) {
             val intent = Intent(context, RootTProxyService::class.java).apply {
                 action = ACTION_START
@@ -52,6 +64,9 @@ class RootTProxyService : Service(), KoinComponent {
         }
 
         fun stop(context: Context) {
+            // Arm the teardown signal before delivering the stop intent so that
+            // awaiters always observe a non-null deferred after stop() returns.
+            teardownCompleted = CompletableDeferred()
             val intent = Intent(context, RootTProxyService::class.java).apply {
                 action = ACTION_STOP
             }
@@ -97,8 +112,12 @@ class RootTProxyService : Service(), KoinComponent {
                 }
             }
             ACTION_STOP -> {
+                // Snapshot the deferred armed by stop() so THIS teardown completes
+                // exactly the deferred its requester is awaiting (a newer stop()
+                // may have re-armed the volatile field in the meantime).
+                val completion = teardownCompleted
                 serviceScope.launch {
-                    stopProxy()
+                    stopProxy(completion)
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 }
@@ -224,7 +243,7 @@ class RootTProxyService : Service(), KoinComponent {
         }
     }
 
-    private suspend fun stopProxy() {
+    private suspend fun stopProxy(completion: CompletableDeferred<Unit>? = teardownCompleted) {
         // Teardown must never skip ServiceState.stopService: a failing root shell
         // (e.g. firewallManager.teardown throwing) would otherwise leave the UI
         // stuck on "connected" until the app is restarted.
@@ -242,6 +261,9 @@ class RootTProxyService : Service(), KoinComponent {
             android.util.Log.e("RootTProxyService", "Root proxy teardown failed", e)
         } finally {
             ServiceState.stopService(org.mihomet.app.core.RunningService.ROOT)
+            // Release awaiters even when the teardown failed: they proceed with a
+            // best-effort torn-down state instead of blocking until a timeout.
+            completion?.complete(Unit)
         }
     }
 

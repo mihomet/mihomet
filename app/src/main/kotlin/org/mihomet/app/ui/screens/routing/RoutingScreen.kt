@@ -242,6 +242,27 @@ fun RoutingScreen(
                     }
                 }
 
+                // Empty-whitelist hint: Android routes every app when the allow list
+                // is empty, so tell the user the mode currently behaves as "All".
+                if (settings.perAppMode == PerAppMode.WHITELIST && settings.selectedAppUids.isEmpty()) {
+                    item {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = ExpressiveShapes.Small,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                        ) {
+                            Text(
+                                text = stringResource(R.string.perapp_empty_whitelist),
+                                modifier = Modifier.padding(14.dp),
+                                fontSize = 13.sp,
+                                lineHeight = 18.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
                 val visibleApps = state.installedApps.filter {
                     state.showSystemApps || !it.isSystem || it.packageName == "com.android.chrome"
                 }

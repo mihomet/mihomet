@@ -49,6 +49,11 @@ object CoreConstants {
     const val ROOT_LOG_FILE = "$ROOT_RUN_DIR/mihomo.log"
     const val ROOT_CONFIG_PATH = "$ROOT_RUN_DIR/config.yaml"
 
+    // Version marker written by downloadAndUpdateCore (the release tag of the
+    // core it installed). bootstrapRootBinary uses it to avoid rolling back a
+    // user-updated core to the bundled binary on the next start.
+    const val ROOT_CORE_VERSION_FILE = "$ROOT_RUN_DIR/installed_core_version"
+
     private val secureRandom = SecureRandom()
 
     /**

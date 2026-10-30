@@ -3,11 +3,15 @@ package org.mihomet.app.ui.screens.dashboard
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import org.mihomet.app.core.RunningService
 import org.mihomet.app.core.ServiceState
 import org.mihomet.app.core.network.NodePingTester
 import org.mihomet.app.core.root.RootShellManager
@@ -47,6 +51,11 @@ class DashboardViewModel(
 
     private var trafficJob: Job? = null
     private val historyBuffer = mutableListOf<TrafficSample>()
+
+    private companion object {
+        /** Bounded wait for the opposite-mode teardown during a mode switch. */
+        const val TEARDOWN_WAIT_TIMEOUT_MS = 10_000L
+    }
 
     init {
         // Observe settings (root mode, proxy mode, selected node)
@@ -109,28 +118,55 @@ class DashboardViewModel(
         val isRoot = _uiState.value.isRootMode
         android.util.Log.d("MihometVpn", "DashboardViewModel.startProxy() called, isRoot=$isRoot")
         _uiState.update { it.copy(isConnecting = true, isDisconnecting = false) }
-        if (isRoot) {
-            if (org.mihomet.app.core.ServiceState.runningService.value == org.mihomet.app.core.RunningService.VPN) {
-                MihometVpnService.stop(context)
+        viewModelScope.launch {
+            if (isRoot) {
+                if (ServiceState.runningService.value == RunningService.VPN) {
+                    // Mode switch VPN -> ROOT: stop the VPN and wait until it has
+                    // fully torn down (its ACTION_STOP handler clears ServiceState)
+                    // before arming root firewall rules.
+                    MihometVpnService.stop(context)
+                    withTimeoutOrNull(TEARDOWN_WAIT_TIMEOUT_MS) {
+                        ServiceState.runningService.first { it == RunningService.NONE }
+                    }
+                }
+                RootTProxyService.start(context)
+            } else {
+                // Mode switch ROOT -> VPN: stop the root session if it is tracked as
+                // running, or if an untracked daemon is still up (the 5s adoption
+                // loop may not have fired yet), and WAIT for the asynchronous
+                // teardown (firewall rules + daemon) before claiming the TUN.
+                val rootSessionUp = ServiceState.runningService.value == RunningService.ROOT ||
+                        withContext(Dispatchers.IO) { RootShellManager.isDaemonRunning() }
+                if (rootSessionUp) {
+                    RootTProxyService.stop(context)
+                    withTimeoutOrNull(TEARDOWN_WAIT_TIMEOUT_MS) {
+                        RootTProxyService.teardownCompleted?.await()
+                    }
+                }
+                MihometVpnService.start(context)
             }
-            RootTProxyService.start(context)
-        } else {
-            if (org.mihomet.app.core.ServiceState.runningService.value == org.mihomet.app.core.RunningService.ROOT) {
-                RootTProxyService.stop(context)
-            }
-            MihometVpnService.start(context)
         }
     }
 
     fun stopProxy() {
-        val isRoot = _uiState.value.isRootMode
-        android.util.Log.d("MihometVpn", "DashboardViewModel.stopProxy() called, isRoot=$isRoot")
+        // Stop the service that is ACTUALLY running, not the one the current
+        // settings would start: the mode toggle may have been flipped while the
+        // other mode was still up, so stopping by setting can address the wrong
+        // service (audit P1 §5a).
+        val running = ServiceState.runningService.value
+        android.util.Log.d("MihometVpn", "DashboardViewModel.stopProxy() called, runningService=$running")
         _uiState.update { it.copy(isDisconnecting = true, isConnecting = false) }
         viewModelScope.launch {
-            if (isRoot) {
-                RootTProxyService.stop(context)
-            } else {
-                MihometVpnService.stop(context)
+            when (running) {
+                RunningService.ROOT -> RootTProxyService.stop(context)
+                RunningService.VPN -> MihometVpnService.stop(context)
+                // Nothing tracked as running: fall back to the configured mode
+                // (covers an untracked daemon before the adoption loop fires).
+                RunningService.NONE -> if (_uiState.value.isRootMode) {
+                    RootTProxyService.stop(context)
+                } else {
+                    MihometVpnService.stop(context)
+                }
             }
         }
     }

@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeout
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.mihomet.app.R
@@ -57,6 +58,18 @@ class MihometVpnService : VpnService(), KoinComponent {
 
         /** Backoff base for core restarts: delay = CORE_RESTART_BACKOFF_MS * attempt. */
         private const val CORE_RESTART_BACKOFF_MS = 2000L
+
+        /** Total budget for the core REST API readiness gate after the process spawns. */
+        private const val CORE_READINESS_TIMEOUT_MS = 15_000L
+
+        /** Per-probe cap so a hanging /version call cannot stretch the readiness budget. */
+        private const val CORE_READINESS_PROBE_TIMEOUT_MS = 2_000L
+
+        /** Interval between core REST API readiness probes. */
+        private const val CORE_READINESS_INTERVAL_MS = 500L
+
+        /** Uptime (with reachable API) the core must reach before the restart counter resets. */
+        private const val CORE_STABILITY_DELAY_MS = 30_000L
 
         fun start(context: Context) {
             val intent = Intent(context, MihometVpnService::class.java).apply {
@@ -89,7 +102,11 @@ class MihometVpnService : VpnService(), KoinComponent {
     @Volatile
     private var isStopping = false
 
-    /** Consecutive automatic core restart attempts since the last successful start. */
+    /**
+     * Consecutive automatic core restart attempts. Reset to 0 only after the
+     * core has stayed up with a reachable API for [CORE_STABILITY_DELAY_MS], so
+     * a crash-looping core cannot renew its restart budget on every spawn.
+     */
     @Volatile
     private var coreRestartAttempts = 0
 
@@ -123,6 +140,10 @@ class MihometVpnService : VpnService(), KoinComponent {
                 }
             }
             ACTION_STOP -> {
+                // Set synchronously (not inside the coroutine): a readiness probe
+                // in flight checks this flag and releases the start mutex at once,
+                // so the queued stopVpn() below never waits out the 15s budget.
+                isStopping = true
                 serviceScope.launch {
                     vpnMutex.withLock {
                         stopVpn()
@@ -155,6 +176,7 @@ class MihometVpnService : VpnService(), KoinComponent {
     override fun onRevoke() {
         // VPN revoked by the user/system (Always-on off, another VPN chosen):
         // stop cleanly instead of leaving a zombie foreground state
+        isStopping = true
         serviceScope.launch {
             vpnMutex.withLock {
                 stopVpn()
@@ -179,10 +201,21 @@ class MihometVpnService : VpnService(), KoinComponent {
     private suspend fun startVpnInternal() {
         android.util.Log.d("MihometVpn", "startVpnInternal() initiated")
         try {
+            // A fresh start clears a stale stop flag: the mutex serializes us with
+            // any queued user STOP, which still runs right after this start and
+            // wins (it is the last user action). Without this reset the readiness
+            // gate below would mistake the leftover flag for a stop during THIS start.
+            isStopping = false
             cleanupVpnResources()
             runCatching {
                 if (org.mihomet.app.core.root.RootShellManager.isRootAvailable()) {
                     org.mihomet.app.core.root.RootShellManager.stopDaemon()
+                    // Clear leftover root firewall rules from a non-graceful root
+                    // session (audit §5a): root session settings are unknown here,
+                    // so teardown without IPv6
+                    runCatching {
+                        firewallManager.teardown(false)
+                    }
                 }
             }
             android.util.Log.d("MihometVpn", "cleanupVpnResources() done")
@@ -228,10 +261,29 @@ class MihometVpnService : VpnService(), KoinComponent {
             val pm = packageManager
             when (settings.perAppMode) {
                 org.mihomet.app.data.preferences.PerAppMode.WHITELIST -> {
-                    // Only selected apps route through VPN; our own app is excluded by not being added
-                    settings.selectedAppUids.forEach { uid ->
-                        pm.getPackagesForUid(uid)?.forEach { pkg ->
-                            runCatching { builder.addAllowedApplication(pkg) }
+                    // "Only selected" mode: route ONLY the picked apps through the VPN.
+                    //
+                    // Android quirk: a VpnService established without a single
+                    // addAllowedApplication() call routes EVERY app ("absent allow
+                    // list" means "allow all"), which contradicts the "only selected"
+                    // expectation. An empty selection therefore deliberately behaves
+                    // like ALL mode — everything except our own app is proxied; the
+                    // Routing screen shows a hint for this state
+                    // (R.string.perapp_empty_whitelist).
+                    if (settings.selectedAppUids.isEmpty()) {
+                        // Same config as ALL mode: exclude only our own app so the
+                        // core's traffic does not loop back into the TUN it feeds.
+                        builder.addDisallowedApplication(packageName)
+                    } else {
+                        settings.selectedAppUids.forEach { uid ->
+                            pm.getPackagesForUid(uid)?.forEach { pkg ->
+                                // Never allow our own package, even if the user picked
+                                // Mihomet itself: the core runs inside our uid, so its
+                                // outbound traffic would loop into the TUN interface.
+                                if (pkg != packageName) {
+                                    runCatching { builder.addAllowedApplication(pkg) }
+                                }
+                            }
                         }
                     }
                 }
@@ -391,11 +443,39 @@ class MihometVpnService : VpnService(), KoinComponent {
                 }
             }
 
-            android.util.Log.d("MihometVpn", "Setting ServiceState.setRunning(VPN)")
+            // Readiness gate: the controller port may already be bound while the
+            // core is still booting, and a spawned process alone proves nothing —
+            // only a /version answer means the core (TUN fd handed over, API up)
+            // is actually usable. Until then the UI must NOT show "connected".
+            android.util.Log.d("MihometVpn", "Waiting for core readiness (REST API /version)")
+            if (!awaitCoreReadiness(proc)) {
+                // Ownership check: a user stop or a newer start (watchdog restart)
+                // owns the state now — stay silent, they are responsible for cleanup.
+                if (isStopping || mihomoProcess !== proc) {
+                    android.util.Log.d("MihometVpn", "Readiness aborted: stop pending or process replaced")
+                    return
+                }
+                // Timed out: treat the start as failed instead of showing a
+                // "connected" tunnel that was never proven to forward traffic.
+                // The watchdog stays silent here: mihomoProcess is nulled by the
+                // cleanup below, so the exit callback sees it no longer owns the
+                // process, and the service is torn down right after.
+                android.util.Log.e(
+                    "MihometVpn",
+                    "Core did not answer the REST API within ${CORE_READINESS_TIMEOUT_MS / 1000}s — failing start"
+                )
+                cleanupVpnResources()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+                // Posted after stopForeground(REMOVE) so the system does not tear
+                // the notification down together with the foreground state, and
+                // non-ongoing so the user can dismiss it.
+                updateNotification(getString(R.string.vpn_error_core_timeout), ongoing = false)
+                return
+            }
+
+            android.util.Log.d("MihometVpn", "Core ready — setting ServiceState.setRunning(VPN)")
             ServiceState.setRunning(org.mihomet.app.core.RunningService.VPN)
-            // Successful start: stop is no longer pending and the restart backoff resets
-            isStopping = false
-            coreRestartAttempts = 0
             // Refresh the last known-good runtime config: this exact file has just
             // started successfully, so it is safe to fall back to on a broken profile.
             runCatching { lastGoodConfigFile.writeText(runtimeYaml) }
@@ -417,6 +497,21 @@ class MihometVpnService : VpnService(), KoinComponent {
             if (settings.showSpeedInNotification && isScreenOn) {
                 startSpeedUpdates()
             }
+
+            // Stability gate: the watchdog restart counter is wiped only after this
+            // exact process has been up with a reachable API for a while. Resetting
+            // at spawn (old behavior) let a crash-looping core renew its budget on
+            // every cycle, so MAX_CORE_RESTARTS never exhausted.
+            serviceScope.launch {
+                delay(CORE_STABILITY_DELAY_MS)
+                if (!isStopping && mihomoProcess === proc && proc.isAlive) {
+                    android.util.Log.d(
+                        "MihometVpn",
+                        "Core stable for ${CORE_STABILITY_DELAY_MS / 1000}s — coreRestartAttempts reset"
+                    )
+                    coreRestartAttempts = 0
+                }
+            }
         } catch (e: Exception) {
             android.util.Log.e("MihometVpn", "startVpn() exception", e)
             // Release whatever was already acquired (TUN interface, wake lock) so a
@@ -427,6 +522,27 @@ class MihometVpnService : VpnService(), KoinComponent {
             updateNotification(getString(R.string.vpn_error, e.message ?: "null"))
             e.printStackTrace()
         }
+    }
+
+    /**
+     * Polls the core REST API (`GET /version`) until it answers, the core
+     * process goes away, a stop is requested, or [CORE_READINESS_TIMEOUT_MS]
+     * elapses. Called with the start mutex held, so the watchdog restart path
+     * cannot race a readiness probe.
+     */
+    private suspend fun awaitCoreReadiness(proc: Process): Boolean {
+        val deadline = System.currentTimeMillis() + CORE_READINESS_TIMEOUT_MS
+        while (!isStopping && mihomoProcess === proc && proc.isAlive) {
+            val answered = runCatching {
+                withTimeout(CORE_READINESS_PROBE_TIMEOUT_MS) {
+                    apiClientProvider.current().getVersion()
+                }.isSuccess
+            }.getOrDefault(false)
+            if (answered) return true
+            if (System.currentTimeMillis() >= deadline) break
+            delay(CORE_READINESS_INTERVAL_MS)
+        }
+        return false
     }
 
     private fun registerNetworkCallback() {
@@ -557,7 +673,7 @@ class MihometVpnService : VpnService(), KoinComponent {
         }
     }
 
-    private fun buildNotification(text: String): Notification {
+    private fun buildNotification(text: String, ongoing: Boolean = true): Notification {
         val pendingIntent = PendingIntent.getActivity(
             this,
             0,
@@ -578,7 +694,7 @@ class MihometVpnService : VpnService(), KoinComponent {
             .setSmallIcon(R.drawable.ic_proxy_tile)
             .setContentIntent(pendingIntent)
             .addAction(R.drawable.ic_proxy_tile, getString(R.string.action_disconnect), stopIntent)
-            .setOngoing(true)
+            .setOngoing(ongoing)
             // Show the foreground notification immediately instead of after the system delay (API 27+)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
@@ -628,8 +744,8 @@ class MihometVpnService : VpnService(), KoinComponent {
         })
     }
 
-    private fun updateNotification(text: String) {
+    private fun updateNotification(text: String, ongoing: Boolean = true) {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(NOTIFICATION_ID, buildNotification(text))
+        manager.notify(NOTIFICATION_ID, buildNotification(text, ongoing))
     }
 }
