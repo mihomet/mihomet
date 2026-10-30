@@ -197,6 +197,10 @@ class RootTProxyService : Service(), KoinComponent {
             ).getOrThrow()
 
             ServiceState.setRunning(org.mihomet.app.core.RunningService.ROOT)
+            // Persist the mode as the autostart signal: the BootReceiver starts this
+            // service on the next boot only when the daemon + firewall have started
+            // successfully before (settings.autoStartOnBoot gates the feature).
+            runCatching { settingsRepository.updateLastMode(org.mihomet.app.data.preferences.LastRunMode.ROOT) }
             // Refresh the last known-good runtime config on the root filesystem:
             // this exact config has just started successfully (daemon + firewall),
             // so it is safe to fall back to on a broken profile. Best-effort — a

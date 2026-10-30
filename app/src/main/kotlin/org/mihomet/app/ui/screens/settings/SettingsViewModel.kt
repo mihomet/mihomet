@@ -206,6 +206,30 @@ class SettingsViewModel(
         }
     }
 
+    fun updateAutoStartOnBoot(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateAutoStartOnBoot(enabled)
+        }
+    }
+
+    fun updateTunStack(stack: String) {
+        viewModelScope.launch {
+            settingsRepository.updateTunStack(stack)
+        }
+    }
+
+    fun updateTunMtu(mtu: Int) {
+        viewModelScope.launch {
+            settingsRepository.updateTunMtu(mtu)
+        }
+    }
+
+    fun updateBypassLan(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateBypassLan(enabled)
+        }
+    }
+
     /**
      * Adds (or replaces) a Happ crypto key after validating the AES-128 length:
      * the key must be exactly [HappCrypto.KEY_BYTES] bytes (UTF-8) and the id

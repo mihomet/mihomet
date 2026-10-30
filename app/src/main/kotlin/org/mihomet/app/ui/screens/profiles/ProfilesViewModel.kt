@@ -374,6 +374,24 @@ class ProfilesViewModel(
         if (file.exists()) file.readText() else ""
     }
 
+    /**
+     * Resolves the decrypted subscription URL of a remote profile for sharing
+     * (QR dialog). Returns `null` when the profile is not remote, has no URL,
+     * does not exist — or when the stored secret cannot be decrypted; in the
+     * last case the user-facing explanation is surfaced through
+     * [ProfilesUiState.errorMessage] (reuses `profiles_subscription_undecryptable`).
+     */
+    suspend fun getProfileUrl(profileId: Long): String? = withContext(Dispatchers.IO) {
+        val profile = profileDao.getProfileById(profileId) ?: return@withContext null
+        if (profile.type != ProfileType.REMOTE || profile.url.isBlank()) return@withContext null
+        try {
+            SecretsCipher.decrypt(profile.url).takeIf { it.isNotBlank() }
+        } catch (e: SecretsCipher.SecretDecryptException) {
+            errorMessageFlow.value = context.getString(R.string.profiles_subscription_undecryptable)
+            null
+        }
+    }
+
     suspend fun saveProfileContent(profileId: Long, newContent: String): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             // Validate YAML syntax

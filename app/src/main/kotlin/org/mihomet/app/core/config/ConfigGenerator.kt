@@ -5,6 +5,7 @@ import org.mihomet.app.core.dns.DnsCategory
 import org.mihomet.app.core.dns.DnsPresets
 import org.mihomet.app.data.preferences.AppSettings
 import org.mihomet.app.data.preferences.ProfileOverrides
+import org.mihomet.app.data.preferences.TunOptions
 import org.yaml.snakeyaml.DumperOptions
 import org.yaml.snakeyaml.Yaml
 import java.io.StringWriter
@@ -206,7 +207,11 @@ object ConfigGenerator {
         if (tunFd != null && tunFd >= 0) {
             val tunMap = mutableMapOf<String, Any>(
                 "enable" to true,
-                "stack" to "gvisor",
+                // Sanitized: only gvisor/system/mixed survive, garbage falls back to gvisor
+                "stack" to TunOptions.sanitizeStack(settings.tunStack),
+                // Must match the VpnService Builder MTU exactly, otherwise the core's
+                // packet reassembly (gVisor/system) disagrees with the kernel device
+                "mtu" to TunOptions.sanitizeMtu(settings.tunMtu),
                 "file-descriptor" to tunFd,
                 "auto-route" to false,
                 "auto-detect-interface" to false, // Must be false in non-root: Netlink route monitor blocked by Android SELinux

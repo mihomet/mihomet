@@ -75,7 +75,15 @@ class MihometVpnService : VpnService(), KoinComponent {
             val intent = Intent(context, MihometVpnService::class.java).apply {
                 action = ACTION_START
             }
-            context.startService(intent)
+            // startForegroundService (like RootTProxyService.start): the BootReceiver
+            // starts the service from the background, where a plain startService()
+            // throws IllegalStateException. The service always calls startForeground()
+            // first thing in onStartCommand, so the FGS contract is never violated.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
         }
 
         fun stop(context: Context) {
@@ -238,20 +246,48 @@ class MihometVpnService : VpnService(), KoinComponent {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
 
-            // Build TUN interface with 9000 MTU and non-blocking mode (matches CMFA standard for gVisor)
+            // Build TUN interface with non-blocking mode; MTU comes from settings
+            // (clamped to 1280..65535, default 9000 — CMFA standard for gVisor) and
+            // must match ConfigGenerator's tun.mtu.
             val builder = Builder()
                 .setSession("Mihomet")
-                .setMtu(CoreConstants.TUN_MTU)
+                .setMtu(org.mihomet.app.data.preferences.TunOptions.sanitizeMtu(settings.tunMtu))
                 .setBlocking(false)
                 .setConfigureIntent(configureIntent)
                 .addAddress(CoreConstants.TUN_IPV4_ADDR, CoreConstants.TUN_IPV4_PREFIX)
-                .addRoute("0.0.0.0", 0)
                 .addDnsServer(CoreConstants.TUN_IPV4_DNS)
+
+            if (settings.bypassLan) {
+                // CMFA bypassPrivateNetwork pattern: Android VPN routes are additive,
+                // so bypassing private networks means routing the COMPLEMENT (every
+                // public unicast prefix) into the tunnel and leaving 10/8, 172.16/12,
+                // 192.168/16, link-local and multicast to the underlying network.
+                CoreConstants.TUN_BYPASS_LAN_ROUTES_V4.forEach { (net, prefix) ->
+                    builder.addRoute(net, prefix)
+                }
+                // Virtual DNS (inside the fake-ip range) is not covered by the
+                // complement — explicit host route, exactly like CMFA.
+                builder.addRoute(CoreConstants.TUN_IPV4_DNS, 32)
+            } else {
+                builder.addRoute("0.0.0.0", 0)
+            }
 
             // Always trap IPv6 into TUN interface to prevent carrier leakage / Happy Eyeballs hangs in Telegram
             builder.addAddress(CoreConstants.TUN_IPV6_ADDR, CoreConstants.TUN_IPV6_PREFIX)
-            builder.addRoute("::", 0)
             builder.addDnsServer(CoreConstants.TUN_IPV6_DNS)
+            if (settings.bypassLan) {
+                // Same complement for IPv6: global unicast stays captured (no carrier
+                // leak), while fe80::/10 (link-local) and fc00::/7 (ULA — the "private"
+                // IPv6 ranges) bypass to the underlying network like their IPv4 peers.
+                CoreConstants.TUN_BYPASS_LAN_ROUTES_V6.forEach { (net, prefix) ->
+                    builder.addRoute(net, prefix)
+                }
+                // The virtual IPv6 DNS is a ULA address (fdfe:…::2) — outside the
+                // complement — so it needs its own host route (CMFA TUN_DNS6/128).
+                builder.addRoute(CoreConstants.TUN_IPV6_DNS, 128)
+            } else {
+                builder.addRoute("::", 0)
+            }
 
             // Do not mark VPN traffic as metered when underlying network is unmetered Wi-Fi (API 29+)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -477,6 +513,10 @@ class MihometVpnService : VpnService(), KoinComponent {
 
             android.util.Log.d("MihometVpn", "Core ready — setting ServiceState.setRunning(VPN)")
             ServiceState.setRunning(org.mihomet.app.core.RunningService.VPN)
+            // Persist the mode as the autostart signal: the BootReceiver starts this
+            // service on the next boot only when the VPN has started successfully
+            // before (settings.autoStartOnBoot gates the feature). Best-effort.
+            runCatching { settingsRepository.updateLastMode(org.mihomet.app.data.preferences.LastRunMode.VPN) }
             // Refresh the last known-good runtime config: this exact file has just
             // started successfully, so it is safe to fall back to on a broken profile.
             runCatching { lastGoodConfigFile.writeText(runtimeYaml) }

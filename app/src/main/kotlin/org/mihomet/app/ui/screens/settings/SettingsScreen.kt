@@ -33,6 +33,7 @@ import org.mihomet.app.core.dns.DnsCategory
 import org.mihomet.app.core.dns.DnsPresets
 import org.mihomet.app.data.preferences.ProfileOverrides
 import org.mihomet.app.data.preferences.ProxyMode
+import org.mihomet.app.data.preferences.TunOptions
 import org.mihomet.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,6 +115,22 @@ fun SettingsScreen(
                             onSelect = {
                                 AppHaptics.perform(context, HapticType.CLICK, view)
                                 viewModel.updateRootMode(true)
+                            }
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                        // Autostart on boot (BootReceiver + last successfully started mode)
+                        ExpressiveSwitchRow(
+                            icon = Icons.Default.RestartAlt,
+                            iconBg = MaterialTheme.colorScheme.tertiaryContainer,
+                            iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
+                            title = stringResource(R.string.settings_autostart),
+                            subtitle = stringResource(R.string.settings_autostart_desc),
+                            checked = settings.autoStartOnBoot,
+                            onCheckedChange = {
+                                AppHaptics.perform(context, HapticType.CLICK, view)
+                                viewModel.updateAutoStartOnBoot(it)
                             }
                         )
                     }
@@ -537,6 +554,88 @@ fun SettingsScreen(
                                         }
                                     )
                                 }
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                                // TUN stack (tap to cycle gvisor → system → mixed, like the log-level row)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(ExpressiveShapes.Small)
+                                        .clickable {
+                                            AppHaptics.perform(context, HapticType.CLICK, view)
+                                            val stacks = TunOptions.STACKS
+                                            val currentIndex = stacks.indexOf(settings.tunStack)
+                                            val next = stacks[(currentIndex + 1).mod(stacks.size)]
+                                            viewModel.updateTunStack(next)
+                                        }
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                        Text(
+                                            stringResource(R.string.settings_tun_stack),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        )
+                                        Text(
+                                            stringResource(R.string.settings_tun_stack_desc, settings.tunStack),
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Icon(Icons.Default.Layers, contentDescription = null, modifier = Modifier.size(18.dp))
+                                }
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                                // TUN MTU (tap to cycle 1500 → 8500 → 9000)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(ExpressiveShapes.Small)
+                                        .clickable {
+                                            AppHaptics.perform(context, HapticType.CLICK, view)
+                                            val choices = TunOptions.MTU_CHOICES
+                                            val currentIndex = choices.indexOf(settings.tunMtu)
+                                            val next = choices[(currentIndex + 1).mod(choices.size)]
+                                            viewModel.updateTunMtu(next)
+                                        }
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                        Text(
+                                            stringResource(R.string.settings_tun_mtu),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        )
+                                        Text(
+                                            stringResource(R.string.settings_tun_mtu_desc, settings.tunMtu),
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Icon(Icons.Default.SettingsEthernet, contentDescription = null, modifier = Modifier.size(18.dp))
+                                }
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                                // Bypass LAN (CMFA bypassPrivateNetwork pattern)
+                                ExpressiveSwitchRow(
+                                    icon = Icons.Default.Router,
+                                    iconBg = MaterialTheme.colorScheme.secondaryContainer,
+                                    iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    title = stringResource(R.string.settings_bypass_lan),
+                                    subtitle = stringResource(R.string.settings_bypass_lan_desc),
+                                    checked = settings.bypassLan,
+                                    onCheckedChange = {
+                                        AppHaptics.perform(context, HapticType.CLICK, view)
+                                        viewModel.updateBypassLan(it)
+                                    }
+                                )
 
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 

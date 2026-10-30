@@ -49,6 +49,11 @@ class SettingsRepository(private val context: Context) {
         val OVERRIDE_TCP_CONCURRENT = booleanPreferencesKey("override_tcp_concurrent")
         val OVERRIDE_LOG_LEVEL = stringPreferencesKey("override_log_level")
         val OVERRIDE_SNIFFER_ENABLED = booleanPreferencesKey("override_sniffer_enabled")
+        val AUTO_START_ON_BOOT = booleanPreferencesKey("auto_start_on_boot")
+        val LAST_MODE = stringPreferencesKey("last_mode")
+        val TUN_STACK = stringPreferencesKey("tun_stack")
+        val TUN_MTU = intPreferencesKey("tun_mtu")
+        val BYPASS_LAN = booleanPreferencesKey("bypass_lan")
         val HAPP_CRYPTO_KEYS = stringPreferencesKey("happ_crypto_keys")
     }
 
@@ -96,7 +101,14 @@ class SettingsRepository(private val context: Context) {
                 overrideLogLevel = preferences[PreferencesKeys.OVERRIDE_LOG_LEVEL]
                     ?.takeIf { ProfileOverrides.isValidLogLevel(it) }
                     ?: ProfileOverrides.DEFAULT_LOG_LEVEL,
-                overrideSnifferEnabled = preferences[PreferencesKeys.OVERRIDE_SNIFFER_ENABLED] ?: true
+                overrideSnifferEnabled = preferences[PreferencesKeys.OVERRIDE_SNIFFER_ENABLED] ?: true,
+                autoStartOnBoot = preferences[PreferencesKeys.AUTO_START_ON_BOOT] ?: false,
+                lastMode = preferences[PreferencesKeys.LAST_MODE]
+                    ?.takeIf { it == LastRunMode.VPN || it == LastRunMode.ROOT }
+                    .orEmpty(),
+                tunStack = TunOptions.sanitizeStack(preferences[PreferencesKeys.TUN_STACK]),
+                tunMtu = TunOptions.sanitizeMtu(preferences[PreferencesKeys.TUN_MTU]),
+                bypassLan = preferences[PreferencesKeys.BYPASS_LAN] ?: false
             )
         }
 
@@ -265,6 +277,35 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun updateOverrideSnifferEnabled(enabled: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.OVERRIDE_SNIFFER_ENABLED] = enabled }
+    }
+
+    /** Toggles the boot autostart feature (BootReceiver). */
+    suspend fun updateAutoStartOnBoot(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.AUTO_START_ON_BOOT] = enabled }
+    }
+
+    /**
+     * Persists the last successfully started service mode ("vpn"/"root"). Called by
+     * the services AFTER the core proved ready, so the BootReceiver only autostarts
+     * modes that are known to start cleanly. Any other value is stored as "".
+     */
+    suspend fun updateLastMode(mode: String) {
+        context.dataStore.edit {
+            it[PreferencesKeys.LAST_MODE] =
+                if (mode == LastRunMode.VPN || mode == LastRunMode.ROOT) mode else ""
+        }
+    }
+
+    suspend fun updateTunStack(stack: String) {
+        context.dataStore.edit { it[PreferencesKeys.TUN_STACK] = TunOptions.sanitizeStack(stack.trim()) }
+    }
+
+    suspend fun updateTunMtu(mtu: Int) {
+        context.dataStore.edit { it[PreferencesKeys.TUN_MTU] = TunOptions.sanitizeMtu(mtu) }
+    }
+
+    suspend fun updateBypassLan(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.BYPASS_LAN] = enabled }
     }
 
     // region Happ crypto keyring (encrypted subscriptions, see core/HappCrypto.kt)
