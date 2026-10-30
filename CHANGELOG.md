@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.1.0 — ecosystem compatibility & reliability
+
+### Happ / Incy ecosystem
+- One-tap import deep links: `happ://add|routing|crypt`, `incy://add|import|crypt1|onadd|autorouting`,
+  `clash://install-config` (+clashmeta/flclash), `v2rayng://install-sub`, `sing-box://import-remote`,
+  share-target, and VPN control links (`incy://connect|disconnect|toggle`)
+- Honest `Mihomet/` User-Agent (MIHOMO tier on SRR panels) + `x-hwid` device header
+- Panel behavior headers applied: `subscription-autoconnect`, `per-app-proxy-mode/list`, `tun-mode`
+- Encrypted subscriptions (Happ AES-128-GCM, `encrypt-tag`) with a client-side keyring
+- `profile-title`, `New-Url`/`Fallback-Url` auto-migration, `Subscription-Userinfo` quota + expiry
+- Background auto-refresh by `profile-update-interval` (WorkManager)
+
+### Core
+- Patched mihomo v1.19.33 core (Tropa-derived fix) — non-root TUN no longer fails on
+  `/data/system/packages.xml`; core built in CI from the published patch (sha256-pinned)
+- Firewall: whitelist semantics fixed (selected apps were going DIRECT), IPv4/IPv6 mark
+  symmetry, symmetric teardown; packet-routing simulator tests
+- Fail-closed on invalid profiles with last-known-good fallback
+- Unauthenticated mixed-port listener removed from the runtime config
+
+### Reliability & security
+- Secrets encrypted at rest (AndroidKeyStore AES-256-GCM, Room v5)
+- Keystore key lifecycle fixed (reuse, no regeneration per process)
+- Core and root-daemon watchdogs with backoff restarts; readiness gate before "connected"
+- Always-on VPN handling (`onRevoke`, system restart), screen-on gated speed updates
+- Mode switching serialized; core updater rollback prevented
+
+### UI
+- Neutral "Layers" brand logo (adaptive icon, themed icons, splash), QR for subscriptions
+- RU/EN full localization incl. converter warnings, YAML syntax highlighting
+- Advanced overrides: unified-delay, tcp-concurrent, log-level, sniffer
+- Autostart on boot, TUN stack/MTU/bypass-LAN settings, live-traffic tweaks
+
 ## 1.0.0 — first public release
 
 ### Core & security
