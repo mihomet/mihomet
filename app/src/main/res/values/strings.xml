@@ -74,6 +74,11 @@
     <string name="dashboard_mode_global_desc">Full proxying: all network traffic of the phone is routed through the selected server.</string>
     <string name="dashboard_mode_direct_desc">Direct connection: all internet traffic goes directly, bypassing the proxy core.</string>
 
+    <!-- Dashboard core stats (compact status row, only while running) -->
+    <string name="dash_connections">Connections: %1$d</string>
+    <string name="dash_memory">Core memory: %1$s</string>
+    <string name="dash_memory_value">%1$.0f MB</string>
+
     <!-- Proxies / servers -->
     <string name="proxies_error_load">Failed to load nodes: %1$s</string>
     <string name="proxies_pinging">Pinging...</string>
@@ -296,6 +301,8 @@
     <string name="logs_level_error">Errors</string>
     <string name="logs_level_debug">Debug</string>
     <string name="logs_empty">Log is empty</string>
+    <string name="logs_share">Share log</string>
+    <string name="logs_share_empty">Log is empty</string>
 
     <!-- YAML editor -->
     <string name="yaml_editor_title">YAML Editor</string>

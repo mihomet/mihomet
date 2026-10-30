@@ -78,6 +78,12 @@ data class ConnectionMetadata(
 )
 
 @Serializable
+data class MemoryInfo(
+    val inuse: Long = 0L,
+    val oslimit: Long = 0L
+)
+
+@Serializable
 data class UpdateProxyRequest(
     val name: String
 )

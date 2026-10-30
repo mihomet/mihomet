@@ -221,6 +221,44 @@ fun DashboardScreen(
                 )
             }
 
+            // 3b. Compact core status row (connections + core memory) — only while running
+            if (state.isRunning) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = ExpressiveShapes.Small,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                    )
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Memory,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.dash_connections, state.connectionsCount) +
+                                "  ·  " +
+                                stringResource(R.string.dash_memory, formatMemoryMb(state.memoryInuse)),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+
             // 4. Routing Mode Segmented Pill Card
             ExpressiveRoutingModeCard(
                 activeMode = state.activeMode,
@@ -751,4 +789,10 @@ private fun formatSpeed(bytesPerSec: Long): String {
         bytesPerSec > 0 -> stringResource(R.string.speed_b_per_s, bytesPerSec)
         else -> stringResource(R.string.speed_b_per_s, 0L)
     }
+}
+
+/** Compact core-memory formatter: bytes → "%.0f MB" (locale-aware). */
+@Composable
+private fun formatMemoryMb(bytes: Long): String {
+    return stringResource(R.string.dash_memory_value, bytes / (1024.0 * 1024.0))
 }

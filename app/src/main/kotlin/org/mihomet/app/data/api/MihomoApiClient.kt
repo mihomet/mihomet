@@ -127,6 +127,13 @@ class MihomoApiClient(
         }.body()
     }
 
+    /** Live memory usage of the mihomo core: `{"inuse":123,"oslimit":0}`. */
+    suspend fun getMemory(): Result<MemoryInfo> = runCatching {
+        httpClient.get("$baseUrl/memory") {
+            applyAuth()
+        }.body()
+    }
+
     suspend fun closeConnection(id: String): Result<Unit> = runCatching {
         val encodedId = id.encodeURLPathPart()
         httpClient.delete("$baseUrl/connections/$encodedId") {

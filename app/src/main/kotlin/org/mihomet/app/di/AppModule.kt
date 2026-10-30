@@ -45,6 +45,6 @@ val appModule = module {
     viewModel { ProfilesViewModel(androidContext(), get(), get(), get()) }
     viewModel { RoutingViewModel(androidContext(), get()) }
     viewModel { ConnectionsViewModel(get()) }
-    viewModel { LogsViewModel(get()) }
+    viewModel { LogsViewModel(get(), androidContext()) }
     viewModel { SettingsViewModel(get(), get(), get()) }
 }

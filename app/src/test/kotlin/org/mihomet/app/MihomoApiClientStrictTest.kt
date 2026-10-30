@@ -273,6 +273,31 @@ class MihomoApiClientStrictTest {
         assertEquals("/connections", recorded?.path)
     }
 
+    // ----------------------------------------------------------------- memory
+
+    @Test
+    fun `getMemory hits GET memory with auth and decodes core payload`() = runTest {
+        server.enqueue(jsonOk("""{"inuse":52428800,"oslimit":0}"""))
+
+        val memory = client().getMemory().getOrThrow()
+
+        assertEquals(52_428_800L, memory.inuse)
+        assertEquals(0L, memory.oslimit)
+        val recorded = recordedOrNull()
+        assertEquals("GET", recorded?.method)
+        assertEquals("/memory", recorded?.path)
+        assertEquals("Bearer $SECRET", recorded?.getHeader("Authorization"))
+    }
+
+    @Test
+    fun `getMemory returns failure without crash when server is unreachable`() = runTest {
+        val isolated = MihomoApiClient("127.0.0.1", closedPort(), SECRET)
+
+        val result = isolated.getMemory()
+
+        assertTrue(result.isFailure)
+    }
+
     // ------------------------------------------------------------- updateMode
 
     @Test

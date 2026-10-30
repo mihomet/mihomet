@@ -35,6 +35,8 @@ data class DashboardUiState(
     val primaryGroup: String = "",
     val selectedNode: String = "",
     val selectedNodeDelay: Long = 0,
+    val connectionsCount: Int = 0,
+    val memoryInuse: Long = 0L,
     val isConnecting: Boolean = false,
     val isDisconnecting: Boolean = false
 )
@@ -50,11 +52,15 @@ class DashboardViewModel(
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     private var trafficJob: Job? = null
+    private var coreStatsJob: Job? = null
     private val historyBuffer = mutableListOf<TrafficSample>()
 
     private companion object {
         /** Bounded wait for the opposite-mode teardown during a mode switch. */
         const val TEARDOWN_WAIT_TIMEOUT_MS = 10_000L
+
+        /** Poll interval for the connections-count / core-memory stats. */
+        const val CORE_STATS_POLL_INTERVAL_MS = 15_000L
     }
 
     init {
@@ -90,9 +96,11 @@ class DashboardViewModel(
                 _uiState.update { it.copy(isRunning = running, isConnecting = false, isDisconnecting = false) }
                 if (running) {
                     startTrafficMonitor()
+                    startCoreStatsMonitor()
                     syncActiveProxy()
                 } else {
                     stopTrafficMonitor()
+                    stopCoreStatsMonitor()
                 }
             }
         }
@@ -212,6 +220,39 @@ class DashboardViewModel(
             it.copy(
                 currentTraffic = TrafficSample(),
                 trafficHistory = emptyList()
+            )
+        }
+    }
+
+    /**
+     * Light 15s polling of the core REST API for the dashboard status row
+     * (active connections count + core memory in use). Runs only while the
+     * service is running; failures (e.g. controller not ready yet) just keep
+     * the previous values until the next tick.
+     */
+    private fun startCoreStatsMonitor() {
+        coreStatsJob?.cancel()
+        coreStatsJob = viewModelScope.launch {
+            while (isActive) {
+                val api = apiClientProvider.current()
+                api.getConnections().onSuccess { response ->
+                    _uiState.update { it.copy(connectionsCount = response.connections.size) }
+                }
+                api.getMemory().onSuccess { memory ->
+                    _uiState.update { it.copy(memoryInuse = memory.inuse) }
+                }
+                delay(CORE_STATS_POLL_INTERVAL_MS)
+            }
+        }
+    }
+
+    private fun stopCoreStatsMonitor() {
+        coreStatsJob?.cancel()
+        coreStatsJob = null
+        _uiState.update {
+            it.copy(
+                connectionsCount = 0,
+                memoryInuse = 0L
             )
         }
     }
