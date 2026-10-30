@@ -13,6 +13,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.net.ProxyInfo
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
@@ -293,6 +294,31 @@ class MihometVpnService : VpnService(), KoinComponent {
             // Do not mark VPN traffic as metered when underlying network is unmetered Wi-Fi (API 29+)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 builder.setMetered(false)
+            }
+
+            // CMFA/FlClash allowBypass pattern (opt-in): apps that explicitly request
+            // the bypass option may route around the VPN. Off by default — with the
+            // default, Android blocks applications' bypass attempts, so nothing can
+            // escape the tunnel without the user's consent.
+            if (settings.vpnAllowBypass && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                builder.allowBypass()
+            }
+
+            // CMFA/FlClash setHttpProxy pattern (opt-in): publish a local HTTP proxy
+            // to apps that honor the system proxy inside the VPN profile. Requires
+            // ConfigGenerator to re-enable the mixed-port listener for this session
+            // (see the documented security compromise there): the listener binds to
+            // 127.0.0.1 only (bind-address), is UNAUTHENTICATED, and any on-device
+            // app can reach it directly — the user consciously opted in via
+            // Settings → Advanced, so this does not violate "no silent exposure".
+            if (settings.vpnHttpProxy && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                runCatching {
+                    builder.setHttpProxy(
+                        ProxyInfo.buildDirectProxy("127.0.0.1", settings.mixedPort)
+                    )
+                }.onFailure {
+                    android.util.Log.w("MihometVpn", "setHttpProxy failed: ${it.message}")
+                }
             }
 
             // Per-app split tunneling (VpnService does not allow mixing allowed and disallowed apps)

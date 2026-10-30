@@ -348,4 +348,17 @@
     <!-- Subscription QR sharing -->
     <string name="profile_show_qr">Show QR</string>
     <string name="qr_dialog_title">Subscription QR</string>
+
+    <!-- Battery optimization prompt (once per install) -->
+    <string name="batt_dialog_title">Disable battery optimization</string>
+    <string name="batt_dialog_text">Android may stop Mihomet\'s background service to save power, which breaks the VPN tunnel. Allow Mihomet to run without battery restrictions?</string>
+    <string name="batt_xiaomi_hint">MIUI detected: also enable Autostart for Mihomet in Settings → Apps → Permissions → Autostart, otherwise the service may not survive a reboot.</string>
+    <string name="batt_open_settings">Open settings</string>
+    <string name="batt_later">Later</string>
+
+    <!-- Advanced VPN toggles (allowBypass / setHttpProxy) -->
+    <string name="vpn_bypass_title">Allow app bypass</string>
+    <string name="vpn_bypass_desc">Apps with the bypass option may route around the VPN (VpnService allowBypass)</string>
+    <string name="vpn_httpproxy_title">HTTP proxy via VPN</string>
+    <string name="vpn_httpproxy_desc">Expose a local HTTP proxy to apps inside the VPN (mixed-port)</string>
 </resources>

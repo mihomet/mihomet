@@ -8,11 +8,16 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
@@ -22,6 +27,8 @@ import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
+import org.mihomet.app.R
+import org.mihomet.app.core.BatteryHelper
 import org.mihomet.app.data.preferences.SettingsRepository
 import org.mihomet.app.ui.components.ExpressiveNavigationBar
 import org.mihomet.app.ui.navigation.AppNavGraph
@@ -168,6 +175,58 @@ class MainActivity : ComponentActivity() {
                         paddingValues = innerPadding
                     )
                 }
+            }
+
+            // Battery-optimization prompt (FlClash BatteryPlugin pattern): shown at
+            // most ONCE per install when the system does not already whitelist the
+            // app from battery optimizations. The shown-flag is persisted the moment
+            // the dialog is about to appear, so it never nags again — even if the
+            // process is killed before the user answers.
+            var showBatteryPrompt by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                val stored = settingsRepository.settingsFlow.first()
+                showBatteryPrompt =
+                    !stored.battPromptShown &&
+                        !BatteryHelper.isIgnoringBatteryOptimizations(this@MainActivity)
+                if (showBatteryPrompt) {
+                    settingsRepository.updateBatteryPromptShown(true)
+                }
+            }
+            if (showBatteryPrompt) {
+                val isXiaomi = BatteryHelper.isXiaomi()
+                AlertDialog(
+                    onDismissRequest = { showBatteryPrompt = false },
+                    title = { Text(stringResource(R.string.batt_dialog_title)) },
+                    text = {
+                        Column {
+                            Text(stringResource(R.string.batt_dialog_text))
+                            if (isXiaomi) {
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    stringResource(R.string.batt_xiaomi_hint),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showBatteryPrompt = false
+                                runCatching {
+                                    BatteryHelper.buildRequestIgnoreIntent(this@MainActivity)
+                                        ?.let { startActivity(it) }
+                                }
+                            }
+                        ) { Text(stringResource(R.string.batt_open_settings)) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showBatteryPrompt = false }) {
+                            Text(stringResource(R.string.batt_later))
+                        }
+                    }
+                )
             }
         }
     }

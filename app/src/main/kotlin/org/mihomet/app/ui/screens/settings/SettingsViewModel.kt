@@ -230,6 +230,18 @@ class SettingsViewModel(
         }
     }
 
+    fun updateVpnAllowBypass(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateVpnAllowBypass(enabled)
+        }
+    }
+
+    fun updateVpnHttpProxy(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateVpnHttpProxy(enabled)
+        }
+    }
+
     /**
      * Adds (or replaces) a Happ crypto key after validating the AES-128 length:
      * the key must be exactly [HappCrypto.KEY_BYTES] bytes (UTF-8) and the id
