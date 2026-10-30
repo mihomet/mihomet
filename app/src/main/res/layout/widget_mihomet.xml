@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Home screen widget (~2x1): brand icon + On/Off status + small VPN/Root mode line.
+    Classic Views only (RemoteViews does not support Compose); colors come from
+    res/color and the rounded graphite backdrop from drawable/widget_background.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/widget_background"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp">
+
+    <ImageView
+        android:id="@+id/widget_icon"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:contentDescription="@string/app_name"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_proxy_tile" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:text="@string/widget_status_off"
+            android:textColor="@color/widget_status_off"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_mode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:text="@string/widget_mode_vpn"
+            android:textColor="@color/widget_mode_text"
+            android:textSize="11sp" />
+    </LinearLayout>
+</LinearLayout>

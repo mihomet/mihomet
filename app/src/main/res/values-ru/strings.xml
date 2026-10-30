@@ -313,6 +313,12 @@
     <string name="tile_connected">Подключено</string>
     <string name="tile_disconnected">Отключено</string>
 
+    <!-- Виджет на рабочем столе -->
+    <string name="widget_status_on">Вкл</string>
+    <string name="widget_status_off">Выкл</string>
+    <string name="widget_mode_vpn">VPN</string>
+    <string name="widget_mode_root">Root</string>
+
     <!-- VPN service notifications -->
     <string name="vpn_channel_name">Mihomet VPN Service</string>
     <string name="vpn_notification_title">Mihomet VPN</string>
