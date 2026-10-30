@@ -63,6 +63,12 @@ class NftablesEngine : FirewallEngine {
 
         /**
          * Pure builder for the nft ruleset loaded through `nft -f -`.
+         *
+         * Marks are family-specific: the ip -4 policy rules divert fwmark
+         * [CoreConstants.TPROXY_MARK_IPV4] packets, the ip -6 rules created by
+         * [buildRoutingCommands] wait for fwmark [CoreConstants.TPROXY_MARK_IPV6] —
+         * so IPv6 must be marked with 25, never with 20, otherwise IPv6 traffic
+         * silently stays unproxied.
          */
         fun buildNftScript(
             tproxyPort: Int,
@@ -96,6 +102,31 @@ class NftablesEngine : FirewallEngine {
                 ""
             }
 
+            // IPv6 marking/tproxy rules exist only when IPv6 is enabled; when disabled the
+            // block rule above drops non-loopback IPv6 long before any mark would be set.
+            val ipv6OutputMark = if (ipv6Enabled) {
+                "        meta nfproto ipv6 meta l4proto { tcp, udp } meta mark set ${CoreConstants.TPROXY_MARK_IPV6}"
+            } else {
+                ""
+            }
+            val ipv6TproxyRule = if (ipv6Enabled) {
+                "        meta nfproto ipv6 meta l4proto { tcp, udp } meta mark set ${CoreConstants.TPROXY_MARK_IPV6} tproxy to :$tproxyPort accept"
+            } else {
+                ""
+            }
+
+            // IPv6 counterpart of the private-range bypass (loopback / ULA / link-local),
+            // still exposing destination port 53 for DNS interception.
+            val ipv6BypassRules = if (ipv6Enabled) {
+                listOf(
+                    "        ip6 daddr { ::1/128, fc00::/7, fe80::/10 } udp dport != 53 accept",
+                    "        ip6 daddr { ::1/128, fc00::/7, fe80::/10 } meta l4proto != udp accept",
+                    "        ip6 daddr ff00::/8 accept"
+                )
+            } else {
+                emptyList()
+            }
+
             return buildString {
                 appendLine("table inet mihomet {")
                 // 1. Bypass chain: skip local IPs except destination port 53 (DNS interception)
@@ -103,9 +134,12 @@ class NftablesEngine : FirewallEngine {
                 appendLine("        ip daddr { 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } udp dport != 53 accept")
                 appendLine("        ip daddr { 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } meta l4proto != udp accept")
                 appendLine("        ip daddr { 224.0.0.0/4, 255.255.255.255/32 } accept")
+                for (rule in ipv6BypassRules) {
+                    appendLine(rule)
+                }
                 appendLine("    }")
                 appendLine()
-                // 2. OUTPUT mangle hook (mark 20 -> lo)
+                // 2. OUTPUT mangle hook (mark 20 v4 / mark 25 v6 -> lo)
                 appendLine("    chain output {")
                 appendLine("        type route hook output priority mangle; policy accept;")
                 appendLine("        meta mark ${CoreConstants.CORE_ROUTING_MARK} accept")
@@ -117,7 +151,10 @@ class NftablesEngine : FirewallEngine {
                 if (perAppRule.isNotBlank()) {
                     appendLine(perAppRule)
                 }
-                appendLine("        meta l4proto { tcp, udp } meta mark set ${CoreConstants.TPROXY_MARK_IPV4}")
+                appendLine("        meta nfproto ipv4 meta l4proto { tcp, udp } meta mark set ${CoreConstants.TPROXY_MARK_IPV4}")
+                if (ipv6OutputMark.isNotBlank()) {
+                    appendLine(ipv6OutputMark)
+                }
                 appendLine("    }")
                 appendLine()
                 // 3. PREROUTING mangle hook (tproxy)
@@ -125,7 +162,10 @@ class NftablesEngine : FirewallEngine {
                 appendLine("        type filter hook prerouting priority mangle; policy accept;")
                 appendLine("        meta mark ${CoreConstants.CORE_ROUTING_MARK} accept")
                 appendLine("        jump bypass")
-                appendLine("        meta l4proto { tcp, udp } meta mark set ${CoreConstants.TPROXY_MARK_IPV4} tproxy to :$tproxyPort accept")
+                appendLine("        meta nfproto ipv4 meta l4proto { tcp, udp } meta mark set ${CoreConstants.TPROXY_MARK_IPV4} tproxy to :$tproxyPort accept")
+                if (ipv6TproxyRule.isNotBlank()) {
+                    appendLine(ipv6TproxyRule)
+                }
                 appendLine("    }")
                 appendLine("}")
             }
