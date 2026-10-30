@@ -32,6 +32,8 @@
 - RU/EN full localization incl. converter warnings, YAML syntax highlighting
 - Advanced overrides: unified-delay, tcp-concurrent, log-level, sniffer
 - Autostart on boot, TUN stack/MTU/bypass-LAN settings, live-traffic tweaks
+- Home-screen widget (status + toggle), connection/memory stats, log export/share
+- Battery-optimization prompt, allowBypass and HTTP-proxy-through-VPN options
 
 ## 1.0.0 — first public release
 
