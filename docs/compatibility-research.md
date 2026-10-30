@@ -57,4 +57,9 @@
 5. ✅ `FOREGROUND_SERVICE_IMMEDIATE` + core watchdog (auto-restart ×3) + Always-on (null-intent restart, onRevoke) + root-daemon watchdog (10s monitor, backoff ×3) + автообновление подписок по update-interval (WorkManager)
 6. ⬜ Смена сети → реконнект core-соединений (аналог FlClash `Core.resetNetwork`), screen-on обновление скорости
 7. ⬜ Always-on VPN + `onRevoke` graceful
+7.5 ✅ Реализовано дополнительно (утренняя сессия): виджет рабочего стола (status+toggle),
+    автостарт на загрузке (последний успешный режим), TUN stack/MTU/bypass-LAN (CMFA
+    additive-паттерн), QR-код подписки, стриминг-лимит тела 20 МБ, экспорт/шеринг логов,
+    memory/connections на дашборде. N3 в работе: battery-промпты, allowBypass, HTTP-proxy
+    через VPN.
 8. ◐ Override-слой поверх профиля: базовая typed-версия готова (unified-delay / tcp-concurrent / log-level / sniffer в Настройки→Продвинутые, приоритет над профилем); per-profile override-патч готов (Room v4 `overridePatch`, YAML-фрагмент в меню профиля, глубокий merge в runtime-конфиг ДО обязательных настроек — allow-lan/порты/DNS приложения всегда приоритетны). Остаток (L): полный блок dns (nameserver-policy, fake-ip-filter-mode), sniffer per-protocol, JS-скрипты как в FlClash.
