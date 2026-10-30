@@ -2,10 +2,11 @@ package org.mihomet.app.data.subs
 
 import android.content.Context
 import io.ktor.client.HttpClient
-import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.utils.io.ByteReadChannel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -25,6 +26,7 @@ import org.mihomet.app.ui.screens.profiles.SubscriptionMeta
 import org.mihomet.app.ui.screens.profiles.SubscriptionMetaParser
 import org.mihomet.app.ui.screens.profiles.SubscriptionUserinfo
 import org.mihomet.app.ui.screens.profiles.SubscriptionUserinfoParser
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.Base64
 
@@ -59,6 +61,14 @@ data class ProfileRefreshResult(
 // Surfaced through Result.failure; the data exists but the Keystore key does not.
 private const val SUBSCRIPTION_UNDECRYPTABLE_MESSAGE =
     "Не удалось расшифровать данные подписки — ключ шифрования недоступен или был заменён. Добавьте подписку заново."
+
+/**
+ * The subscription payload exceeds [SubscriptionRepository.MAX_SUBSCRIPTION_BYTES] —
+ * whether the size was declared in `Content-Length` or discovered while streaming
+ * a header-less (chunked) response. Deliberately aborts the whole download:
+ * retrying the User-Agent fallback chain cannot make an oversized payload fit.
+ */
+internal class SubscriptionTooLargeException(message: String) : IllegalStateException(message)
 
 class SubscriptionRepository(
     private val context: Context,
@@ -139,11 +149,23 @@ class SubscriptionRepository(
                         }
                     }
                     if (resp.status.value in 200..299) {
+                        // Fast-fail on a declared Content-Length (nothing buffered yet).
                         val contentLength = resp.headers["Content-Length"]?.toLongOrNull()
                         if (contentLength != null && contentLength > MAX_SUBSCRIPTION_BYTES) {
-                            throw IllegalStateException(context.getString(R.string.profiles_too_large))
+                            throw SubscriptionTooLargeException(
+                                context.getString(R.string.profiles_too_large)
+                            )
                         }
-                        val body: String = resp.body()
+                        // Streamed read with a hard cap enforced on the actual bytes
+                        // received, so it holds even when the server omits
+                        // Content-Length (chunked transfer). Content-Encoding
+                        // (gzip/deflate) is handled by the transport — OkHttp/Ktor
+                        // decompress transparently, the channel yields plaintext.
+                        val body = readBodyWithLimit(
+                            resp.bodyAsChannel(),
+                            MAX_SUBSCRIPTION_BYTES,
+                            context.getString(R.string.profiles_too_large)
+                        )
                         if (body.isNotBlank()) {
                             responseText = body
                             // Happ encrypted subscriptions: the GCM tag rides in this
@@ -162,6 +184,11 @@ class SubscriptionRepository(
                             break
                         }
                     }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: SubscriptionTooLargeException) {
+                    // Oversized for any User-Agent — retrying the chain is pointless.
+                    throw e
                 } catch (e: Exception) {
                     lastException = e
                 }
@@ -289,6 +316,41 @@ class SubscriptionRepository(
 
     companion object {
         const val MAX_SUBSCRIPTION_BYTES = 20L * 1024 * 1024
+
+        /** Streaming read granularity for [readBodyWithLimit]. */
+        private const val STREAM_CHUNK_BYTES = 64 * 1024
+
+        /**
+         * Streams [channel] into a string, failing hard as soon as more than
+         * [maxBytes] bytes have actually been received. The cap does not depend on
+         * response headers: a chunked / no-Content-Length body is cut off at the
+         * same limit instead of being buffered whole into memory (external audit
+         * §9.3). Transport decompression (Content-Encoding) is transparent here —
+         * OkHttp/Ktor hand over already-decoded bytes.
+         *
+         * Throws [SubscriptionTooLargeException] with [tooLargeMessage] on overflow.
+         * Internal so JVM tests can drive it against a real HTTP server.
+         */
+        internal suspend fun readBodyWithLimit(
+            channel: ByteReadChannel,
+            maxBytes: Long,
+            tooLargeMessage: String
+        ): String {
+            val output = ByteArrayOutputStream(STREAM_CHUNK_BYTES)
+            val buffer = ByteArray(STREAM_CHUNK_BYTES)
+            var total = 0L
+            while (true) {
+                val read = channel.readAvailable(buffer, 0, buffer.size)
+                if (read == -1) break
+                if (read <= 0) continue
+                total += read
+                if (total > maxBytes) {
+                    throw SubscriptionTooLargeException(tooLargeMessage)
+                }
+                output.write(buffer, 0, read)
+            }
+            return output.toString("UTF-8")
+        }
 
         /** Minimum panel interval (hours) eligible for background auto-refresh; guards against overly chatty panels. */
         const val MIN_AUTO_UPDATE_HOURS = 6

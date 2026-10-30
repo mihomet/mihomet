@@ -228,6 +228,9 @@ dependencies {
     implementation(libs.snakeyaml)
     implementation(libs.coil.compose)
 
+    // QR codes (subscription sharing)
+    implementation(libs.zxing.core)
+
     // Test
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

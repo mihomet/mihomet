@@ -468,4 +468,105 @@ class ConfigGeneratorStrictTest {
         val parsed = Yaml().load<Map<String, Any>>(configYaml)
         assertTrue("Valid profile must keep its proxies", (parsed["proxies"] as List<*>).isNotEmpty())
     }
+
+    // ---------------------------------------------------------------------
+    // TUN settings (Advanced section): stack/mtu flow from AppSettings into the
+    // tun block, with sanitization at the generator boundary.
+    // ---------------------------------------------------------------------
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test tun stack and mtu are taken from settings`() {
+        val settings = AppSettings(tunStack = "system", tunMtu = 1500)
+        val configYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = sampleProfile,
+            settings = settings,
+            tunFd = 37
+        )
+
+        val tun = Yaml().load<Map<String, Any>>(configYaml)["tun"] as Map<String, Any>
+        assertEquals("Valid stack choice must be written as-is", "system", tun["stack"])
+        assertEquals("Valid MTU choice must be written as-is", 1500, tun["mtu"])
+        assertEquals(37, tun["file-descriptor"])
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test garbage tun stack falls back to gvisor`() {
+        val settings = AppSettings(tunStack = "bogus-stack")
+        val configYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = sampleProfile,
+            settings = settings,
+            tunFd = 37
+        )
+
+        val tun = Yaml().load<Map<String, Any>>(configYaml)["tun"] as Map<String, Any>
+        assertEquals("Unknown stack must degrade to gvisor", "gvisor", tun["stack"])
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test tun mtu out of range is clamped not replaced`() {
+        // Below 1280 (IPv6 minimum link MTU) → clamped up, NOT swapped for the default
+        val lowYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = sampleProfile,
+            settings = AppSettings(tunMtu = 100),
+            tunFd = 37
+        )
+        val lowTun = Yaml().load<Map<String, Any>>(lowYaml)["tun"] as Map<String, Any>
+        assertEquals("Too-small MTU must clamp to 1280", 1280, lowTun["mtu"])
+
+        // Above the TUN device maximum → clamped down
+        val highYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = sampleProfile,
+            settings = AppSettings(tunMtu = 999_999),
+            tunFd = 37
+        )
+        val highTun = Yaml().load<Map<String, Any>>(highYaml)["tun"] as Map<String, Any>
+        assertEquals("Too-large MTU must clamp to 65535", 65535, highTun["mtu"])
+
+        // Defaults unchanged: 9000 (CMFA standard)
+        val defaultTun = Yaml().load<Map<String, Any>>(
+            ConfigGenerator.generateRuntimeConfig(
+                profileYamlContent = sampleProfile,
+                settings = AppSettings(),
+                tunFd = 37
+            )
+        )["tun"] as Map<String, Any>
+        assertEquals("Default MTU must stay 9000", 9000, defaultTun["mtu"])
+        assertEquals("Default stack must stay gvisor", "gvisor", defaultTun["stack"])
+    }
+
+    @Test
+    fun `test tun settings are ignored in root mode`() {
+        val configYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = sampleProfile,
+            settings = AppSettings(tunStack = "system", tunMtu = 1500),
+            tunFd = null
+        )
+        val parsed = Yaml().load<Map<String, Any>>(configYaml)
+        assertNull("Root mode must never contain a tun block", parsed["tun"])
+    }
+
+    @Test
+    fun `test TunOptions sanitization contract`() {
+        org.junit.Assert.assertEquals(
+            "Only gvisor/system/mixed are valid",
+            listOf("gvisor", "system", "mixed"),
+            org.mihomet.app.data.preferences.TunOptions.STACKS
+        )
+        assertEquals(
+            "Null stack falls back to gvisor",
+            "gvisor",
+            org.mihomet.app.data.preferences.TunOptions.sanitizeStack(null)
+        )
+        assertEquals(
+            "Null MTU falls back to 9000",
+            9000,
+            org.mihomet.app.data.preferences.TunOptions.sanitizeMtu(null)
+        )
+        // Boundary values pass through untouched
+        assertEquals(1280, org.mihomet.app.data.preferences.TunOptions.sanitizeMtu(1280))
+        assertEquals(65535, org.mihomet.app.data.preferences.TunOptions.sanitizeMtu(65535))
+    }
 }

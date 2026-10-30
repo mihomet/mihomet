@@ -3,6 +3,7 @@ package org.mihomet.app.ui.screens.profiles
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,6 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -57,6 +60,8 @@ fun ProfilesScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     // Profile whose override patch is being edited (P7)
     var patchDialogProfile by remember { mutableStateOf<ProfileEntity?>(null) }
+    // Subscription QR sharing: profile name + decrypted URL resolved on demand
+    var qrDialogData by remember { mutableStateOf<ProfileQrData?>(null) }
     val clipboardManager = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -271,6 +276,17 @@ fun ProfilesScreen(
                             AppHaptics.perform(context, HapticType.CLICK, view)
                             patchDialogProfile = profile
                         },
+                        onShowQr = {
+                            AppHaptics.perform(context, HapticType.CLICK, view)
+                            scope.launch {
+                                val url = viewModel.getProfileUrl(profile.id)
+                                if (url != null) {
+                                    qrDialogData = ProfileQrData(name = profile.name, url = url)
+                                }
+                                // null on a decrypt failure — the explanation arrives
+                                // through state.errorMessage as a snackbar.
+                            }
+                        },
                         onUpdate = {
                             AppHaptics.perform(context, HapticType.CLICK, view)
                             viewModel.updateProfile(profile)
@@ -312,8 +328,19 @@ fun ProfilesScreen(
                 }
             )
         }
+
+        qrDialogData?.let { qr ->
+            SubscriptionQrDialog(
+                title = qr.name,
+                url = qr.url,
+                onDismiss = { qrDialogData = null }
+            )
+        }
     }
 }
+
+/** Payload of the subscription QR dialog: profile display name + decrypted URL. */
+private data class ProfileQrData(val name: String, val url: String)
 
 @Composable
 fun ExpressiveProfileCard(
@@ -321,6 +348,7 @@ fun ExpressiveProfileCard(
     onSelect: () -> Unit,
     onEditYaml: () -> Unit,
     onEditPatch: () -> Unit,
+    onShowQr: () -> Unit,
     onUpdate: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -463,6 +491,18 @@ fun ExpressiveProfileCard(
                                     },
                                     leadingIcon = { Icon(Icons.Default.Sync, contentDescription = null) }
                                 )
+                                // QR sharing only makes sense for a subscription URL
+                                // (remote profile with a non-blank stored url).
+                                if (profile.url.isNotBlank()) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.profile_show_qr)) },
+                                        onClick = {
+                                            showMenu = false
+                                            onShowQr()
+                                        },
+                                        leadingIcon = { Icon(Icons.Default.QrCode2, contentDescription = null) }
+                                    )
+                                }
                             }
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.profiles_edit_yaml)) },
@@ -633,6 +673,78 @@ fun OverridePatchDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+/**
+ * Share-by-QR dialog for a remote profile: renders the decrypted subscription
+ * URL as a scannable QR code (white background, dark modules) and shows the
+ * profile name plus the URL itself underneath.
+ */
+@Composable
+fun SubscriptionQrDialog(
+    title: String,
+    url: String,
+    onDismiss: () -> Unit
+) {
+    // Generated once per URL; a payload that does not fit into a QR symbol
+    // falls back to the error text (the URL is shown below regardless).
+    val bitmap = remember(url) {
+        runCatching {
+            SubscriptionQr.toBitmap(SubscriptionQr.encodeBitMatrix(url))
+        }.getOrNull()
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.qr_dialog_title), fontWeight = FontWeight.Black) },
+        text = {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (bitmap != null) {
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = stringResource(R.string.qr_dialog_title),
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                            .clip(ExpressiveShapes.Small)
+                            .background(Color.White)
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.profiles_unknown_error),
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = url,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_close))
             }
         }
     )

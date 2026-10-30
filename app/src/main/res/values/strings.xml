@@ -200,6 +200,14 @@
     <string name="settings_dns_comss">Comss.one DoH</string>
     <string name="settings_dns_quad9">Quad9 DoH</string>
     <string name="settings_ipv6">IPv6 support</string>
+    <string name="settings_autostart">Autostart on boot</string>
+    <string name="settings_autostart_desc">Start the proxy automatically after the device boots (in the last running mode)</string>
+    <string name="settings_tun_stack">TUN stack</string>
+    <string name="settings_tun_stack_desc">Current value: %1$s</string>
+    <string name="settings_tun_mtu">TUN MTU</string>
+    <string name="settings_tun_mtu_desc">Current value: %1$d</string>
+    <string name="settings_bypass_lan">Bypass LAN</string>
+    <string name="settings_bypass_lan_desc">Do not route private networks (192.168.x.x, 10.x.x.x, 172.16–31.x.x, IPv6 ULA/link-local) through the tunnel</string>
     <string name="settings_override_unified_delay">Unified delay (unified-delay)</string>
     <string name="settings_override_unified_delay_desc">Smooth out RTT jitter for stable latency readings</string>
     <string name="settings_override_tcp_concurrent">Concurrent TCP dial (tcp-concurrent)</string>
@@ -323,4 +331,8 @@
     <string name="root_error">Error: %1$s</string>
     <string name="root_last_good_used">Profile is broken — using the last working version</string>
     <string name="profiles_subscription_undecryptable">Could not decrypt the subscription data — the encryption key is unavailable or was replaced. Please add the subscription again.</string>
+
+    <!-- Subscription QR sharing -->
+    <string name="profile_show_qr">Show QR</string>
+    <string name="qr_dialog_title">Subscription QR</string>
 </resources>
