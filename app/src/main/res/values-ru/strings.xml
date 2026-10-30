@@ -135,6 +135,7 @@
     <string name="profiles_add_failed">Не удалось загрузить подписку: %1$s</string>
     <string name="profiles_imported">Подписка «%1$s» успешно добавлена</string>
     <string name="profiles_unrecognized">Не удалось распознать формат узлов в буфере обмена</string>
+    <string name="profiles_invalid_result">Не удалось получить валидную конфигурацию</string>
     <string name="profiles_import_done">Импортировано %1$s</string>
     <string name="profiles_config_added">Конфигурация успешно добавлена</string>
     <string name="profiles_import_error">Ошибка импорта: %1$s</string>
@@ -159,6 +160,7 @@
     <string name="conv_warning_parse_error_details">Ошибка разбора узла: %1$s (%2$s)</string>
     <string name="conv_error_xray">Ошибка конвертации Xray JSON: %1$s</string>
     <string name="conv_error_singbox">Ошибка конвертации Sing-Box JSON: %1$s</string>
+    <string name="conv_error_yaml">Ошибка YAML: %1$s</string>
     <string name="conv_warning_no_nodes">В подписке не найдено ни одного поддерживаемого узла</string>
     <string name="conv_warning_no_nodes_xray">В Xray-конфиге не найдено ни одного поддерживаемого узла</string>
     <string name="conv_warning_no_nodes_singbox">В Sing-Box конфиге не найдено ни одного поддерживаемого узла</string>
@@ -310,6 +312,7 @@
     <string name="vpn_error_core">Ошибка ядра (%1$d)</string>
     <string name="vpn_error">Ошибка VPN: %1$s</string>
     <string name="vpn_restarting">Перезапуск ядра…</string>
+    <string name="vpn_last_good_used">Профиль повреждён — используется последняя рабочая версия</string>
 
     <!-- Root TProxy service notifications -->
     <string name="root_channel_name">Mihomet Root Service</string>
@@ -318,5 +321,6 @@
     <string name="root_notification_starting">Запуск Root TProxy...</string>
     <string name="root_running">Подключено (%1$s)</string>
     <string name="root_error">Ошибка: %1$s</string>
+    <string name="root_last_good_used">Профиль повреждён — используется последняя рабочая версия</string>
     <string name="profiles_subscription_undecryptable">Не удалось расшифровать данные подписки — ключ шифрования недоступен или был заменён. Добавьте подписку заново.</string>
 </resources>

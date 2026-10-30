@@ -135,6 +135,7 @@
     <string name="profiles_add_failed">Failed to download subscription: %1$s</string>
     <string name="profiles_imported">Subscription «%1$s» added successfully</string>
     <string name="profiles_unrecognized">Could not recognize node format in the clipboard</string>
+    <string name="profiles_invalid_result">Could not obtain a valid configuration</string>
     <string name="profiles_import_done">Imported %1$s</string>
     <string name="profiles_config_added">Configuration added successfully</string>
     <string name="profiles_import_error">Import error: %1$s</string>
@@ -157,6 +158,7 @@
     <string name="conv_warning_parse_error_details">Failed to parse node: %1$s (%2$s)</string>
     <string name="conv_error_xray">Xray JSON conversion error: %1$s</string>
     <string name="conv_error_singbox">Sing-Box JSON conversion error: %1$s</string>
+    <string name="conv_error_yaml">YAML error: %1$s</string>
     <string name="conv_warning_no_nodes">No supported nodes found in the subscription</string>
     <string name="conv_warning_no_nodes_xray">No supported nodes found in the Xray config</string>
     <string name="conv_warning_no_nodes_singbox">No supported nodes found in the Sing-Box config</string>
@@ -308,6 +310,7 @@
     <string name="vpn_error_core">Core error (%1$d)</string>
     <string name="vpn_error">VPN error: %1$s</string>
     <string name="vpn_restarting">Restarting core…</string>
+    <string name="vpn_last_good_used">Profile is broken — using the last working version</string>
 
     <!-- Root TProxy service notifications -->
     <string name="root_channel_name">Mihomet Root Service</string>
@@ -316,5 +319,6 @@
     <string name="root_notification_starting">Starting Root TProxy...</string>
     <string name="root_running">Running (%1$s)</string>
     <string name="root_error">Error: %1$s</string>
+    <string name="root_last_good_used">Profile is broken — using the last working version</string>
     <string name="profiles_subscription_undecryptable">Could not decrypt the subscription data — the encryption key is unavailable or was replaced. Please add the subscription again.</string>
 </resources>

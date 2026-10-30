@@ -444,4 +444,32 @@ class UniversalConfigConverterTest {
         val proxies = parsed["proxies"] as List<Map<String, Any>>
         assertEquals(1, proxies.size)
     }
+
+    @Test
+    fun `test broken clash yaml passes through unchanged with yaml error warning in outcome`() {
+        // P0 regression: a broken Clash YAML profile must never be silently normalized
+        // into something the caller mistakes for a valid config — the parse error has
+        // to surface as a warning and the original text is returned unchanged.
+        val brokenYaml = "mixed-port: 7890\nproxies: [unclosed\nrules:\n  - MATCH,PROXY"
+
+        val outcome = UniversalConfigConverter.convertToMihomoYamlWithOutcome(brokenYaml)
+
+        assertTrue(
+            "Expected a 'Ошибка YAML:' warning, got: ${outcome.warnings}",
+            outcome.warnings.any { it.startsWith("Ошибка YAML: ") }
+        )
+        // Original content is preserved (never dropped or replaced by an empty config)
+        assertTrue(outcome.yaml.contains("proxies: [unclosed"))
+    }
+
+    @Test
+    fun `test valid clash yaml normalization stays warning-free`() {
+        val validYaml = "mixed-port: 7890\nproxies:\n  - name: a\n    type: ss\n    server: 1.2.3.4\n    port: 8388\n    cipher: aes-256-gcm\n    password: x"
+
+        val outcome = UniversalConfigConverter.convertToMihomoYamlWithOutcome(validYaml)
+
+        assertTrue("Valid YAML must not produce warnings, got: ${outcome.warnings}", outcome.warnings.isEmpty())
+        val parsed = Yaml().load<Map<String, Any>>(outcome.yaml)
+        assertTrue(parsed.containsKey("proxies"))
+    }
 }

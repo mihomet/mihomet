@@ -46,7 +46,7 @@ object UniversalConfigConverter {
         val yaml = when {
             isHappRouting(trimmed) -> convertHappRoutingToMihomoYaml(trimmed)
             isHappRouting(decoded) -> convertHappRoutingToMihomoYaml(decoded)
-            isClashYaml(decoded) -> validateAndNormalizeYaml(decoded)
+            isClashYaml(decoded) -> validateAndNormalizeYaml(decoded, warnings)
             isSingBoxJson(decoded) -> convertSingBoxJsonToMihomoYaml(decoded, warnings)
             isXrayJson(decoded) -> convertXrayJsonToMihomoYaml(decoded, warnings)
             isUriList(decoded) -> convertUriListToMihomoYaml(decoded, warnings)
@@ -232,7 +232,15 @@ object UniversalConfigConverter {
                 firstLine.startsWith("wg://")
     }
 
-    private fun validateAndNormalizeYaml(yamlContent: String): String {
+    /**
+     * Re-dumps a Clash YAML profile through SnakeYAML for normalization.
+     *
+     * Never silent: a YAML parsing error is reported through [warnings]
+     * ("Ошибка YAML: <message>") and the original content is returned unchanged,
+     * so downstream fail-closed guards (ConfigGenerator / profile validation)
+     * stop the invalid profile instead of silently routing everything to DIRECT.
+     */
+    private fun validateAndNormalizeYaml(yamlContent: String, warnings: MutableList<String>? = null): String {
         return try {
             val yaml = Yaml()
             val parsed = yaml.load<Map<String, Any>>(yamlContent) ?: return yamlContent
@@ -245,6 +253,7 @@ object UniversalConfigConverter {
             Yaml(dumperOptions).dump(parsed, writer)
             writer.toString()
         } catch (e: Exception) {
+            warnings?.add("Ошибка YAML: ${e.message ?: "неизвестная ошибка"}")
             yamlContent
         }
     }

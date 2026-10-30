@@ -26,6 +26,7 @@ object WarningLocalizer {
     private const val PREFIX_PARSE_ERROR = "Ошибка разбора узла: "
     private const val PREFIX_XRAY_ERROR = "Ошибка конвертации Xray JSON: "
     private const val PREFIX_SINGBOX_ERROR = "Ошибка конвертации Sing-Box JSON: "
+    private const val PREFIX_YAML_ERROR = "Ошибка YAML: "
 
     private val NO_NODES_WARNINGS = mapOf(
         "В подписке не найдено ни одного поддерживаемого узла" to R.string.conv_warning_no_nodes,
@@ -83,6 +84,9 @@ object WarningLocalizer {
 
             warning.startsWith(PREFIX_SINGBOX_ERROR) ->
                 R.string.conv_error_singbox to listOf(warning.removePrefix(PREFIX_SINGBOX_ERROR))
+
+            warning.startsWith(PREFIX_YAML_ERROR) ->
+                R.string.conv_error_yaml to listOf(warning.removePrefix(PREFIX_YAML_ERROR))
 
             else -> UNSUPPORTED_OUTBOUND.find(warning)?.let { m ->
                 R.string.conv_warning_unsupported_outbound to listOf(m.groupValues[1], m.groupValues[2])

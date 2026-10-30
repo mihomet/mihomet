@@ -18,11 +18,26 @@ object ConfigGenerator {
         tunFd: Int? = null,
         overridePatch: String = ""
     ): String {
+        // Fail-closed (P0): a broken or blank profile must NEVER degrade into an
+        // empty config (no proxies/rules) — the core would start and route ALL
+        // traffic to DIRECT while the UI shows "connected". Throwing here lets the
+        // services refuse the core start (or fall back to the last known-good
+        // runtime config) instead of silently losing the user's routing.
+        if (profileYamlContent.isBlank()) {
+            throw IllegalStateException("Профиль содержит некорректный YAML: файл пуст")
+        }
         val yaml = Yaml()
         val configMap: MutableMap<String, Any> = try {
-            (yaml.load<Map<String, Any>>(profileYamlContent) ?: emptyMap()).toMutableMap()
+            val parsed = yaml.load<Any>(profileYamlContent)
+                ?: throw IllegalStateException("Профиль содержит некорректный YAML: файл пуст")
+            (parsed as? Map<String, Any>)?.toMutableMap()
+                ?: throw IllegalStateException(
+                    "Профиль содержит некорректный YAML: документ не является словарём (${parsed::class.simpleName})"
+                )
+        } catch (e: IllegalStateException) {
+            throw e
         } catch (e: Exception) {
-            mutableMapOf()
+            throw IllegalStateException("Профиль содержит некорректный YAML: ${e.message ?: "неизвестная ошибка"}")
         }
 
         // Per-profile override patch (P7): the user-authored YAML fragment is deep-merged
