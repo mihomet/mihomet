@@ -350,4 +350,17 @@
     <!-- Subscription QR sharing -->
     <string name="profile_show_qr">Показать QR</string>
     <string name="qr_dialog_title">QR подписки</string>
+
+    <!-- Battery optimization prompt (once per install) -->
+    <string name="batt_dialog_title">Отключить оптимизацию батареи</string>
+    <string name="batt_dialog_text">Android может останавливать фоновый сервис Mihomet для экономии заряда, что разрывает VPN-туннель. Разрешить Mihomet работать без ограничений батареи?</string>
+    <string name="batt_xiaomi_hint">Обнаружен MIUI: также включите автозапуск для Mihomet в Настройки → Приложения → Разрешения → Автозапуск, иначе сервис может не пережить перезагрузку.</string>
+    <string name="batt_open_settings">Открыть настройки</string>
+    <string name="batt_later">Позже</string>
+
+    <!-- Advanced VPN toggles (allowBypass / setHttpProxy) -->
+    <string name="vpn_bypass_title">Разрешить обход приложениями</string>
+    <string name="vpn_bypass_desc">Приложения с опцией bypass могут обходить VPN (VpnService allowBypass)</string>
+    <string name="vpn_httpproxy_title">HTTP-прокси через VPN</string>
+    <string name="vpn_httpproxy_desc">Публикует локальный HTTP-прокси приложениям внутри VPN (mixed-port)</string>
 </resources>

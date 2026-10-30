@@ -54,6 +54,9 @@ class SettingsRepository(private val context: Context) {
         val TUN_STACK = stringPreferencesKey("tun_stack")
         val TUN_MTU = intPreferencesKey("tun_mtu")
         val BYPASS_LAN = booleanPreferencesKey("bypass_lan")
+        val VPN_ALLOW_BYPASS = booleanPreferencesKey("vpn_allow_bypass")
+        val VPN_HTTP_PROXY = booleanPreferencesKey("vpn_http_proxy")
+        val BATT_PROMPT_SHOWN = booleanPreferencesKey("batt_prompt_shown")
         val HAPP_CRYPTO_KEYS = stringPreferencesKey("happ_crypto_keys")
     }
 
@@ -108,7 +111,10 @@ class SettingsRepository(private val context: Context) {
                     .orEmpty(),
                 tunStack = TunOptions.sanitizeStack(preferences[PreferencesKeys.TUN_STACK]),
                 tunMtu = TunOptions.sanitizeMtu(preferences[PreferencesKeys.TUN_MTU]),
-                bypassLan = preferences[PreferencesKeys.BYPASS_LAN] ?: false
+                bypassLan = preferences[PreferencesKeys.BYPASS_LAN] ?: false,
+                vpnAllowBypass = preferences[PreferencesKeys.VPN_ALLOW_BYPASS] ?: false,
+                vpnHttpProxy = preferences[PreferencesKeys.VPN_HTTP_PROXY] ?: false,
+                battPromptShown = preferences[PreferencesKeys.BATT_PROMPT_SHOWN] ?: false
             )
         }
 
@@ -306,6 +312,24 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun updateBypassLan(enabled: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.BYPASS_LAN] = enabled }
+    }
+
+    /** Toggles VpnService allowBypass (apps with the bypass option may route around the VPN). */
+    suspend fun updateVpnAllowBypass(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.VPN_ALLOW_BYPASS] = enabled }
+    }
+
+    /** Toggles the HTTP-proxy-via-VPN opt-in (VpnService setHttpProxy + mixed-port). */
+    suspend fun updateVpnHttpProxy(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.VPN_HTTP_PROXY] = enabled }
+    }
+
+    /**
+     * Persists that the one-time battery-optimization prompt has been displayed
+     * (FlClash BatteryPlugin pattern): the dialog never nags twice per install.
+     */
+    suspend fun updateBatteryPromptShown(shown: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.BATT_PROMPT_SHOWN] = shown }
     }
 
     // region Happ crypto keyring (encrypted subscriptions, see core/HappCrypto.kt)

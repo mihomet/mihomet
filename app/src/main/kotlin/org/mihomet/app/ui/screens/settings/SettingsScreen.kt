@@ -639,6 +639,38 @@ fun SettingsScreen(
 
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
+                                // VpnService allowBypass (CMFA/FlClash pattern, opt-in)
+                                ExpressiveSwitchRow(
+                                    icon = Icons.Default.AltRoute,
+                                    iconBg = MaterialTheme.colorScheme.secondaryContainer,
+                                    iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    title = stringResource(R.string.vpn_bypass_title),
+                                    subtitle = stringResource(R.string.vpn_bypass_desc),
+                                    checked = settings.vpnAllowBypass,
+                                    onCheckedChange = {
+                                        AppHaptics.perform(context, HapticType.CLICK, view)
+                                        viewModel.updateVpnAllowBypass(it)
+                                    }
+                                )
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                                // HTTP proxy via VPN (VpnService.setHttpProxy, opt-in)
+                                ExpressiveSwitchRow(
+                                    icon = Icons.Default.Http,
+                                    iconBg = AccentGreenContainer,
+                                    iconTint = AccentGreenLight,
+                                    title = stringResource(R.string.vpn_httpproxy_title),
+                                    subtitle = stringResource(R.string.vpn_httpproxy_desc),
+                                    checked = settings.vpnHttpProxy,
+                                    onCheckedChange = {
+                                        AppHaptics.perform(context, HapticType.CLICK, view)
+                                        viewModel.updateVpnHttpProxy(it)
+                                    }
+                                )
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
                                 // Profile override: unified-delay (RTT smoothing)
                                 ExpressiveSwitchRow(
                                     icon = Icons.Default.HourglassTop,

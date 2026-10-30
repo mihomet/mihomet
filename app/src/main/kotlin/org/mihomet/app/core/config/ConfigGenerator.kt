@@ -83,6 +83,21 @@ object ConfigGenerator {
             configMap.remove("tproxy-port")
             configMap.remove("redir-port")
             configMap.remove("routing-mark")
+            // Opt-in HTTP proxy through the VPN profile (CMFA/FlClash setHttpProxy
+            // pattern): vpnHttpProxy re-exposes the mixed-port listener that is
+            // otherwise removed above for security. Documented compromise:
+            //  - the listener binds to 127.0.0.1 only (allow-lan=false + bind-address
+            //    below), so it is never reachable from the LAN;
+            //  - it stays UNAUTHENTICATED: any on-device app can dial it directly and
+            //    thereby escape per-app split-tunneling (core rules still apply);
+            //  - VpnService.setHttpProxy publishes it to apps honoring the system
+            //    proxy inside the VPN profile — that is the feature's purpose.
+            // The user consciously opted in (Settings → Advanced), so this is the
+            // single sanctioned case where mixed-port returns to the runtime config.
+            // Root mode NEVER re-enables it (there is no setHttpProxy channel there).
+            if (settings.vpnHttpProxy) {
+                configMap["mixed-port"] = settings.mixedPort
+            }
         }
         configMap["allow-lan"] = false
         configMap["bind-address"] = "127.0.0.1"

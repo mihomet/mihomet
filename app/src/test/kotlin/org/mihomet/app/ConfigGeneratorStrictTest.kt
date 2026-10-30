@@ -569,4 +569,57 @@ class ConfigGeneratorStrictTest {
         assertEquals(1280, org.mihomet.app.data.preferences.TunOptions.sanitizeMtu(1280))
         assertEquals(65535, org.mihomet.app.data.preferences.TunOptions.sanitizeMtu(65535))
     }
+
+    // ---------------------------------------------------------------------
+    // VPN HTTP-proxy opt-in (VpnService.setHttpProxy): mixed-port returns to
+    // the runtime config ONLY in VPN mode with vpnHttpProxy=true, and NEVER
+    // in root mode (no setHttpProxy channel exists there).
+    // ---------------------------------------------------------------------
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test vpn http proxy opt-in re-enables mixed-port in vpn mode`() {
+        val settings = AppSettings(vpnHttpProxy = true, mixedPort = 7890)
+        val parsed = Yaml().load<Map<String, Any>>(
+            ConfigGenerator.generateRuntimeConfig(
+                profileYamlContent = sampleProfile,
+                settings = settings,
+                tunFd = 37
+            )
+        )
+        assertEquals(
+            "vpnHttpProxy opt-in must re-enable the mixed-port listener in VPN mode",
+            7890,
+            parsed["mixed-port"]
+        )
+        // The opt-in must not weaken other security invariants
+        assertEquals("allow-lan must stay false even on opt-in", false, parsed["allow-lan"])
+        assertEquals("bind-address must stay 127.0.0.1 even on opt-in", "127.0.0.1", parsed["bind-address"])
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test vpn http proxy disabled keeps mixed-port stripped in vpn mode`() {
+        val parsed = Yaml().load<Map<String, Any>>(
+            ConfigGenerator.generateRuntimeConfig(
+                profileYamlContent = sampleProfile,
+                settings = AppSettings(vpnHttpProxy = false, mixedPort = 7890),
+                tunFd = 37
+            )
+        )
+        assertNull("Default (opt-out) VPN mode must not expose mixed-port", parsed["mixed-port"])
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test vpn http proxy opt-in never re-enables mixed-port in root mode`() {
+        val parsed = Yaml().load<Map<String, Any>>(
+            ConfigGenerator.generateRuntimeConfig(
+                profileYamlContent = sampleProfile,
+                settings = AppSettings(vpnHttpProxy = true, mixedPort = 7890),
+                tunFd = null
+            )
+        )
+        assertNull("Root mode must never expose mixed-port, even on opt-in", parsed["mixed-port"])
+    }
 }

@@ -117,5 +117,17 @@ data class AppSettings(
     val tunMtu: Int = TunOptions.DEFAULT_MTU,
     // CMFA bypassPrivateNetwork pattern: route everything EXCEPT private networks
     // into the tunnel (see CoreConstants.TUN_BYPASS_LAN_ROUTES_*).
-    val bypassLan: Boolean = false
+    val bypassLan: Boolean = false,
+    // CMFA/FlClash allowBypass pattern: let apps that explicitly opt in route AROUND
+    // the VPN (VpnService.Builder.allowBypass, API 29+). Default off.
+    val vpnAllowBypass: Boolean = false,
+    // CMFA/FlClash setHttpProxy pattern: publish the local mihomo HTTP proxy to apps
+    // inside the VPN profile (VpnService.Builder.setHttpProxy, API 29+). Requires
+    // ConfigGenerator to re-enable the mixed-port listener for the VPN session —
+    // a conscious user opt-in (the listener is otherwise removed for security).
+    val vpnHttpProxy: Boolean = false,
+    // Battery-optimization prompt (FlClash BatteryPlugin pattern): shown at most
+    // ONCE per install. Set the moment the one-time dialog is displayed, so an
+    // interrupted prompt never nags again.
+    val battPromptShown: Boolean = false
 )
