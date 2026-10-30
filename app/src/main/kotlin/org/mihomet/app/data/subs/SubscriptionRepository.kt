@@ -56,6 +56,10 @@ data class ProfileRefreshResult(
  * key id in the URL, key material from the [SettingsRepository] keyring) and
  * applies refreshes to remote [ProfileEntity]s (file rewrite + DB update).
  */
+// Surfaced through Result.failure; the data exists but the Keystore key does not.
+private const val SUBSCRIPTION_UNDECRYPTABLE_MESSAGE =
+    "Не удалось расшифровать данные подписки — ключ шифрования недоступен или был заменён. Добавьте подписку заново."
+
 class SubscriptionRepository(
     private val context: Context,
     private val profileDao: ProfileDao,
@@ -251,8 +255,16 @@ class SubscriptionRepository(
     private suspend fun performRefresh(profile: ProfileEntity): ProfileRefreshResult {
         // url / custom_headers are encrypted at rest — decrypt before use; the
         // migrated URL is re-encrypted on write below.
-        val url = SecretsCipher.decrypt(profile.url)
-        val headers = SecretsCipher.decrypt(profile.customHeaders)
+        val url = try {
+            SecretsCipher.decrypt(profile.url)
+        } catch (e: org.mihomet.app.data.crypto.SecretsCipher.SecretDecryptException) {
+            throw IllegalStateException(SUBSCRIPTION_UNDECRYPTABLE_MESSAGE, e)
+        }
+        val headers = try {
+            SecretsCipher.decrypt(profile.customHeaders)
+        } catch (e: org.mihomet.app.data.crypto.SecretsCipher.SecretDecryptException) {
+            throw IllegalStateException(SUBSCRIPTION_UNDECRYPTABLE_MESSAGE, e)
+        }
         val download = downloadAndConvert(url, headers)
         File(profile.filePath).writeText(download.outcome.yaml)
         // If the server sent no Subscription-Userinfo this time, keep the previous quota.

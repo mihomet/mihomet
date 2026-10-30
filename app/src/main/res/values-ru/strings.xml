@@ -318,4 +318,5 @@
     <string name="root_notification_starting">Запуск Root TProxy...</string>
     <string name="root_running">Подключено (%1$s)</string>
     <string name="root_error">Ошибка: %1$s</string>
+    <string name="profiles_subscription_undecryptable">Не удалось расшифровать данные подписки — ключ шифрования недоступен или был заменён. Добавьте подписку заново.</string>
 </resources>

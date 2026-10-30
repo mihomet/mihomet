@@ -250,8 +250,18 @@ class ProfilesViewModel(
         if (profile.type != ProfileType.REMOTE) return
         // url / custom_headers are encrypted at rest — decrypt before use; the
         // migrated URL is re-encrypted on write below.
-        val url = SecretsCipher.decrypt(profile.url)
-        val headers = SecretsCipher.decrypt(profile.customHeaders)
+        val url = try {
+            SecretsCipher.decrypt(profile.url)
+        } catch (e: org.mihomet.app.data.crypto.SecretsCipher.SecretDecryptException) {
+            errorMessageFlow.value = context.getString(R.string.profiles_subscription_undecryptable)
+            return
+        }
+        val headers = try {
+            SecretsCipher.decrypt(profile.customHeaders)
+        } catch (e: org.mihomet.app.data.crypto.SecretsCipher.SecretDecryptException) {
+            errorMessageFlow.value = context.getString(R.string.profiles_subscription_undecryptable)
+            return
+        }
         if (url.isBlank()) return
         viewModelScope.launch {
             try {

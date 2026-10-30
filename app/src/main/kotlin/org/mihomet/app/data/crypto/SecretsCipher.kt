@@ -87,27 +87,45 @@ object SecretsCipher {
     // region Android facade (AndroidKeyStore)
 
     /**
-     * AndroidKeyStore AES-256 key, generated lazily on first use. `null` when
-     * the Keystore is unavailable — every facade call then degrades to a
-     * passthrough instead of crashing.
+     * Thrown when a value carries the encrypted marker but cannot be decrypted
+     * (the Keystore key is missing, was replaced, or the Keystore failed).
+     * Callers must surface this — the raw `enc1:` payload is NOT a usable secret.
+     */
+    class SecretDecryptException(message: String, cause: Throwable? = null) :
+        IllegalStateException(message, cause)
+
+    /**
+     * AndroidKeyStore AES-256 key.
+     *
+     * Lifecycle: an existing key under [KEY_ALIAS] is loaded and REUSED; a new key
+     * is generated only on a confirmed first initialization. Generating on every
+     * process start would overwrite the alias (AOSP behavior) and permanently
+     * destroy previously encrypted data. When the Keystore is temporarily
+     * unavailable, the result is `null` and callers degrade to passthrough —
+     * the alias is never overwritten speculatively.
      */
     private val keystoreKey: Key? by lazy {
         runCatching {
-            val generator = KeyGenerator.getInstance("AES", ANDROID_KEYSTORE)
-            generator.init(
-                KeyGenParameterSpec.Builder(
-                    KEY_ALIAS,
-                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-                )
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .setKeySize(KEY_SIZE_BITS)
-                    // The engine supplies its own fresh IV per call, so the
-                    // Keystore-mandated random IV must be disabled.
-                    .setRandomizedEncryptionRequired(false)
-                    .build()
-            )
-            generator.generateKey()
+            val keyStore = java.security.KeyStore.getInstance(ANDROID_KEYSTORE)
+            keyStore.load(null)
+            (keyStore.getKey(KEY_ALIAS, null) as? javax.crypto.SecretKey)
+                ?: run {
+                    val generator = KeyGenerator.getInstance("AES", ANDROID_KEYSTORE)
+                    generator.init(
+                        KeyGenParameterSpec.Builder(
+                            KEY_ALIAS,
+                            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+                        )
+                            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                            .setKeySize(KEY_SIZE_BITS)
+                            // The engine supplies its own fresh IV per call, so the
+                            // Keystore-mandated random IV must be disabled.
+                            .setRandomizedEncryptionRequired(false)
+                            .build()
+                    )
+                    generator.generateKey()
+                }
         }.getOrElse { error ->
             Log.w(TAG, "AndroidKeyStore unavailable; secrets will be stored unencrypted", error)
             null
@@ -120,10 +138,32 @@ object SecretsCipher {
         return withKey(key).encrypt(plain)
     }
 
-    /** Decrypts [stored] with the Keystore key; passthrough when unavailable. */
+    /**
+     * Decrypts a value produced by [encrypt].
+     *
+     * - Values without the [MARKER] (legacy plaintext, not a secret) are returned as-is.
+     * - Marker present and decryption succeeds → plaintext.
+     * - Marker present but decryption fails → [SecretDecryptException]: the payload
+     *   exists but is unusable, and callers must surface it instead of treating the
+     *   ciphertext as a working secret.
+     */
     fun decrypt(stored: String): String {
-        val key = keystoreKey ?: return stored
-        return withKey(key).decrypt(stored)
+        if (!stored.startsWith(MARKER)) return stored
+        val key = keystoreKey
+            ?: throw SecretDecryptException("Keystore unavailable: cannot decrypt the stored secret")
+        return try {
+            val payload = Base64.getDecoder().decode(stored.removePrefix(MARKER))
+            require(payload.size > IV_SIZE_BYTES) { "Encrypted payload too short" }
+            val iv = payload.copyOfRange(0, IV_SIZE_BYTES)
+            val ciphertext = payload.copyOfRange(IV_SIZE_BYTES, payload.size)
+            val cipher = PlatformCipher.getInstance(TRANSFORMATION)
+            cipher.init(PlatformCipher.DECRYPT_MODE, key, GCMParameterSpec(GCM_TAG_BITS, iv))
+            String(cipher.doFinal(ciphertext), Charsets.UTF_8)
+        } catch (error: Exception) {
+            throw SecretDecryptException(
+                "Stored secret is undecryptable (key replaced or lost)", error
+            )
+        }
     }
 
     // endregion
