@@ -59,7 +59,10 @@ class ConfigGeneratorStrictTest {
         assertNull("TUN must not be present in root mode", parsed["tun"])
 
         // Common settings
-        assertEquals("Mixed port must be 7890", 7890, parsed["mixed-port"])
+        // Security: no unauthenticated local proxy listener in the runtime config
+        assertNull("mixed-port must not be exposed on 127.0.0.1", parsed["mixed-port"])
+        assertNull("legacy port must not be exposed", parsed["port"])
+        assertNull("socks-port must not be exposed", parsed["socks-port"])
         assertEquals("127.0.0.1:9090", parsed["external-controller"])
         assertEquals("rule", parsed["mode"])
         assertEquals(false, parsed["allow-lan"])

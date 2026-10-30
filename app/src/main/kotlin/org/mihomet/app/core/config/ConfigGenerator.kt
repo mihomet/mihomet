@@ -51,7 +51,10 @@ object ConfigGenerator {
         }
 
         // Standard ports & controllers
-        configMap["mixed-port"] = settings.mixedPort
+        // Security: no unauthenticated local proxy listener. All phone traffic enters
+        // via TUN (VPN) or tproxy/redir (root); a mixed-port on 127.0.0.1 would let any
+        // local app bypass per-app routing and expose the exit node to VPN detectors.
+        configMap.remove("mixed-port")
         configMap.remove("port")
         configMap.remove("socks-port")
         if (tunFd == null || tunFd < 0) {

@@ -104,7 +104,8 @@ class ConfigGeneratorOverridePatchTest {
         // Mandatory app-managed keys are written AFTER the merge → they always win
         assertEquals(false, parsed["allow-lan"])
         assertEquals("127.0.0.1", parsed["bind-address"])
-        assertEquals(settings.mixedPort, parsed["mixed-port"])
+        // Security: mixed-port is never exposed regardless of patch or settings
+        assertNull(parsed["mixed-port"])
         assertEquals("127.0.0.1:${settings.controllerPort}", parsed["external-controller"])
         val dns = parsed["dns"] as Map<String, Any>
         assertFalse((dns["nameserver"] as List<*>).contains("1.1.1.1"))
