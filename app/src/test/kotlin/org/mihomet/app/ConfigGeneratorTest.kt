@@ -51,7 +51,7 @@ class ConfigGeneratorTest {
 
         assertEquals(666, parsed["routing-mark"])
         assertEquals(7893, parsed["tproxy-port"])
-        assertEquals(7890, parsed["mixed-port"])
+        assertNull("mixed-port must not be exposed on 127.0.0.1", parsed["mixed-port"])
         assertEquals("127.0.0.1:9090", parsed["external-controller"])
         assertEquals("test_secret", parsed["secret"])
 
