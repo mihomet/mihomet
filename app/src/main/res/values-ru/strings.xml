@@ -74,6 +74,11 @@
     <string name="dashboard_mode_global_desc">Полное проксирование: весь сетевой трафик смартфона направляется через выбранный сервер.</string>
     <string name="dashboard_mode_direct_desc">Прямое подключение: весь интернет-трафик идет напрямую в обход ядра прокси.</string>
 
+    <!-- Dashboard core stats (compact status row, only while running) -->
+    <string name="dash_connections">Соединений: %1$d</string>
+    <string name="dash_memory">Память ядра: %1$s</string>
+    <string name="dash_memory_value">%1$.0f МБ</string>
+
     <!-- Proxies / servers -->
     <string name="proxies_error_load">Ошибка загрузки узлов: %1$s</string>
     <string name="proxies_pinging">Пинг...</string>
@@ -298,6 +303,8 @@
     <string name="logs_level_error">Ошибки</string>
     <string name="logs_level_debug">Debug</string>
     <string name="logs_empty">Журнал пуст</string>
+    <string name="logs_share">Поделиться журналом</string>
+    <string name="logs_share_empty">Журнал пуст</string>
 
     <!-- YAML editor -->
     <string name="yaml_editor_title">YAML Editor</string>

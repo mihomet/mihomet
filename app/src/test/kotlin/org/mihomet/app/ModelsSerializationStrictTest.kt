@@ -7,6 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mihomet.app.data.api.ConfigsUpdateRequest
 import org.mihomet.app.data.api.LogEntry
+import org.mihomet.app.data.api.MemoryInfo
 import org.mihomet.app.data.api.MihomoVersion
 import org.mihomet.app.data.api.ProxiesResponse
 import org.mihomet.app.data.api.ProxyGroupOrNode
@@ -136,6 +137,27 @@ class ModelsSerializationStrictTest {
         val version = json.decodeFromString<MihomoVersion>("""{"version":"1.19.2","premium":true}""")
 
         assertEquals(true, version.premium)
+    }
+
+    @Test
+    fun `memory payload decodes inuse and oslimit and ignores unknown fields`() {
+        val payload = """{"inuse":52428800,"oslimit":0,"extra":{"foo":1},"deprecated":true}"""
+
+        val memory = json.decodeFromString<MemoryInfo>(payload)
+
+        assertEquals(52_428_800L, memory.inuse)
+        assertEquals(0L, memory.oslimit)
+    }
+
+    @Test
+    fun `memory payload with a non-zero oslimit and missing fields`() {
+        val memory = json.decodeFromString<MemoryInfo>("""{"inuse":1048576,"oslimit":268435456}""")
+        assertEquals(1_048_576L, memory.inuse)
+        assertEquals(268_435_456L, memory.oslimit)
+
+        val defaulted = json.decodeFromString<MemoryInfo>("{}")
+        assertEquals(0L, defaulted.inuse)
+        assertEquals(0L, defaulted.oslimit)
     }
 
     @Test

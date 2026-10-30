@@ -3,6 +3,8 @@ package org.mihomet.app.ui.screens.logs
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -16,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,8 +32,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.R
+import org.mihomet.app.ui.components.ExpressiveSnackbarHost
 import org.mihomet.app.ui.theme.AccentGreen
 import org.mihomet.app.ui.theme.AccentOrange
 import org.mihomet.app.ui.theme.AccentRed
@@ -48,9 +53,42 @@ fun LogsScreen(
     val context = LocalContext.current
     val view = LocalView.current
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val filteredLogs = state.logs.filter {
         state.selectedLevel == "all" || it.type.equals(state.selectedLevel, ignoreCase = true)
+    }
+
+    val shareLogs: () -> Unit = {
+        AppHaptics.perform(context, HapticType.CLICK, view)
+        if (state.logs.isEmpty()) {
+            scope.launch {
+                snackbarHostState.showSnackbar(context.getString(R.string.logs_share_empty))
+            }
+        } else {
+            scope.launch {
+                val file = viewModel.exportLogs(context) ?: return@launch
+                runCatching {
+                    val uri = FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        file
+                    )
+                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        // Chooser may restart the intent on some OEM builds —
+                        // keep the read grant reachable via ClipData as well.
+                        clipData = ClipData.newRawUri(file.name, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(
+                        Intent.createChooser(sendIntent, context.getString(R.string.logs_share))
+                    )
+                }
+            }
+        }
     }
 
     LaunchedEffect(filteredLogs.size) {
@@ -133,6 +171,24 @@ fun LogsScreen(
                     Surface(
                         shape = ExpressiveShapes.Small,
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.padding(end = 6.dp)
+                    ) {
+                        IconButton(
+                            onClick = shareLogs,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Share,
+                                contentDescription = stringResource(R.string.logs_share),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = ExpressiveShapes.Small,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
                         modifier = Modifier.padding(end = 12.dp)
                     ) {
                         IconButton(
@@ -152,7 +208,8 @@ fun LogsScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { ExpressiveSnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
         Column(
             modifier = Modifier

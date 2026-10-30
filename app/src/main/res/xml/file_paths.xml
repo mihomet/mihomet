@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Paths shared by androidx.core.content.FileProvider (log export, Logs screen). -->
+<paths>
+    <external-cache-path
+        name="logs"
+        path="logs/" />
+</paths>
