@@ -273,6 +273,7 @@
     <string name="routing_reset">Сброс</string>
     <string name="routing_empty">Приложения не найдены</string>
     <string name="routing_system_badge">Система</string>
+    <string name="perapp_empty_whitelist">Белый список пуст — проксируется весь трафик. Выбери приложения или смени режим.</string>
 
     <!-- Connections -->
     <string name="connections_download_total">Входящий трафик</string>
@@ -313,6 +314,7 @@
     <string name="vpn_error">Ошибка VPN: %1$s</string>
     <string name="vpn_restarting">Перезапуск ядра…</string>
     <string name="vpn_last_good_used">Профиль повреждён — используется последняя рабочая версия</string>
+    <string name="vpn_error_core_timeout">Ядро не ответило за 15 секунд</string>
 
     <!-- Root TProxy service notifications -->
     <string name="root_channel_name">Mihomet Root Service</string>

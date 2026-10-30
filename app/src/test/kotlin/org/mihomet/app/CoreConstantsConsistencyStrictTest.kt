@@ -77,6 +77,7 @@ class CoreConstantsConsistencyStrictTest {
             CoreConstants.ROOT_PID_FILE,
             CoreConstants.ROOT_LOG_FILE,
             CoreConstants.ROOT_CONFIG_PATH,
+            CoreConstants.ROOT_CORE_VERSION_FILE,
         )
         rootPaths.forEach { path ->
             assertTrue(
