@@ -44,6 +44,9 @@
 
 1. ✅ Deep-link импорт (см. таблицу)
 2. ✅ Watchdog ядра (авторестарт с backoff, 3 попытки)
+   Attribution: non-root TUN core patch taken from Tropa (nvsbunny/tropa,
+   tools/mihomo-android-nonroot.patch @ v0.2.5) — core-patch/ в репозитории,
+   GPL-3.0 совместим.
 3. ✅ Honest UA `Mihomet/<ver>` + `x-hwid` + profile-title / New-Url
 4. ✅ Builder: `setBlocking(false)`, `setMetered(false)`, `setConfigureIntent`
 5. ✅ `FOREGROUND_SERVICE_IMMEDIATE` + core watchdog (auto-restart ×3) + Always-on (null-intent restart, onRevoke) + root-daemon watchdog (10s monitor, backoff ×3) + автообновление подписок по update-interval (WorkManager)
