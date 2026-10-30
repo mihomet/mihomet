@@ -419,4 +419,53 @@ class ConfigGeneratorStrictTest {
         val disabledSniffer = disabledParsed["sniffer"] as Map<String, Any>
         assertEquals("Sniffer must be disabled by the override", false, disabledSniffer["enable"])
     }
+
+    // ---------------------------------------------------------------------
+    // Fail-closed profile parsing (P0): broken or blank YAML must NEVER degrade
+    // into an empty runtime config (no proxies/rules) — the core would start and
+    // route ALL traffic to DIRECT while the UI shows "connected". The generator
+    // must throw IllegalStateException so the services refuse the core start
+    // (or fall back to the last known-good runtime config).
+    // ---------------------------------------------------------------------
+
+    private fun assertFailsClosed(input: String) {
+        try {
+            ConfigGenerator.generateRuntimeConfig(
+                profileYamlContent = input,
+                settings = AppSettings(),
+                tunFd = null
+            )
+            fail("Broken profile must be rejected, got a runtime config for: $input")
+        } catch (e: IllegalStateException) {
+            assertTrue(
+                "Message must name the broken YAML, was: ${e.message}",
+                e.message?.contains("Профиль содержит некорректный YAML") == true
+            )
+        }
+    }
+
+    @Test
+    fun `test broken profile yaml fails closed instead of producing empty config`() {
+        assertFailsClosed("proxies: [unclosed")                     // unterminated flow sequence
+        assertFailsClosed("proxies:\n\t- name: tab-indent-broken")  // tab indentation is illegal in YAML
+        assertFailsClosed("just-a-scalar")                          // valid YAML but not a mapping
+        assertFailsClosed("- a\n- b")                               // a sequence is not a config mapping
+    }
+
+    @Test
+    fun `test blank profile yaml fails closed`() {
+        assertFailsClosed("")
+        assertFailsClosed("   \n\t ")
+    }
+
+    @Test
+    fun `test valid profile still generates after fail-closed change`() {
+        val configYaml = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = sampleProfile,
+            settings = AppSettings(),
+            tunFd = null
+        )
+        val parsed = Yaml().load<Map<String, Any>>(configYaml)
+        assertTrue("Valid profile must keep its proxies", (parsed["proxies"] as List<*>).isNotEmpty())
+    }
 }

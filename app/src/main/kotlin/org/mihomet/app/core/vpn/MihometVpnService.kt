@@ -279,14 +279,33 @@ class MihometVpnService : VpnService(), KoinComponent {
             }
 
             // Pass fd 3 (duplicated from stdin via shell launcher)
-            val runtimeYaml = ConfigGenerator.generateRuntimeConfig(
-                profileYamlContent = rawYaml,
-                settings = settings,
-                tunFd = CoreConstants.TUN_FILE_DESCRIPTOR,
-                overridePatch = selectedProfile?.overridePatch ?: ""
-            )
+            // Fail-closed (P0): a broken profile YAML must never start the core with an
+            // empty config (everything routed to DIRECT while UI shows "connected").
+            // If a last known-good runtime config exists from a previous successful
+            // start, start the core with it and warn; otherwise abort the start.
+            val vpnRunDir = File(filesDir, "vpn_run")
+            val lastGoodConfigFile = File(vpnRunDir, "config.lastgood.yaml")
+            var profileBroken = false
+            val runtimeYaml = try {
+                ConfigGenerator.generateRuntimeConfig(
+                    profileYamlContent = rawYaml,
+                    settings = settings,
+                    tunFd = CoreConstants.TUN_FILE_DESCRIPTOR,
+                    overridePatch = selectedProfile?.overridePatch ?: ""
+                )
+            } catch (e: IllegalStateException) {
+                val lastGoodYaml = if (lastGoodConfigFile.isFile) {
+                    runCatching { lastGoodConfigFile.readText() }.getOrNull()
+                } else {
+                    null
+                }
+                if (lastGoodYaml.isNullOrBlank()) throw e
+                android.util.Log.w("MihometVpn", "Profile YAML is broken, starting with last known-good config", e)
+                profileBroken = true
+                lastGoodYaml
+            }
 
-            val vpnWorkDir = File(filesDir, "vpn_run").apply { mkdirs() }
+            val vpnWorkDir = vpnRunDir.apply { mkdirs() }
             coreManager.ensureGeoDatabases(vpnWorkDir)
             val vpnConfigFile = File(vpnWorkDir, "config.yaml").apply {
                 writeText(runtimeYaml)
@@ -377,8 +396,15 @@ class MihometVpnService : VpnService(), KoinComponent {
             // Successful start: stop is no longer pending and the restart backoff resets
             isStopping = false
             coreRestartAttempts = 0
+            // Refresh the last known-good runtime config: this exact file has just
+            // started successfully, so it is safe to fall back to on a broken profile.
+            runCatching { lastGoodConfigFile.writeText(runtimeYaml) }
             val profileLabel = selectedProfile?.name ?: getString(R.string.dashboard_default_profile_name)
-            val baseText = getString(R.string.vpn_connected, profileLabel)
+            val baseText = if (profileBroken) {
+                getString(R.string.vpn_last_good_used)
+            } else {
+                getString(R.string.vpn_connected, profileLabel)
+            }
             speedBaseText = baseText
             updateNotification(baseText)
 
@@ -393,6 +419,10 @@ class MihometVpnService : VpnService(), KoinComponent {
             }
         } catch (e: Exception) {
             android.util.Log.e("MihometVpn", "startVpn() exception", e)
+            // Release whatever was already acquired (TUN interface, wake lock) so a
+            // failed start (e.g. broken profile with no last known-good config)
+            // does not leak resources until the next start attempt.
+            cleanupVpnResources()
             ServiceState.stopService(org.mihomet.app.core.RunningService.VPN)
             updateNotification(getString(R.string.vpn_error, e.message ?: "null"))
             e.printStackTrace()

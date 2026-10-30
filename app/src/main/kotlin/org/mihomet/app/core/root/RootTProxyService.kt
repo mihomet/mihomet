@@ -127,12 +127,29 @@ class RootTProxyService : Service(), KoinComponent {
             }
 
             // 3. Generate runtime config
-            val runtimeYaml = ConfigGenerator.generateRuntimeConfig(
-                profileYamlContent = rawYaml,
-                settings = settings,
-                tunFd = null,
-                overridePatch = selectedProfile?.overridePatch ?: ""
-            )
+            // Fail-closed (P0): a broken profile YAML must never start the core with an
+            // empty config (everything routed to DIRECT while UI shows "connected").
+            // If a last known-good runtime config exists on the root filesystem from a
+            // previous successful start, start the daemon with it and warn; otherwise
+            // abort the start (no daemon, no firewall rules).
+            val lastGoodConfigPath =
+                CoreConstants.ROOT_CONFIG_PATH.replace("config.yaml", "config.lastgood.yaml")
+            var profileBroken = false
+            val runtimeYaml = try {
+                ConfigGenerator.generateRuntimeConfig(
+                    profileYamlContent = rawYaml,
+                    settings = settings,
+                    tunFd = null,
+                    overridePatch = selectedProfile?.overridePatch ?: ""
+                )
+            } catch (e: IllegalStateException) {
+                val lastGoodYaml = Shell.cmd("cat $lastGoodConfigPath 2>/dev/null").exec().out
+                    .joinToString("\n")
+                if (lastGoodYaml.isBlank()) throw e
+                android.util.Log.w("RootTProxy", "Profile YAML is broken, starting with last known-good config", e)
+                profileBroken = true
+                lastGoodYaml
+            }
 
             // Write to /data/adb/mihomet/run/config.yaml via root
             val writeCmd = "cat << 'EOF' > ${CoreConstants.ROOT_CONFIG_PATH}\n$runtimeYaml\nEOF"
@@ -161,8 +178,19 @@ class RootTProxyService : Service(), KoinComponent {
             ).getOrThrow()
 
             ServiceState.setRunning(org.mihomet.app.core.RunningService.ROOT)
+            // Refresh the last known-good runtime config on the root filesystem:
+            // this exact config has just started successfully (daemon + firewall),
+            // so it is safe to fall back to on a broken profile. Best-effort — a
+            // failed copy must not fail the start.
+            Shell.cmd("cp ${CoreConstants.ROOT_CONFIG_PATH} $lastGoodConfigPath 2>/dev/null || true").exec()
             val profileLabel = selectedProfile?.name ?: getString(R.string.dashboard_default_profile_name)
-            updateNotification(getString(R.string.root_running, profileLabel))
+            updateNotification(
+                if (profileBroken) {
+                    getString(R.string.root_last_good_used)
+                } else {
+                    getString(R.string.root_running, profileLabel)
+                }
+            )
 
             // Watchdog: the root daemon is a detached nohup process — if it crashes,
             // restart it with backoff (same policy as the VPN core watchdog); after

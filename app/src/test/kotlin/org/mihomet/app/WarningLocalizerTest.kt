@@ -81,6 +81,14 @@ class WarningLocalizerTest {
     }
 
     @Test
+    fun `yaml parse error maps with message arg`() {
+        val (resId, args) = requireMatch("Ошибка YAML: while parsing a flow node")
+
+        assertEquals(R.string.conv_error_yaml, resId)
+        assertEquals(listOf("while parsing a flow node"), args)
+    }
+
+    @Test
     fun `unknown warnings pass through as null`() {
         assertNull(WarningLocalizer.localizePattern("Ссылка-информатор о сроке подписки пропущена"))
         assertNull(WarningLocalizer.localizePattern("some totally custom warning"))

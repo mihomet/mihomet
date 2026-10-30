@@ -72,6 +72,12 @@ class ProfilesViewModel(
                 val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
                 val normalizedHeaders = SubscriptionRepository.normalizeHeadersJson(customHeaders)
                 val download = subscriptionRepository.downloadAndConvert(url, normalizedHeaders)
+                // Fail-closed: never persist a conversion result without proxies,
+                // proxy-providers or rules — the core would route everything to DIRECT.
+                if (!isValidGeneratedConfig(download.outcome.yaml)) {
+                    errorMessageFlow.value = context.getString(R.string.profiles_invalid_result)
+                    return@launch
+                }
                 val meta = download.meta
 
                 val file = File(profileDir, "profile_${System.currentTimeMillis()}.yaml")
@@ -162,7 +168,14 @@ class ProfilesViewModel(
                     }
 
                     val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
-                    val content = subscriptionRepository.downloadAndConvert(url).outcome.yaml
+                    val download = subscriptionRepository.downloadAndConvert(url)
+                    // Fail-closed: never persist a conversion result without proxies,
+                    // proxy-providers or rules — the core would route everything to DIRECT.
+                    if (!isValidGeneratedConfig(download.outcome.yaml)) {
+                        onError(context.getString(R.string.profiles_invalid_result))
+                        return@launch
+                    }
+                    val content = download.outcome.yaml
                     val file = File(profileDir, "profile_${System.currentTimeMillis()}.yaml")
                     file.writeText(content)
 
@@ -190,8 +203,11 @@ class ProfilesViewModel(
                     val parsed = runCatching { yaml.load<Map<String, Any>>(convertedYaml) }.getOrNull()
                     val proxies = (parsed?.get("proxies") as? List<*>) ?: emptyList<Any>()
 
-                    if (proxies.isEmpty() && !convertedYaml.contains("proxies:")) {
-                        onError(context.getString(R.string.profiles_unrecognized))
+                    // Fail-closed: reject results without proxies / proxy-providers / rules
+                    // instead of persisting a config the core would turn into "all DIRECT".
+                    // rules-only results stay valid here (happ://routing deep-link imports).
+                    if (!isValidGeneratedConfig(convertedYaml)) {
+                        onError(context.getString(R.string.profiles_invalid_result))
                         return@launch
                     }
 
@@ -266,6 +282,13 @@ class ProfilesViewModel(
         viewModelScope.launch {
             try {
                 val download = subscriptionRepository.downloadAndConvert(url, headers)
+                // Fail-closed: never overwrite the profile file with a conversion result
+                // without proxies, proxy-providers or rules — keep the last good version
+                // on disk so the running service can continue to use it.
+                if (!isValidGeneratedConfig(download.outcome.yaml)) {
+                    errorMessageFlow.value = context.getString(R.string.profiles_invalid_result)
+                    return@launch
+                }
                 File(profile.filePath).writeText(download.outcome.yaml)
                 // If the server sent no Subscription-Userinfo this time, keep the previous quota.
                 val quota = download.userinfo
@@ -407,5 +430,33 @@ class ProfilesViewModel(
             }
         }
         return Result.success(Unit)
+    }
+
+    companion object {
+        /**
+         * Fail-closed validation of a converted profile before it is persisted
+         * (subscription update, remote add, clipboard/deep-link import).
+         *
+         * A conversion result is valid when it is non-blank, parses as a YAML mapping
+         * and declares at least one source of routing truth: `proxies:` (inline nodes),
+         * `proxy-providers:` (nodes fetched by the core at runtime) or `rules:`.
+         *
+         * Deliberately valid without inline proxies:
+         *  - `proxy-providers`-only configs (nodes are downloaded by the core itself);
+         *  - `rules`-only configs — the happ://routing deep-link import produces exactly
+         *    such routing profiles (GLOBAL/DIRECT/REJECT targets with a MATCH rule).
+         *
+         * Invalid: blank content, non-mapping documents (scalar/list), and mappings
+         * without any of the three keys (e.g. an empty shell left by a failed
+         * conversion) — such a profile would make the core route everything to DIRECT.
+         */
+        fun isValidGeneratedConfig(yaml: String): Boolean {
+            if (yaml.isBlank()) return false
+            val parsed = runCatching { Yaml().load<Any>(yaml) }.getOrNull() ?: return false
+            if (parsed !is Map<*, *>) return false
+            return parsed.containsKey("proxies") ||
+                parsed.containsKey("proxy-providers") ||
+                parsed.containsKey("rules")
+        }
     }
 }
