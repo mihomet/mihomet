@@ -89,6 +89,7 @@ class MihometVpnService : VpnService(), KoinComponent {
     private val profileDao: ProfileDao by inject()
     private val settingsRepository: SettingsRepository by inject()
     private val coreManager: CoreManager by inject()
+    private val firewallManager: org.mihomet.app.core.firewall.FirewallManager by inject()
     private val apiClientProvider: org.mihomet.app.data.api.MihomoApiClientProvider by inject()
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
