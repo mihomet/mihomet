@@ -20,7 +20,9 @@
 | subconverter | ⏸ skipped | legacy tool, rarely used by RU services in 2026; re-open on demand |
 | behavior-заголовки (subscription-autoconnect / per-app-proxy-mode+list / tun-mode) | Happ zero-touch | ✅ применяются при импорте/обновлении |
 | keyring-UI для crypto-ключей | Настройки → Продвинутые | ✅ |
-| Виджет рабочего стола + тумблер | ✅ MihometWidgetProvider |
+| Виджет рабочего стола + тумблер | ✅ MihometWidgetProvider (v1.1.1) |
+| Экспорт/шеринг логов + память ядра на дашборде | ✅ (v1.1.1) |
+| Battery-промпт / allowBypass / HTTP-proxy opt-in | ✅ (v1.1.1) |
 | Автостарт на загрузке (последний успешный режим) | ✅ BootReceiver + настройка |
 | TUN-настройки (stack/MTU/bypass-LAN по CMFA-паттерну) | ✅ Настройки → Продвинутые |
 | QR-код подписки + стриминг-лимит 20 МБ | ✅ zxing + поте чтение |
