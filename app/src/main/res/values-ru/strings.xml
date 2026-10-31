@@ -225,6 +225,8 @@
     <string name="settings_override_log_level_desc">Текущее значение: %1$s</string>
     <string name="settings_happ_keys">Happ crypto-ключи</string>
     <string name="settings_happ_key_add">Добавить ключ</string>
+    <string name="keyring_added">Ключ добавлен</string>
+    <string name="keyring_add_failed">Не удалось сохранить ключ — шифрование недоступно, связка ключей не изменена</string>
     <string name="settings_happ_key_id">ID ключа</string>
     <string name="settings_happ_key_value">AES-ключ (16 байт)</string>
     <string name="settings_happ_key_error_length">Неверная длина ключа</string>
@@ -351,6 +353,7 @@
     <string name="root_error_timeout">Ядро не ответило за 15 секунд</string>
     <string name="root_last_good_used">Профиль повреждён — работает последняя рабочая конфигурация (%1$s)</string>
     <string name="profiles_subscription_undecryptable">Не удалось расшифровать данные подписки — ключ шифрования недоступен или был заменён. Добавьте подписку заново.</string>
+    <string name="profiles_encrypt_failed">Не удалось зашифровать данные подписки — ключ недоступен</string>
 
     <!-- Fail-closed start guards: a selected profile with a missing file or no
          routing source (no proxies / providers / rules) must never start the core -->

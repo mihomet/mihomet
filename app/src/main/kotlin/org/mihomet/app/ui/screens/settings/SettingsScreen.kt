@@ -37,6 +37,7 @@ import org.mihomet.app.core.dns.DnsPresets
 import org.mihomet.app.data.preferences.ProfileOverrides
 import org.mihomet.app.data.preferences.ProxyMode
 import org.mihomet.app.data.preferences.TunOptions
+import org.mihomet.app.ui.components.ExpressiveSnackbarHost
 import org.mihomet.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,8 +64,24 @@ fun SettingsScreen(
     val oemLaunch = remember(oemBrand) { OemHints.resolveLaunchableOrGeneric(context, oemBrand) }
     val oemLabel = remember { Build.MANUFACTURER.replaceFirstChar { it.uppercase(Locale.ROOT) } }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Happ crypto keyring add outcome: snackbar on both results (the event id
+    // makes every attempt re-trigger); the input fields are cleared by the
+    // section itself on success only — see [HappCryptoKeysSection].
+    LaunchedEffect(state.keyringEvent) {
+        state.keyringEvent?.let { event ->
+            snackbarHostState.showSnackbar(
+                context.getString(event.messageRes),
+                withDismissAction = !event.success
+            )
+            viewModel.clearKeyringEvent()
+        }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { ExpressiveSnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -764,6 +781,7 @@ fun SettingsScreen(
                                 // Happ crypto keyring (encrypted subscriptions)
                                 HappCryptoKeysSection(
                                     keys = state.cryptoKeys,
+                                    keyringEvent = state.keyringEvent,
                                     onAdd = viewModel::addCryptoKey,
                                     onRemove = viewModel::removeCryptoKey
                                 )
@@ -1472,15 +1490,31 @@ fun CustomDnsDialog(
  * Happ crypto keyring editor (Settings → Advanced): lists the stored keys as
  * id + masked value rows with a delete action, and provides id/key inputs
  * guarded by the 16-byte AES-128 length check (see core/HappCrypto.kt).
+ *
+ * [keyringEvent] is the ViewModel's last add-attempt outcome: the inputs are
+ * cleared only after a confirmed successful save — a failed attempt (the
+ * crypto gate refused to encrypt, so nothing was persisted) keeps what the
+ * user typed so it can be retried without re-entering the key. The snackbar
+ * for both outcomes is handled by the screen-level host.
  */
 @Composable
 private fun HappCryptoKeysSection(
     keys: Map<String, String>,
+    keyringEvent: KeyringEvent?,
     onAdd: (String, String) -> Unit,
     onRemove: (String) -> Unit
 ) {
     var keyId by remember { mutableStateOf("") }
     var keyValue by remember { mutableStateOf("") }
+
+    // Clear the inputs only on a confirmed success (unique event id → every
+    // success re-triggers; failures leave the fields untouched).
+    LaunchedEffect(keyringEvent?.id) {
+        if (keyringEvent?.success == true) {
+            keyId = ""
+            keyValue = ""
+        }
+    }
 
     val isKeyLengthValid = keyValue.toByteArray(Charsets.UTF_8).size == HappCrypto.KEY_BYTES
     val showLengthError = keyValue.isNotEmpty() && !isKeyLengthValid
@@ -1572,11 +1606,7 @@ private fun HappCryptoKeysSection(
         )
 
         Button(
-            onClick = {
-                onAdd(keyId.trim(), keyValue.trim())
-                keyId = ""
-                keyValue = ""
-            },
+            onClick = { onAdd(keyId.trim(), keyValue.trim()) },
             enabled = canAdd,
             modifier = Modifier.fillMaxWidth(),
             shape = ExpressiveShapes.Small

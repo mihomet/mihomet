@@ -80,6 +80,26 @@ class ProfilesViewModel(
                     return@launch
                 }
                 val meta = download.meta
+                // Panel-initiated subscription relocation (New-Url / Fallback-Url): store the new URL.
+                val effectiveUrl = meta.redirectUrl?.takeIf { !it.equals(url, ignoreCase = true) } ?: url
+
+                // Encrypt the at-rest secrets BEFORE any disk write (audit I2 / N07-2):
+                // when the data-loss gate refuses encryption (enc1: data exists but the
+                // key is unavailable) the write must be refused entirely — a freshly
+                // written subscription file without a matching DB row would leave the
+                // file store and Room out of sync.
+                val encryptedUrl = try {
+                    SecretsCipher.encryptIfSecret(effectiveUrl)
+                } catch (e: SecretsCipher.SecretEncryptException) {
+                    errorMessageFlow.value = context.getString(R.string.profiles_encrypt_failed)
+                    return@launch
+                }
+                val encryptedHeaders = try {
+                    SecretsCipher.encryptIfSecret(normalizedHeaders)
+                } catch (e: SecretsCipher.SecretEncryptException) {
+                    errorMessageFlow.value = context.getString(R.string.profiles_encrypt_failed)
+                    return@launch
+                }
 
                 val file = File(profileDir, "profile_${System.currentTimeMillis()}.yaml")
                 file.writeText(download.outcome.yaml)
@@ -92,18 +112,16 @@ class ProfilesViewModel(
                     host.isNotBlank() -> context.getString(R.string.profile_auto_name, host)
                     else -> context.getString(R.string.profile_auto_name_clipboard)
                 }
-                // Panel-initiated subscription relocation (New-Url / Fallback-Url): store the new URL.
-                val effectiveUrl = meta.redirectUrl?.takeIf { !it.equals(url, ignoreCase = true) } ?: url
 
                 val isFirst = profileDao.getSelectedProfile() == null
                 val quota = download.userinfo
                 val entity = ProfileEntity(
                     name = resolvedName,
                     type = ProfileType.REMOTE,
-                    // url / custom_headers are encrypted at rest (see SecretsCipher).
-                    url = SecretsCipher.encryptIfSecret(effectiveUrl),
+                    // Encrypted above, before the file write (see SecretsCipher).
+                    url = encryptedUrl,
                     filePath = file.absolutePath,
-                    customHeaders = SecretsCipher.encryptIfSecret(normalizedHeaders),
+                    customHeaders = encryptedHeaders,
                     isSelected = isFirst,
                     uploadUsed = quota?.uploadUsed ?: 0,
                     downloadUsed = quota?.downloadUsed ?: 0,
@@ -177,6 +195,16 @@ class ProfilesViewModel(
                         return@launch
                     }
                     val content = download.outcome.yaml
+                    // Encrypt the at-rest secret BEFORE any disk write (audit I2 /
+                    // N07-2): a refused encryption (enc1: data exists but the key is
+                    // unavailable) must not leave a written file behind without a
+                    // matching DB row — surface the error and keep nothing.
+                    val encryptedUrl = try {
+                        SecretsCipher.encryptIfSecret(url)
+                    } catch (e: SecretsCipher.SecretEncryptException) {
+                        onError(context.getString(R.string.profiles_encrypt_failed))
+                        return@launch
+                    }
                     val file = File(profileDir, "profile_${System.currentTimeMillis()}.yaml")
                     file.writeText(content)
 
@@ -184,8 +212,9 @@ class ProfilesViewModel(
                     val entity = ProfileEntity(
                         name = autoName,
                         type = ProfileType.REMOTE,
-                        // Encrypted at rest (see SecretsCipher); blank stays blank.
-                        url = SecretsCipher.encryptIfSecret(url),
+                        // Encrypted above, before the file write (see SecretsCipher);
+                        // blank stays blank.
+                        url = encryptedUrl,
                         filePath = file.absolutePath,
                         isSelected = isFirst
                     )
@@ -291,15 +320,25 @@ class ProfilesViewModel(
                     errorMessageFlow.value = context.getString(R.string.profiles_invalid_result)
                     return@launch
                 }
+                // Panel-initiated subscription relocation (New-Url / Fallback-Url): auto-migrate.
+                val migratedUrl = download.meta.redirectUrl
+                    ?.takeIf { !it.equals(url, ignoreCase = true) } ?: url
+                // Encrypt the (possibly migrated) URL BEFORE overwriting the profile
+                // file (audit I2 / N07-2): when the data-loss gate refuses encryption,
+                // the last good file and the stored lastUpdated / quota must stay
+                // untouched — the refresh is refused entirely.
+                val encryptedUrl = try {
+                    SecretsCipher.encryptIfSecret(migratedUrl)
+                } catch (e: SecretsCipher.SecretEncryptException) {
+                    errorMessageFlow.value = context.getString(R.string.profiles_encrypt_failed)
+                    return@launch
+                }
                 // Same crash-safe write path as the repository's background refresh.
                 SubscriptionRepository.atomicWriteText(File(profile.filePath), download.outcome.yaml)
                 // If the server sent no Subscription-Userinfo this time, keep the previous quota.
                 val quota = download.userinfo
-                // Panel-initiated subscription relocation (New-Url / Fallback-Url): auto-migrate.
-                val migratedUrl = download.meta.redirectUrl
-                    ?.takeIf { !it.equals(url, ignoreCase = true) } ?: url
                 val updated = profile.copy(
-                    url = SecretsCipher.encrypt(migratedUrl),
+                    url = encryptedUrl,
                     lastUpdated = System.currentTimeMillis(),
                     uploadUsed = quota?.uploadUsed ?: profile.uploadUsed,
                     downloadUsed = quota?.downloadUsed ?: profile.downloadUsed,

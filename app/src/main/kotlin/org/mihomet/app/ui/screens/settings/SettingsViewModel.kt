@@ -14,6 +14,18 @@ import org.mihomet.app.data.preferences.AppSettings
 import org.mihomet.app.data.preferences.FirewallEngineType
 import org.mihomet.app.data.preferences.ProxyMode
 import org.mihomet.app.data.preferences.SettingsRepository
+import java.util.concurrent.atomic.AtomicLong
+
+/**
+ * Outcome of a Happ crypto keyring add attempt (one-shot UI event): [id] makes
+ * every event unique so repeated identical outcomes still re-trigger the
+ * snackbar; [success] tells the UI whether the input fields may be cleared.
+ */
+data class KeyringEvent(
+    val id: Long,
+    val success: Boolean,
+    @StringRes val messageRes: Int
+)
 
 data class SettingsUiState(
     val settings: AppSettings = AppSettings(),
@@ -24,7 +36,10 @@ data class SettingsUiState(
     val updateMessageRes: Int? = null,
     val updateMessageArgs: List<String> = emptyList(),
     // Happ crypto keyring (key id → AES key), see core/HappCrypto.kt
-    val cryptoKeys: Map<String, String> = emptyMap()
+    val cryptoKeys: Map<String, String> = emptyMap(),
+    // Last keyring add attempt (null = nothing to show); consumed by the
+    // Settings snackbar and the input-field reset (success only).
+    val keyringEvent: KeyringEvent? = null
 )
 
 class SettingsViewModel(
@@ -242,11 +257,20 @@ class SettingsViewModel(
         }
     }
 
+    /** Monotonic id source for [KeyringEvent]s (every event must be distinct). */
+    private val keyringEventIds = AtomicLong(0L)
+
     /**
      * Adds (or replaces) a Happ crypto key after validating the AES-128 length:
      * the key must be exactly [HappCrypto.KEY_BYTES] bytes (UTF-8) and the id
      * must not be blank. Invalid input is silently ignored — the keyring is only
      * touched with a valid entry.
+     *
+     * The repository Result is surfaced to the UI via [SettingsUiState.keyringEvent]:
+     * a failure (the crypto gate refused to encrypt — enc1: data exists while the
+     * Keystore key is unavailable) shows an error snackbar and leaves the user's
+     * input intact; success confirms with a snackbar and lets the UI clear the
+     * fields. The key is never silently dropped.
      */
     fun addCryptoKey(id: String, key: String) {
         val keyId = id.trim()
@@ -255,7 +279,35 @@ class SettingsViewModel(
         if (keyValue.toByteArray(Charsets.UTF_8).size != HappCrypto.KEY_BYTES) return
         viewModelScope.launch {
             settingsRepository.setCryptoKey(keyId, keyValue)
+                .onSuccess {
+                    _uiState.update {
+                        it.copy(
+                            keyringEvent = KeyringEvent(
+                                id = keyringEventIds.incrementAndGet(),
+                                success = true,
+                                messageRes = R.string.keyring_added
+                            )
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    android.util.Log.w(TAG, "Happ key '$keyId' was not saved: ${error.message}", error)
+                    _uiState.update {
+                        it.copy(
+                            keyringEvent = KeyringEvent(
+                                id = keyringEventIds.incrementAndGet(),
+                                success = false,
+                                messageRes = R.string.keyring_add_failed
+                            )
+                        )
+                    }
+                }
         }
+    }
+
+    /** Consumes the current [SettingsUiState.keyringEvent] after the UI has shown it. */
+    fun clearKeyringEvent() {
+        _uiState.update { it.copy(keyringEvent = null) }
     }
 
     /** Removes the Happ crypto key stored under [id] (no-op when absent). */
@@ -281,4 +333,8 @@ class SettingsViewModel(
         candidate: Triple<Int, Int, Int>,
         current: Triple<Int, Int, Int>
     ): Boolean = compareValuesBy(candidate, current, { it.first }, { it.second }, { it.third }) > 0
+
+    private companion object {
+        const val TAG = "SettingsViewModel"
+    }
 }

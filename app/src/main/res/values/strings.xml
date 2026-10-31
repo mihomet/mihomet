@@ -223,6 +223,8 @@
     <string name="settings_override_log_level_desc">Current value: %1$s</string>
     <string name="settings_happ_keys">Happ crypto keys</string>
     <string name="settings_happ_key_add">Add key</string>
+    <string name="keyring_added">Key added</string>
+    <string name="keyring_add_failed">Could not save the key — encryption is unavailable, the keyring was left unchanged</string>
     <string name="settings_happ_key_id">Key ID</string>
     <string name="settings_happ_key_value">AES key (16 bytes)</string>
     <string name="settings_happ_key_error_length">Invalid key length</string>
@@ -349,6 +351,7 @@
     <string name="root_error_timeout">Core did not respond within 15 seconds</string>
     <string name="root_last_good_used">Profile is broken — running the last working configuration (%1$s)</string>
     <string name="profiles_subscription_undecryptable">Could not decrypt the subscription data — the encryption key is unavailable or was replaced. Please add the subscription again.</string>
+    <string name="profiles_encrypt_failed">Could not encrypt subscription data — key unavailable</string>
 
     <!-- Fail-closed start guards: a selected profile with a missing file or no
          routing source (no proxies / providers / rules) must never start the core -->
