@@ -20,6 +20,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.mihomet.app.R
@@ -41,6 +42,21 @@ class RootTProxyService : Service(), KoinComponent {
         const val ACTION_STOP = "org.mihomet.app.action.ROOT_STOP"
         private const val CHANNEL_ID = "mihomet_root_tproxy_channel"
         private const val NOTIFICATION_ID = 1001
+
+        /** Max automatic daemon restarts after a crash before giving up (VPN watchdog parity). */
+        private const val MAX_DAEMON_RESTARTS = 3
+
+        /** Total budget for the core REST API readiness gate after the daemon spawns. */
+        private const val CORE_READINESS_TIMEOUT_MS = 15_000L
+
+        /** Per-probe cap so a hanging /version call cannot stretch the readiness budget. */
+        private const val CORE_READINESS_PROBE_TIMEOUT_MS = 2_000L
+
+        /** Interval between core REST API readiness probes. */
+        private const val CORE_READINESS_INTERVAL_MS = 500L
+
+        /** Uptime (with reachable API) the daemon must reach before the restart counter resets. */
+        private const val CORE_STABILITY_DELAY_MS = 30_000L
 
         /**
          * Completion signal for the most recent [stop] request (audit P1 §5a).
@@ -84,9 +100,18 @@ class RootTProxyService : Service(), KoinComponent {
     private val settingsRepository: SettingsRepository by inject()
     private val coreManager: CoreManager by inject()
     private val firewallManager: FirewallManager by inject()
+    private val apiClientProvider: org.mihomet.app.data.api.MihomoApiClientProvider by inject()
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var daemonMonitorJob: kotlinx.coroutines.Job? = null
+
+    /**
+     * True while a user-initiated stop is in progress; a start in its readiness
+     * gate checks this flag and aborts instead of resurrecting the running state
+     * after the teardown already happened (VPN service parity).
+     */
+    @Volatile
+    private var isStopping = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -113,6 +138,10 @@ class RootTProxyService : Service(), KoinComponent {
                 }
             }
             ACTION_STOP -> {
+                // Set synchronously (not inside the coroutine): a readiness probe
+                // in flight checks this flag and aborts at once instead of racing
+                // the queued stopProxy() below (VPN service parity).
+                isStopping = true
                 // Snapshot the deferred armed by stop() so THIS teardown completes
                 // exactly the deferred its requester is awaiting (a newer stop()
                 // may have re-armed the volatile field in the meantime).
@@ -128,6 +157,13 @@ class RootTProxyService : Service(), KoinComponent {
     }
 
     private suspend fun startProxy() {
+        // A fresh start clears a stale stop flag (VPN parity): a queued user STOP
+        // still runs right after this start and wins (it is the last user action).
+        isStopping = false
+        // Set once the daemon PID exists: any failure after this point (firewall
+        // setup error, readiness timeout) must roll the daemon and the modified
+        // system settings back instead of leaving a zombie session (audit F11).
+        var rootDaemonStarted = false
         try {
             // 0. Recover Private DNS if the previous root session crashed before
             // stopDaemon() could restore it (.prev_dns exists while daemon is dead)
@@ -187,6 +223,7 @@ class RootTProxyService : Service(), KoinComponent {
 
             // 4. Start daemon
             RootShellManager.startDaemon(CoreConstants.ROOT_CONFIG_PATH).getOrThrow()
+            rootDaemonStarted = true
 
             // 5. Setup netfilter firewall rules
             firewallManager.setup(
@@ -197,6 +234,33 @@ class RootTProxyService : Service(), KoinComponent {
                 appUids = settings.selectedAppUids,
                 ipv6Enabled = settings.ipv6Enabled
             ).getOrThrow()
+
+            // 6. Readiness gate: a PID from nohup proves nothing — the core may die
+            // on an invalid config moments later, and a spawned process alone must
+            // not report "connected" (audit F11). Only a REST /version answer means
+            // the daemon is actually usable.
+            android.util.Log.d("RootTProxy", "Waiting for core readiness (REST API /version)")
+            if (!awaitCoreReadiness()) {
+                if (isStopping) {
+                    // A user stop is in flight and owns the teardown — stay silent.
+                    android.util.Log.d("RootTProxy", "Readiness aborted: stop pending")
+                    return
+                }
+                android.util.Log.e(
+                    "RootTProxy",
+                    "Core did not answer the REST API within ${CORE_READINESS_TIMEOUT_MS / 1000}s — rolling back"
+                )
+                // Full rollback: daemon, firewall rules, Private DNS / OEM chains.
+                rollbackRootStart()
+                updateNotification(getString(R.string.root_error, getString(R.string.root_error_timeout)))
+                return
+            }
+            if (isStopping) {
+                // Core became ready but a stop was requested meanwhile — the
+                // stopProxy() teardown owns the state now; do not resurrect it.
+                android.util.Log.d("RootTProxy", "Core ready but stop pending — aborting start")
+                return
+            }
 
             ServiceState.setRunning(org.mihomet.app.core.RunningService.ROOT)
             // Refresh home screen widgets (RemoteViews cannot observe the state flow).
@@ -221,18 +285,33 @@ class RootTProxyService : Service(), KoinComponent {
 
             // Watchdog: the root daemon is a detached nohup process — if it crashes,
             // restart it with backoff (same policy as the VPN core watchdog); after
-            // 3 failed rounds — clean stop
+            // MAX_DAEMON_RESTARTS failed rounds — clean stop. The restart budget is
+            // NOT renewed while the daemon merely stays alive: it must survive the
+            // CORE_STABILITY_DELAY_MS window first, otherwise a flapping daemon
+            // (briefly alive on every check) resets the counter and the budget
+            // never exhausts (audit F11).
             daemonMonitorJob?.cancel()
             daemonMonitorJob = serviceScope.launch {
                 var attempts = 0
+                // Moment of the first alive-detection of the current daemon
+                // generation; null while the daemon is considered unstable.
+                var stableSinceMillis: Long? = null
                 while (isActive && org.mihomet.app.core.ServiceState.isRunning.value) {
                     kotlinx.coroutines.delay(10_000)
                     if (RootShellManager.isDaemonRunning()) {
-                        attempts = 0
+                        // First detection opens the stability window; only a daemon
+                        // alive for CORE_STABILITY_DELAY_MS renews the budget.
+                        val stableSince = stableSinceMillis
+                            ?: System.currentTimeMillis().also { stableSinceMillis = it }
+                        if (System.currentTimeMillis() - stableSince >= CORE_STABILITY_DELAY_MS) {
+                            attempts = 0
+                        }
                         continue
                     }
+                    // Daemon gone: the stability window closes, a round is consumed.
+                    stableSinceMillis = null
                     attempts++
-                    if (attempts > 3) {
+                    if (attempts > MAX_DAEMON_RESTARTS) {
                         updateNotification(getString(R.string.root_error, "daemon keeps crashing"))
                         org.mihomet.app.core.ServiceState.stopService(org.mihomet.app.core.RunningService.ROOT)
                         break
@@ -241,14 +320,71 @@ class RootTProxyService : Service(), KoinComponent {
                     kotlinx.coroutines.delay(2000L * attempts)
                     RootShellManager.startDaemon(CoreConstants.ROOT_CONFIG_PATH)
                         .onFailure { failure -> android.util.Log.e("RootTProxy", "daemon restart failed", failure) }
-                    if (RootShellManager.isDaemonRunning()) attempts = 0
+                    if (RootShellManager.isDaemonRunning()) {
+                        // Fresh PID: reopen the stability window instead of resetting
+                        // attempts immediately (a briefly alive daemon must not renew
+                        // the restart budget).
+                        stableSinceMillis = System.currentTimeMillis()
+                    }
                 }
             }
         } catch (e: Exception) {
-            ServiceState.stopService(org.mihomet.app.core.RunningService.ROOT)
+            if (rootDaemonStarted) {
+                // Rollback (audit F11): a failure after the daemon spawn (e.g. a
+                // firewall setup error) must not leave a live daemon with modified
+                // Private DNS / OEM chains and half-applied firewall rules behind.
+                android.util.Log.e("RootTProxy", "Root start failed after daemon spawn — rolling back", e)
+                rollbackRootStart()
+            } else {
+                ServiceState.stopService(org.mihomet.app.core.RunningService.ROOT)
+            }
             updateNotification(getString(R.string.root_error, e.message ?: "null"))
             e.printStackTrace()
         }
+    }
+
+    /**
+     * Polls the core REST API (`GET /version`) until it answers, a stop is
+     * requested, or [CORE_READINESS_TIMEOUT_MS] elapses. Root mode has no TUN
+     * fd to verify — a version answer alone proves the daemon is usable. The
+     * controller host/port and secret come from [apiClientProvider], which
+     * mirrors the settings the runtime config was generated with.
+     */
+    private suspend fun awaitCoreReadiness(): Boolean {
+        val deadline = System.currentTimeMillis() + CORE_READINESS_TIMEOUT_MS
+        while (!isStopping) {
+            val answered = runCatching {
+                withTimeout(CORE_READINESS_PROBE_TIMEOUT_MS) {
+                    apiClientProvider.current().getVersion().isSuccess
+                }
+            }.getOrDefault(false)
+            if (answered) return true
+            if (System.currentTimeMillis() >= deadline) break
+            kotlinx.coroutines.delay(CORE_READINESS_INTERVAL_MS)
+        }
+        return false
+    }
+
+    /**
+     * Full rollback of a failed root start (audit F11): kill the daemon — its
+     * stop command also restores Private DNS and the OEM DNS reject chains —
+     * then a best-effort firewall teardown for rules a partial
+     * [FirewallManager.setup] may already have applied, a belt-and-braces
+     * restore of the system settings in case the daemon was already dead when
+     * we got here, and a clean ServiceState flip with a widget refresh.
+     */
+    private fun rollbackRootStart() {
+        runCatching { RootShellManager.stopDaemon() }
+            .onFailure { android.util.Log.w("RootTProxy", "rollback: stopDaemon failed", it) }
+        // teardown(false): the session's IPv6 setting does not matter on the
+        // rollback path — clean both families, like the VPN start does.
+        runCatching { firewallManager.teardown(false) }
+            .onFailure { android.util.Log.w("RootTProxy", "rollback: firewall teardown failed", it) }
+        runCatching { RootShellManager.maybeRestorePrivateDns() }
+        runCatching { RootShellManager.maybeRestoreOplusChains() }
+        ServiceState.stopService(org.mihomet.app.core.RunningService.ROOT)
+        // Refresh home screen widgets — every teardown path goes through here.
+        MihometWidgetProvider.updateAll(this@RootTProxyService)
     }
 
     private suspend fun stopProxy(completion: CompletableDeferred<Unit>? = teardownCompleted) {
@@ -279,6 +415,7 @@ class RootTProxyService : Service(), KoinComponent {
 
     override fun onDestroy() {
         super.onDestroy()
+        isStopping = true
         serviceScope.launch {
             try {
                 stopProxy()

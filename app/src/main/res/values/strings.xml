@@ -285,6 +285,7 @@
     <string name="routing_empty">No apps found</string>
     <string name="routing_system_badge">System</string>
     <string name="perapp_empty_whitelist">Whitelist is empty — all traffic is proxied. Select apps or switch mode.</string>
+    <string name="perapp_only_self">Only Mihomet is selected — it will be excluded to prevent a loop.</string>
 
     <!-- Connections -->
     <string name="connections_download_total">Downloaded</string>
@@ -342,6 +343,7 @@
     <string name="root_notification_starting">Starting Root TProxy...</string>
     <string name="root_running">Running (%1$s)</string>
     <string name="root_error">Error: %1$s</string>
+    <string name="root_error_timeout">Core did not respond within 15 seconds</string>
     <string name="root_last_good_used">Profile is broken — using the last working version</string>
     <string name="profiles_subscription_undecryptable">Could not decrypt the subscription data — the encryption key is unavailable or was replaced. Please add the subscription again.</string>
 
