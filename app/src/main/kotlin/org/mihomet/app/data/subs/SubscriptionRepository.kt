@@ -3,8 +3,8 @@ package org.mihomet.app.data.subs
 import android.content.Context
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.utils.io.ByteReadChannel
 import kotlinx.coroutines.CancellationException
@@ -76,6 +76,18 @@ private const val REFRESH_REJECTED_INVALID_CONFIG_MESSAGE =
  */
 internal class SubscriptionTooLargeException(message: String) : IllegalStateException(message)
 
+/**
+ * Body text plus the headers of a successful subscription attempt, captured
+ * inside the streaming [HttpClient.prepareGet] execute-block: the response is
+ * closed as soon as the block returns, so nothing may be read from it later.
+ */
+private data class SubscriptionAttempt(
+    val text: String,
+    val encryptTag: String?,
+    val userinfo: SubscriptionUserinfo?,
+    val meta: SubscriptionMeta
+)
+
 class SubscriptionRepository(
     private val context: Context,
     private val profileDao: ProfileDao,
@@ -142,7 +154,12 @@ class SubscriptionRepository(
 
             for (ua in userAgentsToTry) {
                 try {
-                    val resp = httpClient.get(url) {
+                    // prepareGet().execute reads the body INSIDE the block through
+                    // a streaming channel and closes the response on block exit —
+                    // the payload is never buffered up-front, so the 20 MB cap
+                    // applies to the bytes actually read, not to a fully
+                    // downloaded response (external audit F05).
+                    val attempt = httpClient.prepareGet(url) {
                         header("User-Agent", ua)
                         // x-hwid accompanies every attempt (user-provided header wins)
                         if (!hasCustomHwid) {
@@ -153,9 +170,9 @@ class SubscriptionRepository(
                                 header(k, v)
                             }
                         }
-                    }
-                    if (resp.status.value in 200..299) {
-                        // Fast-fail on a declared Content-Length (nothing buffered yet).
+                    }.execute { resp ->
+                        if (resp.status.value !in 200..299) return@execute null
+                        // Fast-fail on a declared Content-Length (nothing read yet).
                         val contentLength = resp.headers["Content-Length"]?.toLongOrNull()
                         if (contentLength != null && contentLength > MAX_SUBSCRIPTION_BYTES) {
                             throw SubscriptionTooLargeException(
@@ -172,23 +189,26 @@ class SubscriptionRepository(
                             MAX_SUBSCRIPTION_BYTES,
                             context.getString(R.string.profiles_too_large)
                         )
-                        if (body.isNotBlank()) {
-                            responseText = body
-                            // Happ encrypted subscriptions: the GCM tag rides in this
-                            // header (Ktor lookup is case-insensitive), the key id in
-                            // the URL (?key=keyNN) and the key material in the keyring.
-                            encryptTag = resp.headers[HappCrypto.ENCRYPT_TAG_HEADER]
-                            // Ktor Headers lookup is case-insensitive; format:
-                            // "upload=123 download=456 total=789 expire=1700000000"
-                            userinfo = SubscriptionUserinfoParser.parse(resp.headers["Subscription-Userinfo"])
-                            // Happ/Incy panel metadata: profile-title, profile-update-interval, New-Url
+                        if (body.isBlank()) return@execute null
+                        // All headers we keep must be captured inside this block:
+                        // the response is closed as soon as it returns.
+                        SubscriptionAttempt(
+                            text = body,
+                            encryptTag = resp.headers[HappCrypto.ENCRYPT_TAG_HEADER],
+                            userinfo = SubscriptionUserinfoParser.parse(resp.headers["Subscription-Userinfo"]),
                             meta = SubscriptionMetaParser.parse(
                                 resp.headers.names().mapNotNull { name ->
                                     resp.headers[name]?.let { name to it }
                                 }.toMap()
                             )
-                            break
-                        }
+                        )
+                    }
+                    if (attempt != null) {
+                        responseText = attempt.text
+                        encryptTag = attempt.encryptTag
+                        userinfo = attempt.userinfo
+                        meta = attempt.meta
+                        break
                     }
                 } catch (e: CancellationException) {
                     throw e
