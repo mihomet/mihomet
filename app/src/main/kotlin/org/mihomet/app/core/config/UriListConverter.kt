@@ -27,7 +27,7 @@ internal object UriListConverter {
                 firstLine.startsWith("wg://")
     }
 
-    fun convertUriListToMihomoYaml(uriList: String, warnings: MutableList<String>? = null): String {
+    fun convertUriListToMihomoYaml(uriList: String, warnings: MutableList<ConversionWarning>? = null): String {
         val proxies = mutableListOf<Map<String, Any>>()
         val names = mutableListOf<String>()
 
@@ -43,7 +43,7 @@ internal object UriListConverter {
             }
 
         if (proxies.isEmpty()) {
-            warnings?.add("В подписке не найдено ни одного поддерживаемого узла")
+            warnings?.add(ConversionWarning.NoNodes)
             return uriList
         }
 

@@ -17,7 +17,7 @@ import java.net.URLDecoder
  */
 internal object UriListParser {
 
-    fun parseUriToMihomoProxy(uri: String, warnings: MutableList<String>? = null): Map<String, Any>? {
+    fun parseUriToMihomoProxy(uri: String, warnings: MutableList<ConversionWarning>? = null): Map<String, Any>? {
         return try {
             // Hiddify embeds an "expiry date" pseudo-link (trojan://…--YYYY.MM.DD.time:<port>) that is
             // client-side display metadata, not a proxy node — reported as unrecognized below
@@ -49,12 +49,12 @@ internal object UriListParser {
             if (proxy == null) {
                 // A matched scheme that failed to parse must not vanish silently either
                 warnings?.add(
-                    if (recognized) "Ошибка разбора узла: $uri" else "Не удалось распознать узел: $uri"
+                    if (recognized) ConversionWarning.ProxyParseError(uri) else ConversionWarning.UnrecognizedNode(uri)
                 )
             }
             proxy
         } catch (e: Exception) {
-            warnings?.add("Ошибка разбора узла: $uri (${e.message ?: "неизвестная ошибка"})")
+            warnings?.add(ConversionWarning.ProxyParseError(uri, e.message))
             null
         }
     }

@@ -551,12 +551,18 @@ class ProfilesViewModel(
         behaviorConsentFlow.value = null
     }
 
+    /**
+     * Display-time localization of converter warnings (external audit §3.9):
+     * the count suffix stays, and each typed warning is rendered through
+     * [WarningLocalizer] in the UI locale — Russian literals from the data
+     * layer can never leak into the EN UI.
+     */
     private fun appendWarnings(message: String, outcome: ConversionOutcome): String {
-        return if (outcome.warnings.isEmpty()) {
-            message
-        } else {
-            "$message ${context.getString(R.string.profiles_warnings_suffix, outcome.warnings.size)}"
+        if (outcome.warnings.isEmpty()) return message
+        val details = outcome.warnings.joinToString(separator = "\n") { warning ->
+            org.mihomet.app.core.config.WarningLocalizer.localize(warning, context)
         }
+        return "$message ${context.getString(R.string.profiles_warnings_suffix, outcome.warnings.size)}\n$details"
     }
 
     /**

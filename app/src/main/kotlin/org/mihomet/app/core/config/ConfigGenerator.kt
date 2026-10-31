@@ -20,8 +20,9 @@ object ConfigGenerator {
      * `external-controller`, `geox-url`, `geodata-*`, `interface-name`, `secret`,
      * `port`/`ports`, `allow-lan`, `bind-address`, `authentication`,
      * `skip-auth-prefixes`, `lan-allowed-ips` — is DROPPED before the override-patch
-     * merge, and every dropped key produces a user-visible warning (see
-     * [WARN_PREFIX_PROFILE_KEY_DROPPED] + [WarningLocalizer]).
+     * merge, and every dropped key produces a user-visible typed warning
+     * ([ConversionWarning.ProfileKeyDropped], localized at display time by
+     * [WarningLocalizer]).
      *
      * Rationale (audit §2.1): a malicious or careless subscription could otherwise
      * return `listeners: [{type: socks, port: 1080, listen: 0.0.0.0}]` or
@@ -36,27 +37,20 @@ object ConfigGenerator {
     )
 
     /**
-     * Warning literal prefix for a profile key removed by the whitelist. One warning
-     * per dropped key; localized at display time via [WarningLocalizer] (RU source
-     * literal, see the ConversionOutcome contract).
-     */
-    internal const val WARN_PREFIX_PROFILE_KEY_DROPPED =
-        "Из профиля удалён ключ вне белого списка: "
-
-    /**
      * Applies the profile-key whitelist in place: removes every top-level key not in
-     * [ALLOWED_PROFILE_KEYS] from [configMap] and returns one warning per dropped key
-     * (sorted for deterministic UI ordering).
+     * [ALLOWED_PROFILE_KEYS] from [configMap] and returns one typed
+     * [ConversionWarning.ProfileKeyDropped] per dropped key (sorted for deterministic
+     * UI ordering).
      */
     @Suppress("UNCHECKED_CAST")
-    internal fun sanitizeProfileKeys(configMap: MutableMap<String, Any>): List<String> {
+    internal fun sanitizeProfileKeys(configMap: MutableMap<String, Any>): List<ConversionWarning> {
         val dropped = configMap.keys
             .map { it.toString() }
             .filter { it !in ALLOWED_PROFILE_KEYS }
             .distinct()
             .sorted()
         for (key in dropped) configMap.remove(key)
-        return dropped.map { "$WARN_PREFIX_PROFILE_KEY_DROPPED$it" }
+        return dropped.map { ConversionWarning.ProfileKeyDropped(it) }
     }
 
     /**
@@ -65,7 +59,7 @@ object ConfigGenerator {
      * Profiles ViewModel to surface the warnings when a subscription is imported or
      * refreshed (the runtime generation drops the keys regardless — defense in depth).
      */
-    fun profileKeyWarnings(yaml: String): List<String> {
+    fun profileKeyWarnings(yaml: String): List<ConversionWarning> {
         if (yaml.isBlank()) return emptyList()
         return try {
             val parsed = Yaml().load<Any>(yaml) ?: return emptyList()
@@ -75,7 +69,7 @@ object ConfigGenerator {
                 .filter { it !in ALLOWED_PROFILE_KEYS }
                 .distinct()
                 .sorted()
-                .map { "$WARN_PREFIX_PROFILE_KEY_DROPPED$it" }
+                .map { ConversionWarning.ProfileKeyDropped(it) }
         } catch (e: Exception) {
             // A profile that cannot even be parsed is reported by the converter /
             // fail-closed validation — no extra warnings here.

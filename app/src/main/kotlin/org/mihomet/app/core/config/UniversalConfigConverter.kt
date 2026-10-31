@@ -32,7 +32,7 @@ object UniversalConfigConverter {
         val trimmed = content.trim()
         if (trimmed.isBlank()) return ConversionOutcome(content, emptyList())
 
-        val warnings = mutableListOf<String>()
+        val warnings = mutableListOf<ConversionWarning>()
 
         // Check for Base64 encoded payload
         val decoded = if (ConverterSupport.isLikelyBase64(trimmed)) {
@@ -51,7 +51,7 @@ object UniversalConfigConverter {
             XrayJsonConverter.isXrayJson(decoded) -> XrayJsonConverter.convertXrayJsonToMihomoYaml(decoded, warnings)
             UriListConverter.isUriList(decoded) -> UriListConverter.convertUriListToMihomoYaml(decoded, warnings)
             else -> {
-                warnings.add("Не удалось определить формат конфигурации")
+                warnings.add(ConversionWarning.UnknownFormat)
                 decoded
             }
         }

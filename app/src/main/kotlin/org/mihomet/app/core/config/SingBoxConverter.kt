@@ -37,7 +37,7 @@ internal object SingBoxConverter {
      * Converts Sing-Box JSON to Mihomo YAML preserving all dynamic urltest and selector groups
      * and supporting all modern Sing-Box protocols and transports.
      */
-    fun convertSingBoxJsonToMihomoYaml(jsonStr: String, warnings: MutableList<String>? = null): String {
+    fun convertSingBoxJsonToMihomoYaml(jsonStr: String, warnings: MutableList<ConversionWarning>? = null): String {
         try {
             val root = ConverterSupport.json.parseToJsonElement(jsonStr).jsonObject
             val outbounds = root["outbounds"]?.jsonArray ?: return jsonStr
@@ -90,14 +90,14 @@ internal object SingBoxConverter {
                             proxies.add(proxyMap)
                             proxyNames.add(tag)
                         } else if (type !in setOf("direct", "block", "dns")) {
-                            warnings?.add("Тип outbound '$type' ('$tag') не поддерживается конвертером")
+                            warnings?.add(ConversionWarning.UnsupportedOutbound(type, tag))
                         }
                     }
                 }
             }
 
             if (proxies.isEmpty()) {
-                warnings?.add("В Sing-Box конфиге не найдено ни одного поддерживаемого узла")
+                warnings?.add(ConversionWarning.NoNodesSingBox)
                 return jsonStr
             }
 
@@ -188,7 +188,7 @@ internal object SingBoxConverter {
             Yaml(dumperOptions).dump(rootConfig, writer)
             return writer.toString()
         } catch (e: Exception) {
-            warnings?.add("Ошибка конвертации Sing-Box JSON: ${e.message ?: "неизвестная ошибка"}")
+            warnings?.add(ConversionWarning.SingBoxError(e.message))
             return jsonStr
         }
     }

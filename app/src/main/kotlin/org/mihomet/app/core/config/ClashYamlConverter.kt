@@ -9,7 +9,7 @@ import java.io.StringWriter
  *
  * Re-dumps a Clash YAML profile through SnakeYAML for normalization.
  * Never silent: a YAML parsing error is reported through [warnings]
- * ("Ошибка YAML: <message>") and the original content is returned unchanged,
+ * ([ConversionWarning.YamlError]) and the original content is returned unchanged,
  * so downstream fail-closed guards (ConfigGenerator / profile validation)
  * stop the invalid profile instead of silently routing everything to DIRECT.
  */
@@ -20,7 +20,7 @@ internal object ClashYamlConverter {
         return str.contains("proxies:") || str.contains("proxy-groups:") || (str.contains("mixed-port:") && str.contains("rules:"))
     }
 
-    fun validateAndNormalizeYaml(yamlContent: String, warnings: MutableList<String>? = null): String {
+    fun validateAndNormalizeYaml(yamlContent: String, warnings: MutableList<ConversionWarning>? = null): String {
         return try {
             val yaml = Yaml()
             val parsed = yaml.load<Map<String, Any>>(yamlContent) ?: return yamlContent
@@ -33,7 +33,7 @@ internal object ClashYamlConverter {
             Yaml(dumperOptions).dump(parsed, writer)
             writer.toString()
         } catch (e: Exception) {
-            warnings?.add("Ошибка YAML: ${e.message ?: "неизвестная ошибка"}")
+            warnings?.add(ConversionWarning.YamlError(e.message))
             yamlContent
         }
     }

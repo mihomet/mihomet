@@ -32,7 +32,7 @@ internal object XrayJsonConverter {
      * Converts Xray configurations (both JSON array from Happ/Incy/v2rayNG and single JSON object)
      * into Mihomo YAML with all balancers, nodes, and routing rules preserved dynamically.
      */
-    fun convertXrayJsonToMihomoYaml(jsonStr: String, warnings: MutableList<String>? = null): String {
+    fun convertXrayJsonToMihomoYaml(jsonStr: String, warnings: MutableList<ConversionWarning>? = null): String {
         try {
             val rootElement = ConverterSupport.json.parseToJsonElement(jsonStr)
             val items: List<JsonObject> = when (rootElement) {
@@ -107,7 +107,7 @@ internal object XrayJsonConverter {
             }
 
             if (serverNames.isEmpty()) {
-                warnings?.add("В Xray-конфиге не найдено ни одного поддерживаемого узла")
+                warnings?.add(ConversionWarning.NoNodesXray)
                 return jsonStr
             }
 
@@ -262,7 +262,7 @@ internal object XrayJsonConverter {
             Yaml(dumperOptions).dump(rootConfig, writer)
             return writer.toString()
         } catch (e: Exception) {
-            warnings?.add("Ошибка конвертации Xray JSON: ${e.message ?: "неизвестная ошибка"}")
+            warnings?.add(ConversionWarning.XrayError(e.message))
             return jsonStr
         }
     }
