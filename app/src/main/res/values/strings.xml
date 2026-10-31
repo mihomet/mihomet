@@ -169,6 +169,7 @@
     <string name="conv_warning_no_nodes_singbox">No supported nodes found in the Sing-Box config</string>
     <string name="conv_warning_unknown_format">Could not determine the configuration format</string>
     <string name="conv_warning_unsupported_outbound">Outbound type \'%1$s\' (\'%2$s\') is not supported by the converter</string>
+    <string name="conv_warning_profile_key_dropped">Profile key removed (not on the safe list): %1$s</string>
 
     <!-- Settings -->
     <string name="settings_connection_mode">Connection mode</string>

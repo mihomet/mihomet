@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.mihomet.app.R
+import org.mihomet.app.core.config.ConfigGenerator
 import org.mihomet.app.core.config.ConversionOutcome
 import org.mihomet.app.core.config.UniversalConfigConverter
 import org.mihomet.app.data.db.ProfileDao
@@ -73,9 +74,11 @@ class ProfilesViewModel(
                 val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
                 val normalizedHeaders = SubscriptionRepository.normalizeHeadersJson(customHeaders)
                 val download = subscriptionRepository.downloadAndConvert(url, normalizedHeaders)
+                // Profile-key whitelist warnings (audit P1 §2.1): never silent.
+                val outcome = withProfileKeyWarnings(download.outcome)
                 // Fail-closed: never persist a conversion result without proxies,
                 // proxy-providers or rules — the core would route everything to DIRECT.
-                if (!isValidGeneratedConfig(download.outcome.yaml)) {
+                if (!isValidGeneratedConfig(outcome.yaml)) {
                     errorMessageFlow.value = context.getString(R.string.profiles_invalid_result)
                     return@launch
                 }
@@ -102,7 +105,7 @@ class ProfilesViewModel(
                 }
 
                 val file = File(profileDir, "profile_${System.currentTimeMillis()}.yaml")
-                file.writeText(download.outcome.yaml)
+                file.writeText(outcome.yaml)
 
                 // Name priority: explicit user input > panel `profile-title` > auto name from URL host.
                 val host = runCatching { java.net.URI(url).host }.getOrNull()?.removePrefix("www.") ?: ""
@@ -136,7 +139,7 @@ class ProfilesViewModel(
                 }
                 applyBehaviorHeaders(newId, meta)
                 errorMessageFlow.value = null
-                successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_added, resolvedName), download.outcome)
+                successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_added, resolvedName), outcome)
             } catch (e: Exception) {
                 errorMessageFlow.value = context.getString(R.string.profiles_add_failed, e.message ?: context.getString(R.string.profiles_unknown_error))
             }
@@ -188,13 +191,15 @@ class ProfilesViewModel(
 
                     val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
                     val download = subscriptionRepository.downloadAndConvert(url)
+                    // Profile-key whitelist warnings (audit P1 §2.1): never silent.
+                    val outcome = withProfileKeyWarnings(download.outcome)
                     // Fail-closed: never persist a conversion result without proxies,
                     // proxy-providers or rules — the core would route everything to DIRECT.
-                    if (!isValidGeneratedConfig(download.outcome.yaml)) {
+                    if (!isValidGeneratedConfig(outcome.yaml)) {
                         onError(context.getString(R.string.profiles_invalid_result))
                         return@launch
                     }
-                    val content = download.outcome.yaml
+                    val content = outcome.yaml
                     // Encrypt the at-rest secret BEFORE any disk write (audit I2 /
                     // N07-2): a refused encryption (enc1: data exists but the key is
                     // unavailable) must not leave a written file behind without a
@@ -222,12 +227,16 @@ class ProfilesViewModel(
                     if (isFirst) {
                         profileDao.selectProfile(newId)
                     }
-                    onSuccess(context.getString(R.string.profiles_imported, autoName))
+                    onSuccess(
+                        appendWarnings(context.getString(R.string.profiles_imported, autoName), outcome)
+                    )
                 } else {
                     val outcome = withContext(Dispatchers.Default) {
                         UniversalConfigConverter.convertToMihomoYamlWithOutcome(trimmed)
                     }
-                    val convertedYaml = outcome.yaml
+                    // Profile-key whitelist warnings (audit P1 §2.1): never silent.
+                    val enrichedOutcome = withProfileKeyWarnings(outcome)
+                    val convertedYaml = enrichedOutcome.yaml
 
                     val yaml = Yaml()
                     val parsed = runCatching { yaml.load<Map<String, Any>>(convertedYaml) }.getOrNull()
@@ -268,7 +277,7 @@ class ProfilesViewModel(
                     }
                     onSuccess(
                         if (proxies.isNotEmpty()) {
-                            appendWarnings(context.getString(R.string.profiles_import_done, autoName), outcome)
+                            appendWarnings(context.getString(R.string.profiles_import_done, autoName), enrichedOutcome)
                         } else {
                             context.getString(R.string.profiles_config_added)
                         }
@@ -312,11 +321,13 @@ class ProfilesViewModel(
         viewModelScope.launch {
             try {
                 val download = subscriptionRepository.downloadAndConvert(url, headers)
+                // Profile-key whitelist warnings (audit P1 §2.1): never silent.
+                val outcome = withProfileKeyWarnings(download.outcome)
                 // Fail-closed: never overwrite the profile file with a semantically
                 // invalid conversion result (no non-empty proxies / proxy-providers /
                 // rules — see ProfileValidation). Returns before any write, so the
                 // last good file and the stored lastUpdated / quota stay untouched.
-                if (!isValidGeneratedConfig(download.outcome.yaml)) {
+                if (!isValidGeneratedConfig(outcome.yaml)) {
                     errorMessageFlow.value = context.getString(R.string.profiles_invalid_result)
                     return@launch
                 }
@@ -334,7 +345,7 @@ class ProfilesViewModel(
                     return@launch
                 }
                 // Same crash-safe write path as the repository's background refresh.
-                SubscriptionRepository.atomicWriteText(File(profile.filePath), download.outcome.yaml)
+                SubscriptionRepository.atomicWriteText(File(profile.filePath), outcome.yaml)
                 // If the server sent no Subscription-Userinfo this time, keep the previous quota.
                 val quota = download.userinfo
                 val updated = profile.copy(
@@ -351,7 +362,7 @@ class ProfilesViewModel(
                 profileDao.updateProfile(updated)
                 applyBehaviorHeaders(updated.id, download.meta)
                 errorMessageFlow.value = null
-                successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_updated), download.outcome)
+                successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_updated), outcome)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -401,6 +412,19 @@ class ProfilesViewModel(
         } else {
             "$message ${context.getString(R.string.profiles_warnings_suffix, outcome.warnings.size)}"
         }
+    }
+
+    /**
+     * Appends the profile-key whitelist warnings (audit P1 §2.1) to a conversion
+     * outcome so unsafe top-level keys coming from a panel profile (`listeners`,
+     * `tunnels`, `external-ui`, `geox-url`, `interface-name`, …) are never dropped
+     * silently: the runtime generator removes them at core start regardless, and
+     * the user sees which keys were rejected at import/refresh time.
+     */
+    private fun withProfileKeyWarnings(outcome: ConversionOutcome): ConversionOutcome {
+        val extra = runCatching { ConfigGenerator.profileKeyWarnings(outcome.yaml) }
+            .getOrElse { emptyList() }
+        return if (extra.isEmpty()) outcome else outcome.copy(warnings = outcome.warnings + extra)
     }
 
     fun deleteProfile(profile: ProfileEntity) {

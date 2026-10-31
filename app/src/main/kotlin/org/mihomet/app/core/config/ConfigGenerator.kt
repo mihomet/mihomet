@@ -12,13 +12,99 @@ import java.io.StringWriter
 
 object ConfigGenerator {
 
+    /**
+     * Whitelist of top-level profile keys that may pass from the user's (panel-supplied,
+     * untrusted) profile YAML into the runtime config (audit P1 §2.1).
+     *
+     * Everything else — most notably `listeners`, `tunnels`, `external-ui`,
+     * `external-controller`, `geox-url`, `geodata-*`, `interface-name`, `secret`,
+     * `port`/`ports`, `allow-lan`, `bind-address`, `authentication`,
+     * `skip-auth-prefixes`, `lan-allowed-ips` — is DROPPED before the override-patch
+     * merge, and every dropped key produces a user-visible warning (see
+     * [WARN_PREFIX_PROFILE_KEY_DROPPED] + [WarningLocalizer]).
+     *
+     * Rationale (audit §2.1): a malicious or careless subscription could otherwise
+     * return `listeners: [{type: socks, port: 1080, listen: 0.0.0.0}]` or
+     * `tunnels:` port-forwards — silently reopening an unauthenticated local proxy
+     * or exposing the device's ports to the LAN. Geo-database sources (`geox-url`)
+     * could point the core at attacker-controlled download URLs.
+     */
+    val ALLOWED_PROFILE_KEYS: Set<String> = setOf(
+        "proxies", "proxy-groups", "proxy-providers",
+        "rules", "rule-providers", "sub-rules",
+        "dns", "sniffer", "tun", "hosts"
+    )
+
+    /**
+     * Warning literal prefix for a profile key removed by the whitelist. One warning
+     * per dropped key; localized at display time via [WarningLocalizer] (RU source
+     * literal, see the ConversionOutcome contract).
+     */
+    internal const val WARN_PREFIX_PROFILE_KEY_DROPPED =
+        "Из профиля удалён ключ вне белого списка: "
+
+    /**
+     * Applies the profile-key whitelist in place: removes every top-level key not in
+     * [ALLOWED_PROFILE_KEYS] from [configMap] and returns one warning per dropped key
+     * (sorted for deterministic UI ordering).
+     */
+    @Suppress("UNCHECKED_CAST")
+    internal fun sanitizeProfileKeys(configMap: MutableMap<String, Any>): List<String> {
+        val dropped = configMap.keys
+            .map { it.toString() }
+            .filter { it !in ALLOWED_PROFILE_KEYS }
+            .distinct()
+            .sorted()
+        for (key in dropped) configMap.remove(key)
+        return dropped.map { "$WARN_PREFIX_PROFILE_KEY_DROPPED$it" }
+    }
+
+    /**
+     * Pure import-time helper: computes which top-level keys of a profile YAML would
+     * be dropped by [sanitizeProfileKeys] WITHOUT mutating anything. Used by the
+     * Profiles ViewModel to surface the warnings when a subscription is imported or
+     * refreshed (the runtime generation drops the keys regardless — defense in depth).
+     */
+    fun profileKeyWarnings(yaml: String): List<String> {
+        if (yaml.isBlank()) return emptyList()
+        return try {
+            val parsed = Yaml().load<Any>(yaml) ?: return emptyList()
+            val map = (parsed as? Map<*, *>) ?: return emptyList()
+            map.keys
+                .map { it.toString() }
+                .filter { it !in ALLOWED_PROFILE_KEYS }
+                .distinct()
+                .sorted()
+                .map { "$WARN_PREFIX_PROFILE_KEY_DROPPED$it" }
+        } catch (e: Exception) {
+            // A profile that cannot even be parsed is reported by the converter /
+            // fail-closed validation — no extra warnings here.
+            emptyList()
+        }
+    }
+
     @Suppress("UNCHECKED_CAST")
     fun generateRuntimeConfig(
         profileYamlContent: String,
         settings: AppSettings,
         tunFd: Int? = null,
         overridePatch: String = ""
-    ): String {
+    ): String = generateRuntimeConfigWithOutcome(
+        profileYamlContent, settings, tunFd, overridePatch
+    ).yaml
+
+    /**
+     * Same generation as [generateRuntimeConfig], returning the dropped-profile-key
+     * warnings alongside the YAML ([ConversionOutcome] — the same warnings channel the
+     * converter uses, localized at display time by [WarningLocalizer]).
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun generateRuntimeConfigWithOutcome(
+        profileYamlContent: String,
+        settings: AppSettings,
+        tunFd: Int? = null,
+        overridePatch: String = ""
+    ): ConversionOutcome {
         // Fail-closed (P0): a broken or blank profile must NEVER degrade into an
         // empty config (no proxies/rules) — the core would start and route ALL
         // traffic to DIRECT while the UI shows "connected". Throwing here lets the
@@ -40,6 +126,12 @@ object ConfigGenerator {
         } catch (e: Exception) {
             throw IllegalStateException("Профиль содержит некорректный YAML: ${e.message ?: "неизвестная ошибка"}")
         }
+
+        // Profile-key whitelist (audit P1 §2.1): drop every top-level key the app does
+        // not explicitly allow BEFORE the override patch is merged. Each dropped key
+        // produces a user-visible warning (surfaced at import/refresh time through the
+        // Profiles ViewModel, and returned by generateRuntimeConfigWithOutcome).
+        val droppedKeyWarnings = sanitizeProfileKeys(configMap)
 
         // Per-profile override patch (P7): the user-authored YAML fragment is deep-merged
         // into the profile config BEFORE the mandatory app-managed keys are written below.
@@ -249,7 +341,7 @@ object ConfigGenerator {
         val outputYaml = Yaml(dumperOptions)
         val writer = StringWriter()
         outputYaml.dump(configMap, writer)
-        return writer.toString()
+        return ConversionOutcome(writer.toString(), droppedKeyWarnings)
     }
 
     /**

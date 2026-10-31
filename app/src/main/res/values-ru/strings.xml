@@ -171,6 +171,7 @@
     <string name="conv_warning_no_nodes_singbox">В Sing-Box конфиге не найдено ни одного поддерживаемого узла</string>
     <string name="conv_warning_unknown_format">Не удалось определить формат конфигурации</string>
     <string name="conv_warning_unsupported_outbound">Тип outbound \'%1$s\' (\'%2$s\') не поддерживается конвертером</string>
+    <string name="conv_warning_profile_key_dropped">Ключ профиля удалён (вне белого списка): %1$s</string>
 
     <!-- Settings -->
     <string name="settings_connection_mode">Режим подключения</string>
