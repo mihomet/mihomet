@@ -30,12 +30,21 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.Json
+import java.io.Closeable
 
+/**
+ * Mihomo REST + WebSocket API client.
+ *
+ * Implements [Closeable]: the underlying Ktor/OkHttp engine holds sockets,
+ * threads and a coroutine scope, so [MihomoApiClientProvider] closes the
+ * previous instance when it swaps in a rebuilt one (external audit P2.3 —
+ * the old code leaked the engine on every port/secret change).
+ */
 class MihomoApiClient(
     private val host: String = "127.0.0.1",
     private val port: Int = 9090,
     private val secret: String = ""
-) {
+) : Closeable {
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
@@ -207,5 +216,13 @@ class MihomoApiClient(
 
     fun streamLogs(): Flow<LogEntry> = streamWebSocket("/logs") { text ->
         json.decodeFromString<LogEntry>(text)
+    }
+
+    /**
+     * Releases the HTTP engine (sockets, connection pool, WS scope). Idempotent
+     * and safe to call while requests are in flight — Ktor cancels them.
+     */
+    override fun close() {
+        runCatching { httpClient.close() }
     }
 }
