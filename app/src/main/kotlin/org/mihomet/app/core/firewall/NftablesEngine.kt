@@ -9,7 +9,6 @@ class NftablesEngine : FirewallEngine {
 
     override fun setup(
         tproxyPort: Int,
-        dnsPort: Int,
         perAppMode: PerAppMode,
         appUids: Set<Int>,
         ipv6Enabled: Boolean
@@ -69,6 +68,12 @@ class NftablesEngine : FirewallEngine {
          * [buildRoutingCommands] wait for fwmark [CoreConstants.TPROXY_MARK_IPV6] —
          * so IPv6 must be marked with 25, never with 20, otherwise IPv6 traffic
          * silently stays unproxied.
+         *
+         * Note: there is deliberately no dnsPort parameter. DNS interception is
+         * destination-port-53 based and protocol-agnostic (both tcp and udp, see the
+         * bypass chain) — the core answers through its `dns.listen` socket no matter
+         * which port the client's resolver config advertises, so the configured DNS
+         * port plays no role in the firewall rules.
          */
         fun buildNftScript(
             tproxyPort: Int,
@@ -83,7 +88,12 @@ class NftablesEngine : FirewallEngine {
                         val uidList = appUids.joinToString(", ")
                         "        meta skuid != { $uidList } return"
                     } else {
-                        "        return"
+                        // Empty whitelist is semantically ALL (it matches the VPN engine,
+                        // where Android routes every app when the allow list is absent,
+                        // and the Routing screen hint R.string.perapp_empty_whitelist):
+                        // no return rule — everything falls through into the family mark
+                        // rules below and is diverted to tproxy.
+                        ""
                     }
                 }
                 PerAppMode.BLACKLIST -> {
@@ -116,11 +126,11 @@ class NftablesEngine : FirewallEngine {
             }
 
             // IPv6 counterpart of the private-range bypass (loopback / ULA / link-local),
-            // still exposing destination port 53 for DNS interception.
+            // still exposing destination port 53 for DNS interception over either protocol.
             val ipv6BypassRules = if (ipv6Enabled) {
                 listOf(
                     "        ip6 daddr { ::1/128, fc00::/7, fe80::/10 } udp dport != 53 accept",
-                    "        ip6 daddr { ::1/128, fc00::/7, fe80::/10 } meta l4proto != udp accept",
+                    "        ip6 daddr { ::1/128, fc00::/7, fe80::/10 } tcp dport != 53 accept",
                     "        ip6 daddr ff00::/8 accept"
                 )
             } else {
@@ -129,10 +139,13 @@ class NftablesEngine : FirewallEngine {
 
             return buildString {
                 appendLine("table inet mihomet {")
-                // 1. Bypass chain: skip local IPs except destination port 53 (DNS interception)
+                // 1. Bypass chain: skip local IPs except destination port 53 over tcp or
+                //    udp (DNS hijack — any DNS query to a private/router resolver is
+                //    intercepted by the core; dport-53 packets fall through into the
+                //    mark/tproxy rules below).
                 appendLine("    chain bypass {")
                 appendLine("        ip daddr { 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } udp dport != 53 accept")
-                appendLine("        ip daddr { 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } meta l4proto != udp accept")
+                appendLine("        ip daddr { 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } tcp dport != 53 accept")
                 appendLine("        ip daddr { 224.0.0.0/4, 255.255.255.255/32 } accept")
                 for (rule in ipv6BypassRules) {
                     appendLine(rule)

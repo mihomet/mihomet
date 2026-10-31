@@ -35,7 +35,12 @@ class FirewallManager {
     ): Result<Unit> {
         val engine = detectEngine(engineType)
         activeEngine = engine
-        return engine.setup(tproxyPort, dnsPort, perAppMode, appUids, ipv6Enabled)
+        // dnsPort is accepted for API compatibility (RootTProxyService passes
+        // settings.dnsPort) but intentionally not forwarded: DNS interception is
+        // destination-port-53 based and protocol-agnostic, and the core answers
+        // through its own `dns.listen` socket, so the configured DNS port plays no
+        // role in the firewall rules (F06 — the parameter used to be dead there too).
+        return engine.setup(tproxyPort, perAppMode, appUids, ipv6Enabled)
     }
 
     fun teardown(ipv6Enabled: Boolean): Result<Unit> {

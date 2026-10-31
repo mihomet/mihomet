@@ -9,7 +9,6 @@ class IptablesEngine : FirewallEngine {
 
     override fun setup(
         tproxyPort: Int,
-        dnsPort: Int,
         perAppMode: PerAppMode,
         appUids: Set<Int>,
         ipv6Enabled: Boolean
@@ -20,7 +19,7 @@ class IptablesEngine : FirewallEngine {
         val defaultTable = DefaultTableProbe.detect()
 
         // 2..7. Build and apply the full rule set
-        val cmds = buildSetupCommands(tproxyPort, dnsPort, perAppMode, appUids, ipv6Enabled, defaultTable)
+        val cmds = buildSetupCommands(tproxyPort, perAppMode, appUids, ipv6Enabled, defaultTable)
         val result = Shell.cmd(*cmds.toTypedArray()).exec()
         if (!result.isSuccess) {
             throw RuntimeException("Failed to apply iptables: ${result.err.joinToString("\n")}")
@@ -44,10 +43,15 @@ class IptablesEngine : FirewallEngine {
          * Pure builder for the iptables setup batch. [defaultTable] is the active
          * default network interface (Wi-Fi / mobile data) that fwmark-666 core traffic
          * must be routed to; at runtime it is resolved by [DefaultTableProbe.detect].
+         *
+         * Note: there is deliberately no dnsPort parameter. DNS interception is
+         * destination-port-53 based and protocol-agnostic (both tcp and udp, see
+         * [bypassChain]) — the core answers through its `dns.listen` socket no matter
+         * which port the client's resolver config advertises, so the configured DNS
+         * port plays no role in the firewall rules.
          */
         fun buildSetupCommands(
             tproxyPort: Int,
-            dnsPort: Int,
             perAppMode: PerAppMode,
             appUids: Set<Int>,
             ipv6Enabled: Boolean,
@@ -139,34 +143,34 @@ class IptablesEngine : FirewallEngine {
 
         /**
          * Bypass chain (IPv4): bypass local/private IPs UNLESS destination is port 53
-         * (DNS interception). Multicast and broadcast stay fully bypassed.
+         * (DNS interception) — for BOTH tcp and udp, so any DNS query to the router or
+         * a private resolver is hijacked by the core (which answers from its own
+         * `dns.listen` socket regardless of protocol). Multicast and broadcast stay
+         * fully bypassed. Only tcp/udp ever reach this chain (the OUTPUT/PREROUTING
+         * jumps are protocol-scoped); packets to private ranges with dport 53 fall
+         * through into the trailing MARK/TPROXY rules.
          */
         private fun bypassChain(tool: String): List<String> = buildList {
             add("$tool -t mangle -N MIHOMET_BYPASS 2>/dev/null || $tool -t mangle -F MIHOMET_BYPASS")
-            add("$tool -t mangle -A MIHOMET_BYPASS -d 127.0.0.0/8 -p udp ! --dport 53 -j ACCEPT")
-            add("$tool -t mangle -A MIHOMET_BYPASS -d 127.0.0.0/8 ! -p udp -j ACCEPT")
-            add("$tool -t mangle -A MIHOMET_BYPASS -d 10.0.0.0/8 -p udp ! --dport 53 -j ACCEPT")
-            add("$tool -t mangle -A MIHOMET_BYPASS -d 10.0.0.0/8 ! -p udp -j ACCEPT")
-            add("$tool -t mangle -A MIHOMET_BYPASS -d 172.16.0.0/12 -p udp ! --dport 53 -j ACCEPT")
-            add("$tool -t mangle -A MIHOMET_BYPASS -d 172.16.0.0/12 ! -p udp -j ACCEPT")
-            add("$tool -t mangle -A MIHOMET_BYPASS -d 192.168.0.0/16 -p udp ! --dport 53 -j ACCEPT")
-            add("$tool -t mangle -A MIHOMET_BYPASS -d 192.168.0.0/16 ! -p udp -j ACCEPT")
+            for (net in listOf("127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")) {
+                add("$tool -t mangle -A MIHOMET_BYPASS -d $net -p udp ! --dport 53 -j ACCEPT")
+                add("$tool -t mangle -A MIHOMET_BYPASS -d $net -p tcp ! --dport 53 -j ACCEPT")
+            }
             add("$tool -t mangle -A MIHOMET_BYPASS -d 224.0.0.0/4 -j ACCEPT")
             add("$tool -t mangle -A MIHOMET_BYPASS -d 255.255.255.255/32 -j ACCEPT")
         }
 
         /**
          * IPv6 counterpart of [bypassChain]: loopback, ULA and link-local are bypassed
-         * (again except DNS port 53), IPv6 multicast stays fully bypassed.
+         * (again except destination port 53 for either protocol — DNS interception),
+         * IPv6 multicast stays fully bypassed.
          */
         private fun bypassChainV6(): List<String> = buildList {
             add("ip6tables -t mangle -N MIHOMET_BYPASS 2>/dev/null || ip6tables -t mangle -F MIHOMET_BYPASS")
-            add("ip6tables -t mangle -A MIHOMET_BYPASS -d ::1/128 -p udp ! --dport 53 -j ACCEPT")
-            add("ip6tables -t mangle -A MIHOMET_BYPASS -d ::1/128 ! -p udp -j ACCEPT")
-            add("ip6tables -t mangle -A MIHOMET_BYPASS -d fc00::/7 -p udp ! --dport 53 -j ACCEPT")
-            add("ip6tables -t mangle -A MIHOMET_BYPASS -d fc00::/7 ! -p udp -j ACCEPT")
-            add("ip6tables -t mangle -A MIHOMET_BYPASS -d fe80::/10 -p udp ! --dport 53 -j ACCEPT")
-            add("ip6tables -t mangle -A MIHOMET_BYPASS -d fe80::/10 ! -p udp -j ACCEPT")
+            for (net in listOf("::1/128", "fc00::/7", "fe80::/10")) {
+                add("ip6tables -t mangle -A MIHOMET_BYPASS -d $net -p udp ! --dport 53 -j ACCEPT")
+                add("ip6tables -t mangle -A MIHOMET_BYPASS -d $net -p tcp ! --dport 53 -j ACCEPT")
+            }
             add("ip6tables -t mangle -A MIHOMET_BYPASS -d ff00::/8 -j ACCEPT")
         }
 
@@ -177,10 +181,16 @@ class IptablesEngine : FirewallEngine {
          * -> diverted into the local routing table -> PREROUTING TPROXY, or unmarked ->
          * routed directly):
          *  - core packets (fwmark-666) and the core owner (root:net_admin) -> bypass;
-         *  - local/private destinations -> bypass (except DNS port 53);
-         *  - WHITELIST: selected uids are MARKed (non-terminating) and keep the mark
-         *    through the catch-all ACCEPT; every other app hits the catch-all ACCEPT
-         *    unmarked -> direct;
+         *  - local/private destinations -> bypass, EXCEPT destination port 53 over tcp
+         *    or udp (DNS hijack: the core answers from its own resolver);
+         *  - WHITELIST with uids: selected uids are MARKed (non-terminating) and keep
+         *    the mark through the catch-all ACCEPT; every other app hits the catch-all
+         *    ACCEPT unmarked -> direct;
+         *  - WHITELIST with an EMPTY uid set: no uid rules and no catch-all ACCEPT —
+         *    the trailing tcp/udp MARK rules capture everything, i.e. the mode behaves
+         *    exactly like ALL. This matches the VPN engine, where Android routes every
+         *    app when the allow list is absent, and the Routing screen hint
+         *    (R.string.perapp_empty_whitelist) which promises "all traffic is proxied".
          *  - BLACKLIST: excluded uids hit their ACCEPT (direct); everyone else is marked;
          *  - ALL: everything tcp/udp is marked.
          *
@@ -200,16 +210,19 @@ class IptablesEngine : FirewallEngine {
             add("$tool -t mangle -A MIHOMET_OUTPUT -m owner --uid-owner 0 --gid-owner 3005 -j ACCEPT")
             add("$tool -t mangle -A MIHOMET_OUTPUT -j MIHOMET_BYPASS")
 
+            // An empty whitelist is semantically ALL (see the class doc above): no uid
+            // rules are emitted and the trailing catch-all MARK rules stay reachable.
+            val whitelistWithUids = perAppMode == PerAppMode.WHITELIST && appUids.isNotEmpty()
+
             // Per-App filtering in OUTPUT
-            when (perAppMode) {
-                PerAppMode.ALL -> { /* Capture all */ }
-                PerAppMode.BLACKLIST -> {
+            when {
+                perAppMode == PerAppMode.BLACKLIST -> {
                     for (uid in appUids) {
                         // Excluded apps bypass the proxy entirely
                         add("$tool -t mangle -A MIHOMET_OUTPUT -m owner --uid-owner $uid -j ACCEPT")
                     }
                 }
-                PerAppMode.WHITELIST -> {
+                whitelistWithUids -> {
                     // MARK is non-terminating: a whitelisted packet is marked, falls through
                     // the remaining owner rules and finally through the catch-all ACCEPT
                     // below while KEEPING its mark -> the fwmark policy rule diverts it to
@@ -223,12 +236,14 @@ class IptablesEngine : FirewallEngine {
                     }
                     add("$tool -t mangle -A MIHOMET_OUTPUT -j ACCEPT")
                 }
+                // PerAppMode.ALL and empty WHITELIST: no per-uid rules here —
+                // the trailing rules below mark every tcp/udp packet.
             }
 
-            if (perAppMode != PerAppMode.WHITELIST) {
+            if (!whitelistWithUids) {
                 // Mark remaining traffic to divert to the local table -> lo -> PREROUTING.
-                // (In WHITELIST mode the catch-all ACCEPT above already terminates every
-                // packet, so trailing mark rules would be unreachable dead rules.)
+                // (Only in WHITELIST mode with at least one uid the catch-all ACCEPT above
+                // terminates every packet, making these trailing mark rules unreachable.)
                 add("$tool -t mangle -A MIHOMET_OUTPUT -p tcp -j MARK --set-mark $tproxyMark")
                 add("$tool -t mangle -A MIHOMET_OUTPUT -p udp -j MARK --set-mark $tproxyMark")
             }
