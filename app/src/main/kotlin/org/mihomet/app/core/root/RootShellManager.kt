@@ -37,11 +37,11 @@ object RootShellManager {
         // Stop any running instance first
         stopDaemon()
 
-        // 1. OnePlus / Realme / ColorOS Android 16 fix: flush custom OEM DNS reject chains
-        Shell.cmd(
-            "iptables -t filter -F fw_OUTPUT_oplus_dns 2>/dev/null || true",
-            "ip6tables -t filter -F fw_OUTPUT_oplus_dns 2>/dev/null || true"
-        ).exec()
+        // 1. OnePlus / Realme / ColorOS Android 16 fix: snapshot the custom OEM
+        //    DNS reject chains to save files, then flush them for the daemon
+        //    lifetime. Without the snapshot the OEM rules would be lost forever;
+        //    stopDaemon / [maybeRestoreOplusChains] replay them afterwards.
+        Shell.cmd(*buildOplusFlushCommands().toTypedArray()).exec()
 
         // 2. Save and turn off Android Private DNS (prevents DoT port 853 validation failures)
         Shell.cmd(
@@ -89,6 +89,23 @@ object RootShellManager {
         }
     }
 
+    /**
+     * Crash-recovery path for the OEM DNS reject chains saved by
+     * [buildSaveOplusCommands]: if the app process died before [stopDaemon] ran,
+     * the chains stay flushed while the save files survive, and a later save
+     * would overwrite them with the already-emptied chains — the OEM rules
+     * would be lost forever. While no daemon is running, existing save files
+     * are therefore a crash signal: replay the saved rules and delete the
+     * files. The subsequent startDaemon() re-saves the restored chains and
+     * flushes them again for the fresh session (startDaemon also implicitly
+     * recovers via its leading stopDaemon(), so this is the explicit safe
+     * entry point for callers mirroring [maybeRestorePrivateDns]).
+     */
+    fun maybeRestoreOplusChains() {
+        if (isDaemonRunning()) return
+        runCatching { restoreOplusChains() }
+    }
+
     fun stopDaemon(): Result<Unit> = runCatching {
         Shell.cmd(*buildStopDaemonCommands().toTypedArray()).exec()
     }
@@ -111,8 +128,10 @@ object RootShellManager {
     /**
      * Pure builder for the daemon stop commands: SIGTERM then SIGKILL via the pid
      * file, targeted killall of leftover core processes (never a broad `pkill -9 -f`,
-     * which would kill unrelated processes matching the pattern), and restore of
-     * Android Private DNS saved by [startDaemon].
+     * which would kill unrelated processes matching the pattern), restore of
+     * Android Private DNS saved by [startDaemon], and restore of the OEM DNS
+     * reject chains snapshotted by [buildSaveOplusCommands] (appended after the
+     * Private DNS block so a crash mid-stop still leaves the DNS marker last).
      */
     fun buildStopDaemonCommands(): List<String> = listOf(
         "if [ -f ${CoreConstants.ROOT_PID_FILE} ]; then " +
@@ -128,5 +147,62 @@ object RootShellManager {
                 "RESTORE_DNS=\$(cat ${CoreConstants.ROOT_RUN_DIR}/.prev_dns 2>/dev/null); " +
                 "if [ -n \"\$RESTORE_DNS\" ]; then settings put global private_dns_mode \"\$RESTORE_DNS\"; fi; " +
                 "rm -f ${CoreConstants.ROOT_RUN_DIR}/.prev_dns; fi"
+    ) + buildRestoreOplusCommands()
+
+    /**
+     * Pure builder for the OEM (OnePlus / Realme / ColorOS) chain flush step of
+     * [startDaemon]: snapshot the current `fw_OUTPUT_oplus_dns` rules of both
+     * address families into [CoreConstants.ROOT_OPLUS_RULES_V4_FILE] /
+     * [CoreConstants.ROOT_OPLUS_RULES_V6_FILE] — only when the chain actually
+     * exists, otherwise stale save files are removed — and only then flush the
+     * chains for the daemon lifetime. The save MUST precede the flush, or the
+     * snapshot would capture the already-emptied chains.
+     */
+    fun buildOplusFlushCommands(): List<String> =
+        buildSaveOplusCommands() + listOf(
+            "iptables -t filter -F ${CoreConstants.OPLUS_DNS_CHAIN} 2>/dev/null || true",
+            "ip6tables -t filter -F ${CoreConstants.OPLUS_DNS_CHAIN} 2>/dev/null || true"
+        )
+
+    /**
+     * Pure builder for the OEM chain snapshot: per address family, gate on the
+     * chain's existence via `-nL` (exit code — never "grep with empty output as
+     * success"), dump the rules with `-S` filtered to `-A` rule lines into the
+     * family's save file, or remove a stale save file when the chain is gone.
+     */
+    fun buildSaveOplusCommands(): List<String> = listOf(
+        "mkdir -p ${CoreConstants.ROOT_RUN_DIR}",
+        saveOplusChainCommand("iptables", CoreConstants.ROOT_OPLUS_RULES_V4_FILE),
+        saveOplusChainCommand("ip6tables", CoreConstants.ROOT_OPLUS_RULES_V6_FILE)
     )
+
+    /**
+     * Pure builder for the OEM chain restore: per address family, when the save
+     * file exists, recreate the chain if it disappeared (e.g. the OEM firewall
+     * was reset), replay every saved `-A` rule line through the family's binary
+     * in the saved order, then delete the save file. Best-effort like every
+     * teardown step (`2>/dev/null || true`): a failed replay never blocks stop.
+     */
+    fun buildRestoreOplusCommands(): List<String> = listOf(
+        restoreOplusChainCommand("iptables", CoreConstants.ROOT_OPLUS_RULES_V4_FILE),
+        restoreOplusChainCommand("ip6tables", CoreConstants.ROOT_OPLUS_RULES_V6_FILE)
+    )
+
+    private fun saveOplusChainCommand(tool: String, rulesFile: String): String =
+        "if $tool -t filter -nL ${CoreConstants.OPLUS_DNS_CHAIN} >/dev/null 2>&1; then " +
+                "$tool -t filter -S ${CoreConstants.OPLUS_DNS_CHAIN} 2>/dev/null | grep '^-A ' > $rulesFile; " +
+                "else rm -f $rulesFile; fi"
+
+    private fun restoreOplusChainCommand(tool: String, rulesFile: String): String =
+        "if [ -f $rulesFile ]; then " +
+                "if ! $tool -t filter -nL ${CoreConstants.OPLUS_DNS_CHAIN} >/dev/null 2>&1; then " +
+                "$tool -t filter -N ${CoreConstants.OPLUS_DNS_CHAIN} 2>/dev/null || true; fi; " +
+                "grep '^-A ' $rulesFile 2>/dev/null | while IFS= read -r line; do " +
+                "$tool -t filter \$line 2>/dev/null || true; done; " +
+                "rm -f $rulesFile; fi"
+
+    /** Executes the OEM chain restore on the root shell (crash recovery path). */
+    private fun restoreOplusChains() {
+        Shell.cmd(*buildRestoreOplusCommands().toTypedArray()).exec()
+    }
 }

@@ -831,7 +831,9 @@ class FirewallCommandsStrictTest {
         assertTrue(joined.contains("killall mihomo"))
         assertTrue(joined.contains("killall libmihomo.so"))
 
-        val foreign = allInts(joined).filter { it !in setOf(0, 1, 2, 9, 15, 3005) }
+        // 4 / 6 are the per-family suffixes of the OEM chain save files
+        // (.oplus_v4.rules / .oplus_v6.rules) restored in the trailing block
+        val foreign = allInts(joined).filter { it !in setOf(0, 1, 2, 4, 6, 9, 15, 3005) }
         assertTrue("stop commands must not contain numeric magic, found: $foreign", foreign.isEmpty())
     }
 
