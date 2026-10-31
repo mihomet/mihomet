@@ -62,6 +62,13 @@ data class ProfileRefreshResult(
 private const val SUBSCRIPTION_UNDECRYPTABLE_MESSAGE =
     "Не удалось расшифровать данные подписки — ключ шифрования недоступен или был заменён. Добавьте подписку заново."
 
+// Surfaced through Result.failure when the (possibly panel-migrated) URL cannot
+// be re-encrypted before persisting the refresh (external audit N07-2): the
+// stored row and the profile file are left untouched rather than downgraded to
+// plaintext. Russian like the other data-layer errors.
+private const val SUBSCRIPTION_UNENCRYPTABLE_MESSAGE =
+    "Не удалось зашифровать URL подписки — ключ шифрования недоступен. Обновление отменено, прежние данные не изменены."
+
 // Surfaced through Result.failure when a refresh produced a semantically invalid
 // config (see ProfileValidation): the last good profile file and its metadata are
 // kept untouched, the refresh is rejected. Russian like the other data-layer errors.
@@ -327,14 +334,25 @@ class SubscriptionRepository(
         if (!ProfileValidation.isValid(download.outcome.yaml)) {
             throw IllegalStateException(REFRESH_REJECTED_INVALID_CONFIG_MESSAGE)
         }
-        atomicWriteText(File(profile.filePath), download.outcome.yaml)
-        // If the server sent no Subscription-Userinfo this time, keep the previous quota.
-        val quota = download.userinfo
         // Panel-initiated subscription relocation (New-Url / Fallback-Url): auto-migrate.
         val migratedUrl = download.meta.redirectUrl
             ?.takeIf { !it.equals(url, ignoreCase = true) } ?: url
+        // External audit N07-2: encryption now fails closed
+        // (SecretsCipher.SecretEncryptException) when the Keystore key is
+        // unavailable while encrypted data exists. Encrypt BEFORE any write, so
+        // a refusal leaves the profile file and the stored row untouched and
+        // surfaces as Result.failure — the working subscription is never
+        // clobbered with plaintext.
+        val encryptedUrl = try {
+            SecretsCipher.encrypt(migratedUrl)
+        } catch (e: SecretsCipher.SecretEncryptException) {
+            throw IllegalStateException(SUBSCRIPTION_UNENCRYPTABLE_MESSAGE, e)
+        }
+        atomicWriteText(File(profile.filePath), download.outcome.yaml)
+        // If the server sent no Subscription-Userinfo this time, keep the previous quota.
+        val quota = download.userinfo
         val updated = profile.copy(
-            url = SecretsCipher.encrypt(migratedUrl),
+            url = encryptedUrl,
             lastUpdated = System.currentTimeMillis(),
             uploadUsed = quota?.uploadUsed ?: profile.uploadUsed,
             downloadUsed = quota?.downloadUsed ?: profile.downloadUsed,

@@ -31,15 +31,20 @@ class MihometApplication : Application() {
             modules(appModule)
         }.koin
 
-        // Fail-closed Keystore gate (external audit F12-а): SecretsCipher must
-        // never (re)generate the AndroidKeyStore key while `enc1:` data still
-        // exists — generating over an existing alias permanently destroys every
-        // stored secret. The gate answers "is there encrypted data on disk?"
-        // with a single DataStore read and is only consulted when the key alias
-        // is absent (fresh install / lost key), never on a healthy startup.
+        // Fail-closed Keystore gate (external audit F12-а, extended by N07-1):
+        // SecretsCipher must never (re)generate the AndroidKeyStore key while
+        // `enc1:` data still exists — generating over an existing alias
+        // permanently destroys every stored secret. The gate answers "is there
+        // encrypted data on disk?" conservatively across ALL places an `enc1:`
+        // value can live — the controller secret (DataStore), the Happ crypto
+        // keyring (DataStore JSON) and profile url/customHeaders (Room) — and
+        // reports any read error as "data exists" (an error must never read as
+        // absence of data). It is only consulted when the key alias is missing
+        // or unreadable, never on a healthy startup.
         // `runBlocking` is acceptable here: one-shot lookup, wired before any
         // cipher use in this process, quick after DataStore's first in-memory
-        // read; resolveKey callers run on Dispatchers.IO contexts.
+        // read (the Room probe is bounded by a timeout); resolveKey callers
+        // run on Dispatchers.IO contexts.
         val settingsRepository = koin.get<SettingsRepository>()
         SecretsCipher.keyGate = { runBlocking { settingsRepository.hasEncryptedSecrets() } }
 
