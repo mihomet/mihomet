@@ -157,6 +157,18 @@ class SettingsRepository(private val context: Context) {
     }
 
     /**
+     * Data-loss gate probe (external audit F12-а): `true` when the stored
+     * controller secret carries the encrypted marker, i.e. at least one secret
+     * has been encrypted under the AndroidKeyStore key. Wired into
+     * [SecretsCipher.keyGate] by [org.mihomet.app.MihometApplication] so the
+     * cipher refuses to (re)generate the Keystore key over existing encrypted
+     * data — a single fast DataStore read, in-memory after the first call.
+     */
+    suspend fun hasEncryptedSecrets(): Boolean =
+        context.dataStore.data.first()[PreferencesKeys.CONTROLLER_SECRET]
+            ?.startsWith(SecretsCipher.MARKER) == true
+
+    /**
      * Returns the controller secret, or generates a random one on first use.
      * The secret is persisted encrypted ([SecretsCipher]); legacy plaintext
      * values pass through [SecretsCipher.decrypt] unchanged. Generation is

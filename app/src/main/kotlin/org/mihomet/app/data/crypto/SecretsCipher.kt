@@ -18,9 +18,10 @@ import javax.crypto.spec.GCMParameterSpec
  * - [Cipher] is the pure AES/GCM/NoPadding engine bound to a caller-provided
  *   [Key] — JVM-testable with a plain `javax.crypto.SecretKey`, no Android
  *   dependencies beyond the `Log.w` on the decrypt-error path;
- * - the object-level facade uses a lazily generated AndroidKeyStore key and
- *   degrades to a passthrough when the Keystore is unavailable, so a missing
- *   hardware-backed key can never make the app fail to read its own data.
+ * - the object-level facade resolves an AndroidKeyStore key once per process
+ *   (reuse-first, gated generation, see [decideGenerate]) and degrades to a
+ *   passthrough when the Keystore is unavailable, so a missing hardware-backed
+ *   key can never make the app fail to read its own data.
  *
  * Wire format: `MARKER + base64(IV(12) ‖ ciphertext ‖ GCM tag)`. Values without
  * [MARKER] are treated as legacy plaintext / not-a-secret and pass through
@@ -95,46 +96,120 @@ object SecretsCipher {
         IllegalStateException(message, cause)
 
     /**
-     * AndroidKeyStore AES-256 key.
+     * Data-loss gate (external audit F12-а): consulted by [resolveKey] before
+     * the facade ever (re)generates the AndroidKeyStore key. Returns `true`
+     * when at least one `enc1:` value exists on disk — i.e. secrets were
+     * encrypted under the (possibly missing) key and the alias must never be
+     * overwritten. The signal is the controller secret; a secret encrypted in
+     * Room while the DataStore secret stayed plaintext degrades the gate to
+     * "no data" — accepted limitation, the controller secret is the primary
+     * at-rest secret in this app.
      *
-     * Lifecycle: an existing key under [KEY_ALIAS] is loaded and REUSED; a new key
-     * is generated only on a confirmed first initialization. Generating on every
-     * process start would overwrite the alias (AOSP behavior) and permanently
-     * destroy previously encrypted data. When the Keystore is temporarily
-     * unavailable, the result is `null` and callers degrade to passthrough —
-     * the alias is never overwritten speculatively.
+     * `null` (the default until the Application wires it up) is treated as
+     * `false` → generation is allowed, which is the correct fresh-install
+     * behavior. The production gate is a single synchronous DataStore read
+     * (see [MihometApplication.onCreate]); it must be cheap — it is only
+     * consulted when the key alias is absent, never on a healthy startup.
      */
-    private val keystoreKey: Key? by lazy {
-        runCatching {
-            val keyStore = java.security.KeyStore.getInstance(ANDROID_KEYSTORE)
-            keyStore.load(null)
-            (keyStore.getKey(KEY_ALIAS, null) as? javax.crypto.SecretKey)
-                ?: run {
-                    val generator = KeyGenerator.getInstance("AES", ANDROID_KEYSTORE)
-                    generator.init(
-                        KeyGenParameterSpec.Builder(
-                            KEY_ALIAS,
-                            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-                        )
-                            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                            .setKeySize(KEY_SIZE_BITS)
-                            // The engine supplies its own fresh IV per call, so the
-                            // Keystore-mandated random IV must be disabled.
-                            .setRandomizedEncryptionRequired(false)
-                            .build()
-                    )
-                    generator.generateKey()
-                }
-        }.getOrElse { error ->
-            Log.w(TAG, "AndroidKeyStore unavailable; secrets will be stored unencrypted", error)
-            null
+    @Volatile
+    var keyGate: (() -> Boolean)? = null
+
+    /**
+     * Pure decision table behind [acquireKey] (JVM-testable, external audit
+     * F12-а): `true` → generating a key is safe, `false` → fail closed.
+     *
+     * - alias exists + readable → `true` (the existing key is reused, nothing
+     *   is generated);
+     * - alias exists + unreadable → `false` (transient Keystore failure —
+     *   regenerating would overwrite the alias and permanently destroy all
+     *   data encrypted under it);
+     * - no alias + encrypted data present → `false` (the key is already lost;
+     *   a freshly generated one can never decrypt that data, and regenerating
+     *   would silently cement the loss — callers must surface the failure);
+     * - no alias + no encrypted data → `true` (confirmed first initialization).
+     */
+    internal fun decideGenerate(hasAlias: Boolean, keyReadable: Boolean, hasEncryptedData: Boolean): Boolean =
+        if (hasAlias) keyReadable else !hasEncryptedData
+
+    /** Successfully resolved Keystore key; `null` while unresolved. */
+    @Volatile
+    private var cachedKey: Key? = null
+
+    /** Guards the double-checked [resolveKey] slow path. */
+    private val keyLock = Any()
+
+    /**
+     * Resolves the AndroidKeyStore key: reuses the key under [KEY_ALIAS], or
+     * generates one — but only when [decideGenerate] confirms that generation
+     * cannot destroy data. Unlike the previous `by lazy` (external audit
+     * F12-б), a `null` outcome is deliberately NOT memoized: a transiently
+     * unavailable Keystore or a fail-closed gate verdict retries on the next
+     * call instead of pinning the degraded passthrough mode for the whole
+     * process. Only a successful resolution is cached.
+     *
+     * Threading: safe from any thread. The slow path holds [keyLock] while it
+     * consults [keyGate], which production wires to a one-shot synchronous
+     * DataStore read via `runBlocking` — quick (in-memory after the first
+     * read), and never reached on a healthy install where the alias already
+     * exists. Callers run on Dispatchers.IO contexts; do not call this on the
+     * main thread with a blocking gate wired.
+     */
+    private fun resolveKey(): Key? {
+        cachedKey?.let { return it }
+        return synchronized(keyLock) {
+            cachedKey?.let { return it }
+            val resolved = acquireKey { keyGate?.invoke() ?: false }
+            if (resolved != null) {
+                cachedKey = resolved
+            }
+            resolved
         }
+    }
+
+    /**
+     * Loads the key under [KEY_ALIAS], applying the [decideGenerate] table:
+     * an existing-but-unreadable alias, or a missing alias while
+     * [hasEncryptedData] reports existing `enc1:` data, fails closed (no
+     * generation, no data destruction); a confirmed fresh install generates
+     * the key. Keystore-wide failures (load/get/containsAlias throwing)
+     * degrade to `null` — the passthrough mode.
+     */
+    private fun acquireKey(hasEncryptedData: () -> Boolean): Key? = runCatching {
+        val keyStore = java.security.KeyStore.getInstance(ANDROID_KEYSTORE)
+        keyStore.load(null)
+        val existing = keyStore.getKey(KEY_ALIAS, null) as? javax.crypto.SecretKey
+        val hasAlias = existing != null || keyStore.containsAlias(KEY_ALIAS)
+        if (!decideGenerate(hasAlias, existing != null, hasEncryptedData())) {
+            return@runCatching null
+        }
+        existing ?: generateKeystoreKey()
+    }.getOrElse { error ->
+        Log.w(TAG, "AndroidKeyStore unavailable; secrets will be stored unencrypted", error)
+        null
+    }
+
+    /** Generates a fresh AndroidKeyStore AES-256/GCM key under [KEY_ALIAS]. */
+    private fun generateKeystoreKey(): javax.crypto.SecretKey {
+        val generator = KeyGenerator.getInstance("AES", ANDROID_KEYSTORE)
+        generator.init(
+            KeyGenParameterSpec.Builder(
+                KEY_ALIAS,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setKeySize(KEY_SIZE_BITS)
+                // The engine supplies its own fresh IV per call, so the
+                // Keystore-mandated random IV must be disabled.
+                .setRandomizedEncryptionRequired(false)
+                .build()
+        )
+        return generator.generateKey()
     }
 
     /** Encrypts [plain] with the Keystore key; passthrough when unavailable. */
     fun encrypt(plain: String): String {
-        val key = keystoreKey ?: return plain
+        val key = resolveKey() ?: return plain
         return withKey(key).encrypt(plain)
     }
 
@@ -149,7 +224,7 @@ object SecretsCipher {
      */
     fun decrypt(stored: String): String {
         if (!stored.startsWith(MARKER)) return stored
-        val key = keystoreKey
+        val key = resolveKey()
             ?: throw SecretDecryptException("Keystore unavailable: cannot decrypt the stored secret")
         return try {
             val payload = Base64.getDecoder().decode(stored.removePrefix(MARKER))

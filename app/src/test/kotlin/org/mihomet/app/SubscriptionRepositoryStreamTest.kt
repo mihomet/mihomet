@@ -5,6 +5,7 @@ import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.utils.io.ByteReadChannel
 import kotlinx.coroutines.runBlocking
@@ -19,7 +20,14 @@ import org.junit.Before
 import org.junit.Test
 import org.mihomet.app.data.subs.SubscriptionRepository
 import org.mihomet.app.data.subs.SubscriptionTooLargeException
+import java.io.IOException
+import java.net.InetAddress
+import java.net.ServerSocket
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 import java.util.zip.GZIPOutputStream
+import kotlin.concurrent.thread
 
 /**
  * Streaming body limit (external audit §9.3, P2): a subscription response is
@@ -100,6 +108,82 @@ class SubscriptionRepositoryStreamTest {
         }
 
         assertEquals("Ответ подписки слишком большой (>20 МБ)", error.message)
+    }
+
+    @Test
+    fun `blocking chunked body is aborted at the limit without draining the whole response`() {
+        val limit = SubscriptionRepository.MAX_SUBSCRIPTION_BYTES
+        // Raw-socket server (MockWebServer cannot stream a never-ending body):
+        // it keeps pushing far beyond the cap, one 64 KiB chunk at a time. If the
+        // client buffered the whole response before enforcing the limit (the
+        // audited F05 behavior), it would read every byte and the server would
+        // deliver all of them. The excess (64 MiB) is deliberately far larger
+        // than any loopback socket-buffer headroom, so with streaming
+        // enforcement the client aborts at the cap, the connection resets, and
+        // the server physically cannot complete the transfer.
+        val totalBodyBytes = limit + 64L * 1024 * 1024
+        val chunk = ByteArray(64 * 1024) { 'x'.code.toByte() }
+        val crlf = "\r\n".toByteArray(Charsets.US_ASCII)
+        val sentBytes = AtomicLong(0)
+        val serverDone = CountDownLatch(1)
+
+        val serverSocket = ServerSocket(0, 1, InetAddress.getLoopbackAddress())
+        val port = serverSocket.localPort
+        val serverThread = thread(start = true, isDaemon = true) {
+            try {
+                val socket = serverSocket.accept()
+                try {
+                    socket.tcpNoDelay = true
+                    val out = socket.getOutputStream()
+                    out.write(
+                        "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n".toByteArray(Charsets.US_ASCII)
+                    )
+                    out.flush()
+                    var total = 0L
+                    while (total < totalBodyBytes) {
+                        // Minimal chunked framing: <hex size>\r\n<data>\r\n
+                        out.write(Integer.toHexString(chunk.size).toByteArray(Charsets.US_ASCII))
+                        out.write(crlf)
+                        out.write(chunk)
+                        out.write(crlf)
+                        out.flush()
+                        total += chunk.size
+                        sentBytes.set(total)
+                    }
+                } finally {
+                    runCatching { socket.close() }
+                }
+            } catch (_: IOException) {
+                // Expected once the client aborts the streaming read: the socket
+                // resets and a subsequent write throws.
+            } finally {
+                serverDone.countDown()
+            }
+        }
+
+        try {
+            val error = assertThrows(SubscriptionTooLargeException::class.java) {
+                runBlocking {
+                    client.prepareGet("http://127.0.0.1:$port/sub").execute { resp ->
+                        readWithProductionLimit(resp.bodyAsChannel())
+                    }
+                }
+            }
+            assertEquals("Ответ подписки слишком большой (>20 МБ)", error.message)
+            assertTrue("server thread did not finish in time", serverDone.await(15, TimeUnit.SECONDS))
+            // The client really did receive past the cap (that is what triggered
+            // the abort)...
+            assertTrue("server sent ${sentBytes.get()}, expected > $limit", sentBytes.get() > limit)
+            // ...but the transfer was cut off long before the full body: the
+            // server could not write $totalBodyBytes bytes into a dead connection.
+            assertTrue(
+                "server sent ${sentBytes.get()}, expected < $totalBodyBytes",
+                sentBytes.get() < totalBodyBytes
+            )
+        } finally {
+            runCatching { serverSocket.close() }
+            runCatching { serverThread.join(5000) }
+        }
     }
 
     @Test
