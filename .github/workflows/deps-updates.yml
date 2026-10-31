@@ -1,0 +1,62 @@
+name: Dependency updates report
+
+# Audit P2.4: weekly freshness check. Report-only on purpose — no failure gate,
+# so a new library release can never red the build; it just surfaces in the
+# artifact and the job summary for a human to action through the staged
+# dependency ladder (see AGENTS.md §3 key facts).
+
+on:
+  schedule:
+    - cron: '23 4 * * 1' # Mondays 04:23 UTC, off the top of the hour
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-updates:
+    name: dependencyUpdates report
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      # --refresh-dependencies forces re-checking metadata so the report never
+      # runs on stale cached versions.
+      - name: Generate dependency updates report
+        run: ./gradlew dependencyUpdates --refresh-dependencies --stacktrace -Dorg.gradle.jvmargs=-Xmx2048m
+
+      - name: Summarize report
+        run: |
+          {
+            echo "## Outdated dependencies (ben-manes versions plugin)"
+            echo '```'
+            sed -n '/The following dependencies have later milestone versions:/,/^$/p' \
+              build/dependencyUpdates/report.txt || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-updates-report
+          path: |
+            build/dependencyUpdates/report.txt
+            build/dependencyUpdates/report.json
+          if-no-files-found: warn
+          retention-days: 30
