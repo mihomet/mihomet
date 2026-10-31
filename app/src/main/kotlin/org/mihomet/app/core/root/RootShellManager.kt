@@ -190,17 +190,23 @@ object RootShellManager {
         buildRestoreOplusCommands() + buildSaveOplusCommands()
 
     /**
-     * Pure builder for the OEM chain snapshot + gated flush (F09 + H2): per
-     * address family, gate on the chain's existence via `-nL` (exit code —
+     * Pure builder for the OEM chain snapshot + gated flush (F09 + H2 + N04):
+     * per address family, gate on the chain's existence via `-nL` (exit code —
      * never "grep with empty output as success"), dump the chain with
      * `iptables-save`/`ip6tables-save` filtered to the chain's own `-A` rule
      * lines into the family's STAGING file
      * ([CoreConstants.ROOT_OPLUS_RULES_V4_TMP_FILE] /
      * [CoreConstants.ROOT_OPLUS_RULES_V6_TMP_FILE]), verify the staging file
-     * (non-empty AND containing `-A <chain>` lines), and only then `mv` it over
-     * the family's save file and flush the chain. `mv` inside the run dir is a
-     * rename(2), so the save file is replaced atomically: a partial or failed
-     * dump can never truncate a good snapshot.
+     * (non-empty AND containing `-A <chain>` lines), and only then publish it
+     * over the family's save file and flush the chain.
+     *
+     * The publish is `cp` + `rm` (audit N04: resilient to partial mv failures)
+     * and the flush is gated on the publish SUCCEEDING: the pre-N04
+     * `mv -f; flush` sequence flushed the chain even when the mv failed,
+     * destroying the OEM rules without any published backup. Now the chain is
+     * emptied if and only if THIS run verified a fresh snapshot AND published
+     * it; a failed publish logs "OEM snapshot publish failed; rules preserved"
+     * and keeps both the staging file (still the only copy) and the chain.
      *
      * The iptables-save format carries the kernel's own quoting (e.g.
      * `--comment "text with spaces"`), so replaying the lines through
@@ -210,24 +216,23 @@ object RootShellManager {
      * are deliberately filtered out: the restore appends (`--noflush`) and such
      * a replay would duplicate the jump on every session.
      *
-     * The flush is the LAST statement of the VERIFIED branch of the save's own
-     * `if` — the shell realization of the "snapshotOk" flag. A gate on the
-     * published file (`[ -s saveFile ] && flush`) would be weaker: a STALE save
-     * file (kept by a failed restore earlier in this batch) would look exactly
-     * like a fresh one and still trigger the flush, destroying rules the failed
-     * dump never captured. Inside the branch, the flush runs if and only if
-     * THIS run verified a fresh snapshot; the published file therefore always
-     * exists and is non-empty when the chain is flushed.
+     * The flush is the LAST statement of the VERIFIED+PUBLISHED branch of the
+     * save's own `if` — the shell realization of the "snapshotOk" flag. A gate
+     * on the published file (`[ -s saveFile ] && flush`) would be weaker: a
+     * STALE save file (kept by a failed restore earlier in this batch) would
+     * look exactly like a fresh one and still trigger the flush, destroying
+     * rules the failed dump never captured. Inside the branch, the flush runs
+     * if and only if THIS run verified and published a fresh snapshot.
      *
-     * Failure handling (H2): a failed or empty dump removes only the staging
-     * file and logs the "snapshot failed; rules preserved" warning — the chain
-     * is NOT flushed (the OEM rules stay active; root mode may be partially
-     * broken for the session, the documented trade-off), a previous save file
-     * is NEVER deleted (it may be the only surviving copy when an earlier
-     * stop-time restore failed), and the remaining start commands still run.
-     * A missing chain clears the staging file only; the save files themselves
-     * are owned by the restore step (consumed on success, kept on failure,
-     * deleted when invalid).
+     * Failure handling (H2/N04): a failed or empty dump removes only the
+     * staging file and logs the "snapshot failed; rules preserved" warning —
+     * the chain is NOT flushed (the OEM rules stay active; root mode may be
+     * partially broken for the session, the documented trade-off), a previous
+     * save file is NEVER deleted (it may be the only surviving copy when an
+     * earlier stop-time restore failed), and the remaining start commands
+     * still run. A missing chain clears the staging file only; the save files
+     * themselves are owned by the restore step (consumed on success, kept on
+     * failure, deleted when invalid).
      */
     fun buildSaveOplusCommands(): List<String> = listOf(
         "mkdir -p ${CoreConstants.ROOT_RUN_DIR}",
@@ -272,12 +277,17 @@ object RootShellManager {
         "if $tool -t filter -nL ${CoreConstants.OPLUS_DNS_CHAIN} >/dev/null 2>&1; then " +
                 "$saveTool -t filter 2>/dev/null | grep -E '^-A ${CoreConstants.OPLUS_DNS_CHAIN} ' > $tmpFile 2>/dev/null; " +
                 "if [ -s $tmpFile ] && grep -qE '^-A ${CoreConstants.OPLUS_DNS_CHAIN} ' $tmpFile 2>/dev/null; then " +
-                "mv -f $tmpFile $rulesFile; " +
-                // H2: the flush is the last statement of the VERIFIED branch — the
-                // shell "snapshotOk" flag. A [ -s rulesFile ] gate would also pass
-                // for a STALE snapshot kept by a failed restore and still destroy
-                // the un-snapshotted chain rules.
+                // N04: publish via cp + rm (resilient to partial mv failures) and
+                // gate the flush on the publish succeeding — the pre-N04
+                // `mv -f; flush` sequence flushed the chain even when the mv
+                // failed, destroying rules without a published backup.
+                "if cp -f $tmpFile $rulesFile 2>/dev/null && rm -f $tmpFile 2>/dev/null; then " +
+                // H2: the flush is the last statement of the VERIFIED+PUBLISHED
+                // branch — the shell "snapshotOk" flag. A [ -s rulesFile ] gate
+                // would also pass for a STALE snapshot kept by a failed restore
+                // and still destroy the un-snapshotted chain rules.
                 "$tool -t filter -F ${CoreConstants.OPLUS_DNS_CHAIN} 2>/dev/null || true; " +
+                "else echo 'mihomet: warning: OEM snapshot publish failed; rules preserved' >&2; fi; " +
                 "else rm -f $tmpFile; echo 'mihomet: warning: OEM chain snapshot failed; rules preserved' >&2; fi; " +
                 "else rm -f $tmpFile; fi"
 

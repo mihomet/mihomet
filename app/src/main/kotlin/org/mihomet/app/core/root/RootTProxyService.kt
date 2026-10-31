@@ -375,7 +375,7 @@ class RootTProxyService : Service(), KoinComponent {
                 // Moment of the first alive-detection of the current daemon
                 // generation; null while the daemon is considered unstable.
                 var stableSinceMillis: Long? = null
-                while (isActive && org.mihomet.app.core.ServiceState.isRunning.value) {
+                while (isActive && !isStopping && org.mihomet.app.core.ServiceState.isRunning.value) {
                     kotlinx.coroutines.delay(10_000)
                     if (RootShellManager.isDaemonRunning()) {
                         // First detection opens the stability window; only a daemon
@@ -394,16 +394,34 @@ class RootTProxyService : Service(), KoinComponent {
                         // Restart budget exhausted (audit N06): full rollback
                         // before stopping — the daemon is dead, but Private DNS /
                         // OEM chains may still be modified and firewall rules may
-                        // still be applied. rollbackRootStart() also flips the
-                        // ServiceState and refreshes the widgets.
-                        rollbackRootStart()
-                        updateNotification(getString(R.string.root_error, "daemon keeps crashing"))
+                        // still be applied. The rollback mutates the same system
+                        // state (daemon, firewall, DNS/OEM restores, ServiceState)
+                        // as a user stopProxy — it must run under [rootMutex],
+                        // with an isStopping ownership re-check: a user STOP that
+                        // acquired the mutex meanwhile owns the teardown.
+                        // rollbackRootStart() also flips the ServiceState and
+                        // refreshes the widgets.
+                        rootMutex.withLock {
+                            if (!isStopping) rollbackRootStart()
+                        }
+                        if (!isStopping) {
+                            updateNotification(getString(R.string.root_error, "daemon keeps crashing"))
+                        }
                         break
                     }
                     updateNotification(getString(R.string.vpn_restarting))
                     kotlinx.coroutines.delay(2000L * attempts)
-                    RootShellManager.startDaemon(CoreConstants.ROOT_CONFIG_PATH)
-                        .onFailure { failure -> android.util.Log.e("RootTProxy", "daemon restart failed", failure) }
+                    // N06: the restart spawns a new daemon process — under the
+                    // mutex, so it can never interleave with a concurrent
+                    // stopProxy teardown (a daemon spawned after the teardown
+                    // would be a zombie root session). The ownership re-check
+                    // abandons the restart when a user stop won the mutex race.
+                    rootMutex.withLock {
+                        if (!isStopping && org.mihomet.app.core.ServiceState.isRunning.value) {
+                            RootShellManager.startDaemon(CoreConstants.ROOT_CONFIG_PATH)
+                                .onFailure { failure -> android.util.Log.e("RootTProxy", "daemon restart failed", failure) }
+                        }
+                    }
                     if (RootShellManager.isDaemonRunning()) {
                         // Fresh PID: reopen the stability window instead of resetting
                         // attempts immediately (a briefly alive daemon must not renew

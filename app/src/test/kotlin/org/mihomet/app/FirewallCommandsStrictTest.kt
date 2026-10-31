@@ -656,6 +656,185 @@ class FirewallCommandsStrictTest {
         assertNoForeignNumbers(joined, "iptables teardown commands")
     }
 
+    // ---------- N03: mandatory / optional command split ----------
+
+    @Test
+    fun `iptables setup splits into bare mandatory commands and self-guarded optionals`() {
+        // N03 regression: the setup used to run as ONE batch whose exit code was
+        // taken from the LAST command (`|| true` ipv6 block) — a kernel without
+        // TPROXY support reported success while no rule existed. Mandatory
+        // commands must therefore be exec'd individually, bare (no `|| true`
+        // tail); optional commands keep their best-effort batch but must stay
+        // self-guarded so the batch can never fail.
+        for (ipv6 in listOf(true, false)) {
+            val specs = IptablesEngine.buildSetupSpecs(
+                tproxyPort = CoreConstants.DEFAULT_TPROXY_PORT,
+                perAppMode = PerAppMode.WHITELIST,
+                appUids = setOf(1001),
+                ipv6Enabled = ipv6,
+                defaultTable = "wlan0"
+            )
+            assertTrue(specs.isNotEmpty())
+            for (spec in specs) {
+                val trimmed = spec.cmd.trimEnd()
+                if (spec.mandatory) {
+                    assertFalse(
+                        "mandatory command must be executed bare without '|| true': ${spec.cmd}",
+                        trimmed.endsWith("|| true")
+                    )
+                } else {
+                    assertTrue(
+                        "optional command must stay self-guarded with '|| true': ${spec.cmd}",
+                        trimmed.endsWith("|| true")
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `iptables buildSetupCommands is the spec list joined in order`() {
+        val specs = IptablesEngine.buildSetupSpecs(
+            tproxyPort = CoreConstants.DEFAULT_TPROXY_PORT,
+            perAppMode = PerAppMode.BLACKLIST,
+            appUids = setOf(10100),
+            ipv6Enabled = true,
+            defaultTable = "wlan0"
+        )
+        assertEquals(
+            specs.map { it.cmd },
+            IptablesEngine.buildSetupCommands(
+                tproxyPort = CoreConstants.DEFAULT_TPROXY_PORT,
+                perAppMode = PerAppMode.BLACKLIST,
+                appUids = setOf(10100),
+                ipv6Enabled = true,
+                defaultTable = "wlan0"
+            )
+        )
+    }
+
+    @Test
+    fun `iptables mandatory set covers chains routing tproxy jumps and per-uid rules`() {
+        val specs = IptablesEngine.buildSetupSpecs(
+            tproxyPort = CoreConstants.DEFAULT_TPROXY_PORT,
+            perAppMode = PerAppMode.WHITELIST,
+            appUids = setOf(1001, 1002),
+            ipv6Enabled = true,
+            defaultTable = "wlan0"
+        )
+        val mandatory = specs.filter { it.mandatory }.map { it.cmd }
+
+        // chain creation, TPROXY interception, attach jumps — all verified per command
+        for (needle in listOf(
+            "iptables -t mangle -N MIHOMET_BYPASS",
+            "iptables -t mangle -N MIHOMET_OUTPUT",
+            "iptables -t mangle -N MIHOMET_PREROUTING",
+            "iptables -t mangle -A MIHOMET_PREROUTING -p tcp -j TPROXY --on-port ${CoreConstants.DEFAULT_TPROXY_PORT} --tproxy-mark ${CoreConstants.TPROXY_MARK_IPV4}",
+            "iptables -t mangle -A MIHOMET_PREROUTING -p udp -j TPROXY --on-port ${CoreConstants.DEFAULT_TPROXY_PORT} --tproxy-mark ${CoreConstants.TPROXY_MARK_IPV4}",
+            "iptables -t mangle -I OUTPUT 1 -p tcp -j MIHOMET_OUTPUT",
+            "iptables -t mangle -I PREROUTING 1 -p udp -j MIHOMET_PREROUTING",
+            "ip6tables -t mangle -N MIHOMET_PREROUTING",
+            "ip6tables -t mangle -A MIHOMET_PREROUTING -p tcp -j TPROXY --on-port ${CoreConstants.DEFAULT_TPROXY_PORT} --tproxy-mark ${CoreConstants.TPROXY_MARK_IPV6}",
+            "ip6tables -t mangle -A MIHOMET_BYPASS -d ff00::/8 -j ACCEPT"
+        )) {
+            assertTrue("mandatory set must contain: $needle", mandatory.any { it.contains(needle) })
+        }
+
+        // policy routing: a failed rule add must abort the setup, never batch away
+        assertTrue(
+            mandatory.contains("ip rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup wlan0 pref ${CoreConstants.POLICY_RULE_PREF_MAIN}")
+        )
+        assertTrue(
+            mandatory.contains("ip rule add fwmark ${CoreConstants.TPROXY_MARK_IPV4} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL}")
+        )
+        assertTrue(
+            mandatory.contains("ip route add local 0.0.0.0/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE}")
+        )
+        assertTrue(mandatory.contains("echo 1 > /proc/sys/net/ipv4/ip_forward"))
+        // the ipv6 policy rules are mandatory when ipv6 is enabled (pre-N03 `|| true` tails removed)
+        assertTrue(
+            mandatory.contains("ip -6 rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup wlan0 pref ${CoreConstants.POLICY_RULE_PREF_MAIN}")
+        )
+        assertTrue(
+            mandatory.contains("ip -6 rule add fwmark ${CoreConstants.TPROXY_MARK_IPV6} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL}")
+        )
+        assertTrue(
+            mandatory.contains("ip -6 route add local ::/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE}")
+        )
+
+        // per-uid rules (whitelist MARK) must be verified per command, never batched
+        for (uid in listOf(1001, 1002)) {
+            for (proto in listOf("tcp", "udp")) {
+                assertTrue(
+                    "per-uid rule $proto/$uid must be mandatory",
+                    mandatory.contains(
+                        "iptables -t mangle -A MIHOMET_OUTPUT -p $proto -m owner --uid-owner $uid -j MARK --set-mark ${CoreConstants.TPROXY_MARK_IPV4}"
+                    )
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `iptables optional set is only the rp_filter relaxations and the disabled-ipv6 block`() {
+        val off = IptablesEngine.buildSetupSpecs(
+            tproxyPort = CoreConstants.DEFAULT_TPROXY_PORT,
+            perAppMode = PerAppMode.ALL,
+            appUids = emptySet(),
+            ipv6Enabled = false
+        ).filter { !it.mandatory }.map { it.cmd }
+        assertEquals(3, off.size)
+        assertTrue(off.any { it.contains("/proc/sys/net/ipv4/conf/all/rp_filter") })
+        assertTrue(off.any { it.contains("/proc/sys/net/ipv4/conf/default/rp_filter") })
+        assertTrue(
+            off.contains("ip6tables -I OUTPUT 1 -m mark ! --mark ${CoreConstants.CORE_ROUTING_MARK} -j DROP 2>/dev/null || true")
+        )
+
+        val on = IptablesEngine.buildSetupSpecs(
+            tproxyPort = CoreConstants.DEFAULT_TPROXY_PORT,
+            perAppMode = PerAppMode.ALL,
+            appUids = emptySet(),
+            ipv6Enabled = true
+        ).filter { !it.mandatory }.map { it.cmd }
+        assertEquals("with ipv6 enabled only the rp_filter relaxations stay optional", 2, on.size)
+    }
+
+    @Test
+    fun `nftables routing splits mandatory ip rule and route adds from optional rp_filter writes`() {
+        val specs = NftablesEngine.buildRoutingSpecs(ipv6Enabled = true, defaultTable = "wlan0")
+        val mandatory = specs.filter { it.mandatory }.map { it.cmd }
+
+        for (needle in listOf(
+            "ip rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup wlan0 pref ${CoreConstants.POLICY_RULE_PREF_MAIN}",
+            "ip rule add fwmark ${CoreConstants.TPROXY_MARK_IPV4} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL}",
+            "ip route add local 0.0.0.0/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE}",
+            "ip -6 rule add fwmark ${CoreConstants.TPROXY_MARK_IPV6} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL}",
+            "ip -6 route add local ::/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE}",
+            "echo 1 > /proc/sys/net/ipv4/ip_forward"
+        )) {
+            assertTrue("nftables routing mandatory set must contain: $needle", mandatory.contains(needle))
+        }
+
+        // per-command discipline: no `|| true` on mandatory, all optionals self-guarded
+        for (spec in specs) {
+            if (spec.mandatory) {
+                assertFalse("mandatory routing command must be bare: ${spec.cmd}", spec.cmd.trimEnd().endsWith("|| true"))
+            } else {
+                assertTrue("optional routing command must be self-guarded: ${spec.cmd}", spec.cmd.trimEnd().endsWith("|| true"))
+            }
+        }
+        assertEquals("only the rp_filter relaxations stay optional", 2, specs.count { !it.mandatory })
+
+        // the batched string form stays the specs joined in order
+        assertEquals(
+            specs.joinToString("; ") { it.cmd },
+            NftablesEngine.buildRoutingCommands(ipv6Enabled = true, defaultTable = "wlan0")
+        )
+        assertFalse(
+            NftablesEngine.buildRoutingCommands(ipv6Enabled = false).contains("ip -6")
+        )
+    }
+
     // ---------- nftables routing ----------
 
     @Test

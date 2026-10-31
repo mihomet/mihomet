@@ -30,13 +30,17 @@ import org.mihomet.app.data.preferences.PerAppMode
  *     chains would be duplicated by the append-mode restore on every session;
  *   - H2 (audit N04): the dump is staged into a per-family `.tmp` file,
  *     verified (non-empty AND containing the chain's `-A` lines) and only then
- *     atomically `mv`ed over the save file — a partial/failed iptables-save
- *     output can never truncate a good snapshot (the pre-H2 `> saveFile`
- *     redirect destroyed it);
- *   - H2: the flush of each family is gated on its own verified snapshot file —
- *     a family whose snapshot failed is NOT flushed (the OEM rules are
- *     preserved; root mode may be partially broken for the session, which is
- *     the documented trade-off, reversing the pre-H2 "flush anyway" behaviour);
+ *     published over the save file — a partial/failed iptables-save output can
+ *     never truncate a good snapshot (the pre-H2 `> saveFile` redirect
+ *     destroyed it);
+ *   - N04: the publish is `cp` + `rm` (resilient to partial mv failures) and
+ *     the flush of each family is gated on the publish SUCCEEDING (inside the
+ *     verified branch of its own save command) — the pre-N04 `mv -f; flush`
+ *     sequence emptied the chain even when the mv failed, destroying rules
+ *     without any published backup; a failed publish logs a warning and the
+ *     OEM rules stay active (root mode may be partially broken for the
+ *     session, which is the documented trade-off, reversing the pre-H2
+ *     "flush anyway" behaviour);
  *   - H2: the flush block replays any snapshot left over from a crashed
  *     session BEFORE taking the fresh one, so a new snapshot can never
  *     overwrite the only surviving copy of the OEM rules;
@@ -169,13 +173,26 @@ class RootShellCommandsStrictTest {
                 "save must verify the staged snapshot before publishing, got: $cmd",
                 cmd.contains("if [ -s $tmp ] && grep -qE '^-A $chain ' $tmp 2>/dev/null; then ")
             )
-            // ... and published atomically (rename within the same directory)
-            // — H2: the flush is the LAST statement of the VERIFIED branch, the
-            // shell realization of the "snapshotOk" flag: the chain is emptied
-            // if and only if THIS run verified a fresh snapshot
+            // ... and published via cp + rm (N04: resilient to partial mv
+            // failures) — H2/N04: the flush is the LAST statement of the
+            // VERIFIED+PUBLISHED branch, the shell realization of the
+            // "snapshotOk" flag: the chain is emptied if and only if THIS run
+            // verified a fresh snapshot AND successfully published it
             assertTrue(
-                "save must publish with mv -f $tmp $file and flush only inside the verified branch, got: $cmd",
-                cmd.contains("then mv -f $tmp $file; $tool -t filter -F $chain 2>/dev/null || true; else ")
+                "save must publish via cp+rm and flush only inside the published branch, got: $cmd",
+                cmd.contains("if cp -f $tmp $file 2>/dev/null && rm -f $tmp 2>/dev/null; then $tool -t filter -F $chain 2>/dev/null || true; else ")
+            )
+            // N04: a failed publish (the save file could not be replaced) must
+            // log the rules-preserved warning and skip the flush
+            assertTrue(
+                "a failed publish must log the rules-preserved warning, got: $cmd",
+                cmd.contains("else echo 'mihomet: warning: OEM snapshot publish failed; rules preserved' >&2; fi; ")
+            )
+            // N04 regression: the bare `mv -f; flush` sequence flushed the chain
+            // even when the mv failed — mv must be gone from the publish step
+            assertFalse(
+                "publish must not use mv (cp+rm allows a gated flush), got: $cmd",
+                cmd.contains("mv -f")
             )
             // a failed/empty snapshot drops only the staging file and warns that
             // the rules are PRESERVED (the gated flush will skip the chain)
@@ -285,23 +302,25 @@ class RootShellCommandsStrictTest {
         assertEquals("the flush block must start with the restore commands", restore, cmds.take(restore.size))
         assertEquals("the fresh save must follow the restore", save, cmds.drop(restore.size).take(save.size))
 
-        // H2: the flush of each family happens ONLY inside the verified branch
-        // of that family's own save command (the shell "snapshotOk" flag) — a
-        // family whose snapshot failed or is stale is never flushed, so its OEM
-        // rules are preserved
+        // H2/N04: the flush of each family happens ONLY inside the verified and
+        // successfully published branch of that family's own save command (the
+        // shell "snapshotOk" flag) — a family whose snapshot failed, or whose
+        // snapshot could not be published, is never flushed, so its OEM rules
+        // are preserved
         for ((tool, _, file) in families) {
             val cmd = cmds.first { it.contains(" $tool -t filter -F ") }
             assertTrue(
                 "flush of $tool must be gated on the verified snapshot published to $file",
                 cmd.contains("if [ -s ${tmpFor(file)} ] && grep -qE '^-A $chain ' ${tmpFor(file)} 2>/dev/null; then " +
-                        "mv -f ${tmpFor(file)} $file; $tool -t filter -F $chain 2>/dev/null || true; else ")
+                        "if cp -f ${tmpFor(file)} $file 2>/dev/null && rm -f ${tmpFor(file)} 2>/dev/null; then " +
+                        "$tool -t filter -F $chain 2>/dev/null || true; else ")
             )
         }
 
         // ordering: restore -> save (with embedded gated flush). The F09
         // "snapshot before flush" guarantee now lives INSIDE each save command:
         // the flush is preceded, in the same verified branch, by the staged
-        // dump and the atomic publish
+        // dump and the publish
         val firstSave = cmds.indexOfFirst { it.contains("-save -t filter") }
         val lastRestore = cmds.indexOfLast { it.contains("-restore --noflush") }
         assertTrue("the snapshot must be part of the flush step", firstSave >= 0)
@@ -310,10 +329,11 @@ class RootShellCommandsStrictTest {
             val flushIdx = cmd.indexOf(" -F $chain ")
             if (flushIdx >= 0) {
                 val dumpIdx = cmd.indexOf("-save -t filter")
-                val mvIdx = cmd.indexOf("mv -f")
+                val cpIdx = cmd.indexOf("cp -f")
+                val rmIdx = cmd.indexOf("rm -f")
                 assertTrue(
-                    "flush must run only after its own dump and atomic publish, got: $cmd",
-                    dumpIdx in 0 until mvIdx && mvIdx in 0 until flushIdx
+                    "flush must run only after its own dump and cp+rm publish, got: $cmd",
+                    dumpIdx in 0 until cpIdx && cpIdx in 0 until rmIdx && rmIdx in 0 until flushIdx
                 )
             }
         }

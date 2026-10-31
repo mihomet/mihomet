@@ -1,8 +1,46 @@
 package org.mihomet.app.core.firewall
 
+import android.util.Log
 import com.topjohnwu.superuser.Shell
 import org.mihomet.app.core.CoreConstants
 import org.mihomet.app.data.preferences.PerAppMode
+
+/**
+ * One shell command of a firewall setup batch, tagged with its criticality
+ * (audit N03).
+ *
+ * In libsu 5.2.2 the result code of a multi-command batch is the code of its
+ * LAST command, so a batch that ends with a self-guarded (`|| true`) command
+ * reported success even when earlier critical commands (chain creation, TPROXY
+ * rules, policy routing) had failed — e.g. on a kernel without the TPROXY
+ * target the whole setup "succeeded" while not a single rule was applied. The
+ * engines therefore split their batches: [mandatory] commands run ONE PER
+ * SHELL CALL with an individual exit-code check (any failure aborts the setup
+ * and triggers the caller's rollback), while the remaining self-guarded
+ * commands (IPv6 block when IPv6 is off, rp_filter relaxations, legacy flushes)
+ * keep their batched best-effort execution.
+ */
+data class FirewallSetupCommand(
+    val cmd: String,
+    val mandatory: Boolean
+)
+
+/**
+ * Executes the accumulated self-guarded optional commands as one batch
+ * (audit N03 — optional commands keep their batched best-effort execution)
+ * and clears [batch]. Returns the batch result, or null when nothing was
+ * accumulated.
+ */
+internal fun flushOptionalBatch(batch: MutableList<String>): Shell.Result? {
+    if (batch.isEmpty()) return null
+    val result = Shell.cmd(*batch.toTypedArray()).exec()
+    batch.clear()
+    return result
+}
+
+/** Tail of a failed shell command's output for log/diagnostic messages. */
+internal fun Shell.Result.errorTail(): String =
+    (err + out).filter { it.isNotBlank() }.takeLast(3).joinToString("; ").take(300)
 
 class IptablesEngine : FirewallEngine {
     override val name: String = "iptables"
@@ -18,22 +56,71 @@ class IptablesEngine : FirewallEngine {
         // 1. Detect active default network table (WiFi / Mobile Data)
         val defaultTable = DefaultTableProbe.detect()
 
-        // 2..7. Build and apply the full rule set
-        val cmds = buildSetupCommands(tproxyPort, perAppMode, appUids, ipv6Enabled, defaultTable)
-        val result = Shell.cmd(*cmds.toTypedArray()).exec()
-        if (!result.isSuccess) {
-            throw RuntimeException("Failed to apply iptables: ${result.err.joinToString("\n")}")
+        // 2..7. Apply the rule set with per-command verification (audit N03):
+        // every mandatory command runs individually and aborts the setup on a
+        // non-zero exit; the self-guarded optionals run as one best-effort
+        // batch, preserving the command order.
+        val specs = buildSetupSpecs(tproxyPort, perAppMode, appUids, ipv6Enabled, defaultTable)
+        val optionalBatch = mutableListOf<String>()
+        for (spec in specs) {
+            if (spec.mandatory) {
+                flushOptionalBatch(optionalBatch)
+                val result = Shell.cmd(spec.cmd).exec()
+                if (!result.isSuccess) {
+                    throw RuntimeException("Failed: ${spec.cmd} (${result.errorTail()})")
+                }
+            } else {
+                optionalBatch += spec.cmd
+            }
         }
+        val batchResult = flushOptionalBatch(optionalBatch)
+        if (batchResult != null && !batchResult.isSuccess) {
+            throw RuntimeException("Failed to apply iptables: ${batchResult.err.joinToString("\n")}")
+        }
+
+        // 8. Post-verification (audit N03): a batch result alone proved nothing
+        //    (libsu reports only the LAST command's code) — the TPROXY rule must
+        //    actually be present in the kernel. A missing rule throws and lets
+        //    the caller's rollback path clean the half-applied state.
+        verifyTproxyRulesApplied(ipv6Enabled)
     }
 
     override fun teardown(ipv6Enabled: Boolean): Result<Unit> = runCatching {
-        Shell.cmd(*buildTeardownCommands().toTypedArray()).exec()
+        // Audit N03: teardown failures are never silent — every command runs
+        // individually and failed ones are collected and logged (the commands
+        // themselves stay `|| true`-guarded, so the log fires only on real
+        // shell-level breakage).
+        val failed = mutableListOf<String>()
+        for (cmd in buildTeardownCommands()) {
+            val result = Shell.cmd(cmd).exec()
+            if (!result.isSuccess) failed += "$cmd (${result.errorTail()})"
+        }
+        if (failed.isNotEmpty()) {
+            Log.e(TAG, "iptables teardown: ${failed.size} command(s) failed:\n${failed.joinToString("\n")}")
+        }
+        // Belt-and-braces post-check: our mangle chains must be gone. A chain
+        // that still exists means the kernel refused the cleanup — log it
+        // instead of swallowing (audit N03: show the actual teardown errors).
+        for (tool in listOf("iptables", "ip6tables")) {
+            val leftover = Shell.cmd("$tool -t mangle -nL MIHOMET_PREROUTING 2>/dev/null").exec()
+            if (leftover.isSuccess) {
+                Log.e(TAG, "iptables teardown incomplete: $tool mangle chain MIHOMET_PREROUTING still present")
+            }
+        }
     }
 
     companion object {
+        private const val TAG = "IptablesEngine"
+
+        /** Executed individually, failure aborts the setup. */
+        private fun m(cmd: String) = FirewallSetupCommand(cmd, mandatory = true)
+
+        /** Batched best-effort (self-guarded with `|| true`). */
+        private fun o(cmd: String) = FirewallSetupCommand(cmd, mandatory = false)
+
         /**
          * Chains flushed and deleted on teardown. MIHOMET_UIDS is no longer created by
-         * [buildSetupCommands] (per-app whitelist is expressed inline), but it stays here
+         * [buildSetupSpecs] (per-app whitelist is expressed inline), but it stays here
          * so leftovers from older app versions are purged too.
          */
         private val MANGLE_CHAINS =
@@ -56,7 +143,27 @@ class IptablesEngine : FirewallEngine {
             appUids: Set<Int>,
             ipv6Enabled: Boolean,
             defaultTable: String = DefaultTableProbe.FALLBACK
-        ): List<String> = buildList {
+        ): List<String> = buildSetupSpecs(tproxyPort, perAppMode, appUids, ipv6Enabled, defaultTable)
+            .map { it.cmd }
+
+        /**
+         * Ordered [FirewallSetupCommand] specs behind [buildSetupCommands] (audit N03):
+         * [FirewallSetupCommand.mandatory] commands are executed one per shell call
+         * with an individual exit-code check; the rest run as one best-effort batch.
+         *
+         * The IPv6 policy rules (`ip -6 rule/route add`) are MANDATORY when
+         * [ipv6Enabled] is true — the whole v6 pipeline is requested then, and a
+         * silently skipped v6 policy rule would leave IPv6 traffic unproxied (the
+         * pre-N03 `|| true` tails). When IPv6 is disabled the only v6 command is the
+         * best-effort OUTPUT block rule.
+         */
+        fun buildSetupSpecs(
+            tproxyPort: Int,
+            perAppMode: PerAppMode,
+            appUids: Set<Int>,
+            ipv6Enabled: Boolean,
+            defaultTable: String = DefaultTableProbe.FALLBACK
+        ): List<FirewallSetupCommand> = buildList {
             // IP routing rules
             // Critical: Route Mihomo core traffic (fwmark 666) to physical network interface table.
             // First purge stale fwmark rules from previous sessions: a rule pointing at a dead
@@ -64,33 +171,35 @@ class IptablesEngine : FirewallEngine {
             // DNS query ("dns resolve failed: context deadline exceeded"). Deleting by pref AND
             // our fwmark (F10) — never by pref alone: a bare `pref 100` loop also deletes
             // foreign pref-100 rules belonging to other VPN/firewall apps sharing the netns.
-            add("while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} fwmark ${CoreConstants.CORE_ROUTING_MARK} 2>/dev/null; do true; done")
-            add("ip rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup $defaultTable pref ${CoreConstants.POLICY_RULE_PREF_MAIN}")
+            add(m("while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} fwmark ${CoreConstants.CORE_ROUTING_MARK} 2>/dev/null; do true; done"))
+            add(m("ip rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup $defaultTable pref ${CoreConstants.POLICY_RULE_PREF_MAIN}"))
             // Route marked packets to local loopback table 2025
-            add("ip rule add fwmark ${CoreConstants.TPROXY_MARK_IPV4} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL}")
-            add("ip route add local 0.0.0.0/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE}")
+            add(m("ip rule add fwmark ${CoreConstants.TPROXY_MARK_IPV4} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL}"))
+            add(m("ip route add local 0.0.0.0/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE}"))
             // F10: snapshot the sysctls we are about to change into .sysctl.bak —
             // teardown writes the original values back
-            addAll(FirewallEngine.buildSysctlBackupCommands())
-            add("echo 1 > /proc/sys/net/ipv4/ip_forward")
-            add("echo 2 > /proc/sys/net/ipv4/conf/all/rp_filter 2>/dev/null || true")
-            add("echo 2 > /proc/sys/net/ipv4/conf/default/rp_filter 2>/dev/null || true")
+            addAll(FirewallEngine.buildSysctlBackupCommands().map(::m))
+            add(m("echo 1 > /proc/sys/net/ipv4/ip_forward"))
+            add(o("echo 2 > /proc/sys/net/ipv4/conf/all/rp_filter 2>/dev/null || true"))
+            add(o("echo 2 > /proc/sys/net/ipv4/conf/default/rp_filter 2>/dev/null || true"))
 
             if (ipv6Enabled) {
                 // Purge stale IPv6 fwmark rules symmetrically to the IPv4 purge above —
                 // a leftover rule pointing at a dead network blackholes core DNS over IPv6.
                 // Same F10 fwmark filter: foreign pref-100 v6 rules must survive.
-                add("while ip -6 rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} fwmark ${CoreConstants.CORE_ROUTING_MARK} 2>/dev/null; do true; done")
-                add("ip -6 rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup $defaultTable pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null || true")
-                add("ip -6 rule add fwmark ${CoreConstants.TPROXY_MARK_IPV6} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL} 2>/dev/null || true")
-                add("ip -6 route add local ::/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE} 2>/dev/null || true")
+                add(m("while ip -6 rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} fwmark ${CoreConstants.CORE_ROUTING_MARK} 2>/dev/null; do true; done"))
+                // N03: mandatory when IPv6 is enabled — a skipped v6 policy rule
+                // would silently leave IPv6 traffic unproxied.
+                add(m("ip -6 rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup $defaultTable pref ${CoreConstants.POLICY_RULE_PREF_MAIN}"))
+                add(m("ip -6 rule add fwmark ${CoreConstants.TPROXY_MARK_IPV6} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL}"))
+                add(m("ip -6 route add local ::/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE}"))
             }
 
             // --- IPv4 mangle chains ---
-            addAll(bypassChain("iptables"))
-            addAll(outputChain("iptables", CoreConstants.TPROXY_MARK_IPV4, perAppMode, appUids))
-            addAll(preroutingChain("iptables", tproxyPort, CoreConstants.TPROXY_MARK_IPV4))
-            addAll(attachJumps("iptables"))
+            addAll(bypassChain("iptables").map(::m))
+            addAll(outputChain("iptables", CoreConstants.TPROXY_MARK_IPV4, perAppMode, appUids).map(::m))
+            addAll(preroutingChain("iptables", tproxyPort, CoreConstants.TPROXY_MARK_IPV4).map(::m))
+            addAll(attachJumps("iptables").map(::m))
 
             // --- IPv6 mangle chains ---
             // ip6tables and iptables maintain separate kernel rule sets: chains created
@@ -98,15 +207,34 @@ class IptablesEngine : FirewallEngine {
             // The ip -6 policy rules above wait for fwmark ${TPROXY_MARK_IPV6} — without
             // the ip6tables marking below, IPv6 traffic would silently stay unproxied.
             if (ipv6Enabled) {
-                addAll(bypassChainV6())
-                addAll(outputChain("ip6tables", CoreConstants.TPROXY_MARK_IPV6, perAppMode, appUids))
-                addAll(preroutingChain("ip6tables", tproxyPort, CoreConstants.TPROXY_MARK_IPV6))
-                addAll(attachJumps("ip6tables"))
+                addAll(bypassChainV6().map(::m))
+                addAll(outputChain("ip6tables", CoreConstants.TPROXY_MARK_IPV6, perAppMode, appUids).map(::m))
+                addAll(preroutingChain("ip6tables", tproxyPort, CoreConstants.TPROXY_MARK_IPV6).map(::m))
+                addAll(attachJumps("ip6tables").map(::m))
             }
 
-            // IPv6 Block when disabled
+            // IPv6 Block when disabled (best-effort: kernel may lack ip6tables)
             if (!ipv6Enabled) {
-                add("ip6tables -I OUTPUT 1 -m mark ! --mark ${CoreConstants.CORE_ROUTING_MARK} -j DROP 2>/dev/null || true")
+                add(o("ip6tables -I OUTPUT 1 -m mark ! --mark ${CoreConstants.CORE_ROUTING_MARK} -j DROP 2>/dev/null || true"))
+            }
+        }
+
+        /**
+         * N03 post-verification: [CoreConstants] chains are meaningless if the kernel
+         * never accepted the rules — `iptables -t mangle -S MIHOMET_PREROUTING` must
+         * list a TPROXY rule (`--tproxy-mark`); with [ipv6Enabled] the ip6tables
+         * counterpart is verified too. Throwing here triggers the caller's rollback.
+         */
+        private fun verifyTproxyRulesApplied(ipv6Enabled: Boolean) {
+            val tools = if (ipv6Enabled) listOf("iptables", "ip6tables") else listOf("iptables")
+            for (tool in tools) {
+                val result = Shell.cmd("$tool -t mangle -S MIHOMET_PREROUTING 2>/dev/null").exec()
+                if (result.out.none { it.contains("--tproxy-mark") }) {
+                    throw RuntimeException(
+                        "TPROXY rules not applied: $tool -t mangle -S MIHOMET_PREROUTING has no --tproxy-mark rule " +
+                                "(the kernel TPROXY target is missing or the chain is empty) ${result.errorTail()}"
+                    )
+                }
             }
         }
 
@@ -141,7 +269,7 @@ class IptablesEngine : FirewallEngine {
             add("ip route del local default dev lo table ${CoreConstants.POLICY_ROUTING_TABLE} 2>/dev/null || true")
             add("ip -6 rule del fwmark ${CoreConstants.TPROXY_MARK_IPV6} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL} 2>/dev/null || true")
             add("ip -6 route del local default dev lo table ${CoreConstants.POLICY_ROUTING_TABLE} 2>/dev/null || true")
-            // F10: restore the sysctls snapshotted by [buildSetupCommands] — a no-op
+            // F10: restore the sysctls snapshotted by [buildSetupSpecs] — a no-op
             // when no backup exists (nothing was changed)
             addAll(FirewallEngine.buildSysctlRestoreCommands())
         }
