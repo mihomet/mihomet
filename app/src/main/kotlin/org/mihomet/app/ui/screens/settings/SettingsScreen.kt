@@ -796,6 +796,17 @@ fun SettingsScreen(
                                     }
                                 }
 
+                                // F15: scope disclosure — the in-app update replaces the
+                                // ROOT daemon binary (/data/adb/mihomet/bin/mihomo) only;
+                                // the VPN core is bundled into the APK and ships with
+                                // app updates.
+                                Text(
+                                    text = stringResource(R.string.subs_update_scope),
+                                    fontSize = 11.sp,
+                                    lineHeight = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
                                 if (state.latestRelease != null && state.latestRelease?.tag_name != state.coreVersion) {
                                     Button(
                                         onClick = {
@@ -1353,6 +1364,15 @@ fun CustomDnsDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
+                // F14: honest disclosure — bootstrap resolution of proxy hostnames
+                // is always plain RU-reachable DNS, regardless of the chosen preset.
+                Text(
+                    text = stringResource(R.string.dns_bootstrap_desc),
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
                 OutlinedTextField(
                     value = dnsInput,
                     onValueChange = { dnsInput = it },
@@ -1408,6 +1428,18 @@ fun CustomDnsDialog(
                     val categoryPresets = DnsPresets.byCategory(category)
                     if (categoryPresets.isNotEmpty()) {
                         DnsCategoryBadge(category)
+                        if (category == DnsCategory.GLOBAL) {
+                            // F14: honest disclosure — ConfigGenerator always appends a
+                            // plain RU-reachable resolver in parallel to GLOBAL presets
+                            // (mihomo queries nameservers concurrently, so there is no
+                            // strict encrypted-first failover ordering).
+                            Text(
+                                text = stringResource(R.string.dns_global_fallback_warning),
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         categoryPresets.forEach { preset ->
                             DnsPresetRow(
                                 name = DnsPresetDisplayName(preset.uri),

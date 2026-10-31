@@ -205,7 +205,35 @@ class RootTProxyService : Service(), KoinComponent {
                 if (lastGoodYaml.isBlank()) throw e
                 android.util.Log.w("RootTProxy", "Profile YAML is broken, starting with last known-good config", e)
                 profileBroken = true
-                lastGoodYaml
+                // Consistency (external audit F13): the last-good YAML was generated
+                // under the settings of a PREVIOUS session — tproxy-port, dns.listen,
+                // controller port/secret may have changed since — while the firewall
+                // in step 5 is built from the CURRENT settings. Re-run the last-good
+                // content through the ConfigGenerator (tunFd = null → root mode) so
+                // every app-managed mandatory key is rebuilt on top of it from the
+                // current settings: tproxy-port/redir-port/routing-mark,
+                // external-controller + secret, dns.listen + nameservers,
+                // allow-lan/bind-address, mode/log-level — the core listeners and the
+                // netfilter rules can then never disagree on ports. Root mode also
+                // strips mixed-port, matching the normal start path. The override
+                // patch is deliberately NOT applied: it belongs to the broken profile
+                // and may be the very thing that broke it. If even the last-good
+                // content cannot be regenerated (corrupted file), fail closed with
+                // the original error — no daemon, no firewall rules.
+                try {
+                    ConfigGenerator.generateRuntimeConfig(
+                        profileYamlContent = lastGoodYaml,
+                        settings = settings,
+                        tunFd = null
+                    )
+                } catch (regenError: Exception) {
+                    android.util.Log.e(
+                        "RootTProxy",
+                        "Last known-good config is unusable; failing the start",
+                        regenError
+                    )
+                    throw e
+                }
             }
 
             // Write to /data/adb/mihomet/run/config.yaml via root
@@ -277,7 +305,9 @@ class RootTProxyService : Service(), KoinComponent {
             val profileLabel = selectedProfile?.name ?: getString(R.string.dashboard_default_profile_name)
             updateNotification(
                 if (profileBroken) {
-                    getString(R.string.root_last_good_used)
+                    // F13: name the profile whose start failed, so the user sees
+                    // which profile is actually serving traffic (the last-good one).
+                    getString(R.string.root_last_good_used, profileLabel)
                 } else {
                     getString(R.string.root_running, profileLabel)
                 }

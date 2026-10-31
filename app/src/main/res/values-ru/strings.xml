@@ -199,7 +199,7 @@
     <string name="settings_latency">Проверка задержки узлов (Ping)</string>
     <string name="settings_latency_summary">URL: %1$s • Таймаут: %2$d сек.</string>
     <string name="settings_dns">DNS-сервер</string>
-    <string name="settings_dns_default">По умолчанию (Smart DoH + Bypass)</string>
+    <string name="settings_dns_default">По умолчанию — plain DNS (доступен из РФ); зашифрованные пресеты добавляют шифрованный резолвер</string>
     <string name="settings_dns_adguard">AdGuard DNS (Блокировка рекламы)</string>
     <string name="settings_dns_cloudflare">Cloudflare DoH (1.1.1.1)</string>
     <string name="settings_dns_google">Google DoH (8.8.8.8)</string>
@@ -230,6 +230,7 @@
     <string name="settings_happ_key_error_length">Неверная длина ключа</string>
     <string name="settings_core">Ядро Mihomo</string>
     <string name="settings_core_version">Версия: %1$s</string>
+    <string name="subs_update_scope">Обновляет только root-демон. Ядро для VPN-режима обновляется вместе с приложением.</string>
     <string name="settings_check">Проверить</string>
     <string name="settings_update_core_to">Обновить ядро до %1$s</string>
     <string name="settings_reinstall_core">Переустановить ядро (%1$s)</string>
@@ -252,8 +253,8 @@
     <string name="settings_dns_dialog_desc">Задает первичный DNS-сервер для разрешения доменов через ядро Mihomo. Поддерживаются DoH (https://...), DoT (tls://...), UDP/TCP IP-адреса.</string>
     <string name="settings_dns_input_label">URL или IP DNS-сервера</string>
     <string name="settings_dns_presets_title">Популярные пресеты:</string>
-    <string name="settings_dns_default_desc">Встроенный быстрый DoH пул с защитой от блокировок</string>
-    <string name="dns_preset_default">По умолчанию (Smart DoH)</string>
+    <string name="settings_dns_default_desc">Plain DNS Яндекса (77.88.8.8) — доступен из РФ, без шифрования</string>
+    <string name="dns_preset_default">По умолчанию (plain DNS)</string>
     <string name="dns_preset_yandex_plain">Яндекс DNS (без шифрования)</string>
     <string name="dns_preset_adguard">AdGuard DNS (Антиреклама)</string>
     <string name="dns_preset_cloudflare">Cloudflare DoH</string>
@@ -265,6 +266,8 @@
     <string name="dns_category_plaintext_ru">Работает в РФ</string>
     <string name="dns_category_encrypted_ru">Зашифрованный, работает в РФ</string>
     <string name="dns_category_global">Зашифрованный, из РФ напрямую может не работать</string>
+    <string name="dns_global_fallback_warning">К зашифрованному резолверу параллельно добавляется plain-фолбэк, доступный из РФ (часть запросов может уходить к нему).</string>
+    <string name="dns_bootstrap_desc">Имена прокси-серверов всегда резолвятся через plain DNS, доступный из РФ (bootstrap).</string>
     <string name="settings_update_available">Доступна новая версия: %1$s</string>
     <string name="settings_update_up_to_date">У вас установлена актуальная версия ядра (%1$s)</string>
     <string name="settings_check_error">Ошибка проверки: %1$s</string>
@@ -346,7 +349,7 @@
     <string name="root_running">Подключено (%1$s)</string>
     <string name="root_error">Ошибка: %1$s</string>
     <string name="root_error_timeout">Ядро не ответило за 15 секунд</string>
-    <string name="root_last_good_used">Профиль повреждён — используется последняя рабочая версия</string>
+    <string name="root_last_good_used">Профиль повреждён — работает последняя рабочая конфигурация (%1$s)</string>
     <string name="profiles_subscription_undecryptable">Не удалось расшифровать данные подписки — ключ шифрования недоступен или был заменён. Добавьте подписку заново.</string>
 
     <!-- Subscription QR sharing -->

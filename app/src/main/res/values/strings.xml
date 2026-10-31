@@ -197,7 +197,7 @@
     <string name="settings_latency">Node latency test (Ping)</string>
     <string name="settings_latency_summary">URL: %1$s • Timeout: %2$d sec.</string>
     <string name="settings_dns">DNS server</string>
-    <string name="settings_dns_default">Default (Smart DoH + Bypass)</string>
+    <string name="settings_dns_default">Default — plain DNS (RU-reachable); encrypted presets add an encrypted resolver</string>
     <string name="settings_dns_adguard">AdGuard DNS (Ad blocking)</string>
     <string name="settings_dns_cloudflare">Cloudflare DoH (1.1.1.1)</string>
     <string name="settings_dns_google">Google DoH (8.8.8.8)</string>
@@ -228,6 +228,7 @@
     <string name="settings_happ_key_error_length">Invalid key length</string>
     <string name="settings_core">Mihomo core</string>
     <string name="settings_core_version">Version: %1$s</string>
+    <string name="subs_update_scope">Updates the root-mode daemon only. The VPN core is bundled with app updates.</string>
     <string name="settings_check">Check</string>
     <string name="settings_update_core_to">Update core to %1$s</string>
     <string name="settings_reinstall_core">Reinstall core (%1$s)</string>
@@ -250,8 +251,8 @@
     <string name="settings_dns_dialog_desc">Sets the primary DNS server used by the Mihomo core to resolve domains. Supports DoH (https://...), DoT (tls://...), UDP/TCP IP addresses.</string>
     <string name="settings_dns_input_label">DNS server URL or IP</string>
     <string name="settings_dns_presets_title">Popular presets:</string>
-    <string name="settings_dns_default_desc">Built-in fast DoH pool with blocking protection</string>
-    <string name="dns_preset_default">Default (Smart DoH)</string>
+    <string name="settings_dns_default_desc">Plain Yandex DNS (77.88.8.8) — reachable from Russia, not encrypted</string>
+    <string name="dns_preset_default">Default (plain DNS)</string>
     <string name="dns_preset_yandex_plain">Yandex DNS (plain)</string>
     <string name="dns_preset_adguard">AdGuard DNS (Ad blocking)</string>
     <string name="dns_preset_cloudflare">Cloudflare DoH</string>
@@ -263,6 +264,8 @@
     <string name="dns_category_plaintext_ru">Works in Russia</string>
     <string name="dns_category_encrypted_ru">Encrypted, works in Russia</string>
     <string name="dns_category_global">Encrypted, may not work directly from Russia</string>
+    <string name="dns_global_fallback_warning">A plain RU-reachable fallback is always added in parallel (queries may reach it when the encrypted resolver is slow or blocked).</string>
+    <string name="dns_bootstrap_desc">Proxy hostnames are always resolved via plain RU-reachable DNS (bootstrap).</string>
     <string name="settings_update_available">New version available: %1$s</string>
     <string name="settings_update_up_to_date">You already have the latest core version (%1$s)</string>
     <string name="settings_check_error">Check error: %1$s</string>
@@ -344,7 +347,7 @@
     <string name="root_running">Running (%1$s)</string>
     <string name="root_error">Error: %1$s</string>
     <string name="root_error_timeout">Core did not respond within 15 seconds</string>
-    <string name="root_last_good_used">Profile is broken — using the last working version</string>
+    <string name="root_last_good_used">Profile is broken — running the last working configuration (%1$s)</string>
     <string name="profiles_subscription_undecryptable">Could not decrypt the subscription data — the encryption key is unavailable or was replaced. Please add the subscription again.</string>
 
     <!-- Subscription QR sharing -->

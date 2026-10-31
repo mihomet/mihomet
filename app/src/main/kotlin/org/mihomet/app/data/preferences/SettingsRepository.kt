@@ -363,6 +363,8 @@ class SettingsRepository(private val context: Context) {
     /**
      * Returns all stored Happ crypto keys as a mapping of key id → AES key
      * (the key is kept as a raw 16-byte ASCII string, e.g. "key02" → "key02:+]%4ij#P\"/").
+     * At rest the values are `enc1:` ciphertext (F15b); this returns the decrypted
+     * plaintext view — see [decodeCryptoKeys] for the failure semantics.
      */
     suspend fun getCryptoKeys(): Map<String, String> {
         val prefs = context.dataStore.data.first()
@@ -372,31 +374,106 @@ class SettingsRepository(private val context: Context) {
     /** Adds or replaces the key stored under [id]. */
     suspend fun setCryptoKey(id: String, key: String) {
         context.dataStore.edit { prefs ->
-            val updated = parseCryptoKeysJson(prefs[PreferencesKeys.HAPP_CRYPTO_KEYS]).toMutableMap()
+            val updated = parseCryptoKeysJsonRaw(prefs[PreferencesKeys.HAPP_CRYPTO_KEYS]).toMutableMap()
             updated[id.trim()] = key.trim()
-            prefs[PreferencesKeys.HAPP_CRYPTO_KEYS] = Json.encodeToString(updated)
+            // External audit F15b: every value is persisted encrypted (`enc1:`).
+            // Legacy plaintext entries still present in the stored map are
+            // opportunistically re-encrypted by the same write.
+            prefs[PreferencesKeys.HAPP_CRYPTO_KEYS] =
+                Json.encodeToString(encodeCryptoKeys(updated, SecretsCipher::encrypt))
         }
     }
 
     /** Removes the key stored under [id] (no-op when absent). */
     suspend fun removeCryptoKey(id: String) {
         context.dataStore.edit { prefs ->
-            val updated = parseCryptoKeysJson(prefs[PreferencesKeys.HAPP_CRYPTO_KEYS]).toMutableMap()
+            // Raw parse (no decrypt): removal must not silently drop entries whose
+            // ciphertext happens to be undecryptable — untouched values pass through
+            // this edit byte-for-byte.
+            val updated = parseCryptoKeysJsonRaw(prefs[PreferencesKeys.HAPP_CRYPTO_KEYS]).toMutableMap()
             updated.remove(id.trim())
             prefs[PreferencesKeys.HAPP_CRYPTO_KEYS] = Json.encodeToString(updated)
         }
     }
 
     /**
-     * Decodes the stored JSON mapping `{"key02": "key", ...}`; a missing or
-     * corrupted entry degrades to an empty keyring instead of crashing.
+     * Plaintext view of the stored keyring (read path for subscription decryption
+     * and the UI): `enc1:` values are decrypted, undecryptable entries are skipped,
+     * legacy plaintext passes through — see [decodeCryptoKeys].
      */
-    private fun parseCryptoKeysJson(raw: String?): Map<String, String> {
+    private fun parseCryptoKeysJson(raw: String?): Map<String, String> =
+        decodeCryptoKeys(parseCryptoKeysJsonRaw(raw), SecretsCipher::decrypt)
+
+    /**
+     * Decodes the stored JSON mapping as-is (values may be `enc1:` ciphertext or
+     * legacy plaintext); a missing or corrupted entry degrades to an empty keyring
+     * instead of crashing.
+     */
+    private fun parseCryptoKeysJsonRaw(raw: String?): Map<String, String> {
         val trimmed = raw?.trim().orEmpty()
         if (trimmed.isEmpty()) return emptyMap()
         return runCatching {
             Json.decodeFromString<Map<String, String>>(trimmed)
         }.getOrElse { emptyMap() }
+    }
+
+    companion object {
+        private const val TAG = "SettingsRepository"
+
+        /**
+         * At-rest encryption of the Happ crypto keyring (external audit F15b): the
+         * stored JSON keeps its `{id: value}` shape, but every value is written
+         * through [SecretsCipher.encryptIfSecret] so it lands as `enc1:` ciphertext
+         * instead of the raw AES key. The [encryptFn] seam is JVM-testable;
+         * production passes the Keystore-backed [SecretsCipher.encrypt], which
+         * degrades to passthrough when the Keystore is unavailable.
+         */
+        internal fun encodeCryptoKeys(
+            stored: Map<String, String>,
+            encryptFn: (String) -> String
+        ): Map<String, String> =
+            stored.mapValues { (_, value) -> SecretsCipher.encryptIfSecret(value, encryptFn) }
+
+        /**
+         * Plaintext view of the stored keyring, produced with the [decryptFn] seam
+         * (production: [SecretsCipher.decrypt], which throws
+         * [SecretsCipher.SecretDecryptException] on undecryptable payloads):
+         * - an `enc1:` value that decrypts → its plaintext;
+         * - an `enc1:` value that does NOT decrypt (Keystore key replaced or lost) →
+         *   SKIPPED with a log: the raw payload is not a usable secret, and the
+         *   keyring is small enough for the user to re-enter the key in Settings;
+         * - a value without the marker (legacy pre-F15b plaintext, or the JVM
+         *   passthrough mode) → passed through unchanged so existing subscriptions
+         *   keep decrypting; the next keyring write re-encrypts it
+         *   ([encodeCryptoKeys]).
+         */
+        internal fun decodeCryptoKeys(
+            stored: Map<String, String>,
+            decryptFn: (String) -> String
+        ): Map<String, String> {
+            val plaintext = LinkedHashMap<String, String>(stored.size)
+            for ((id, value) in stored) {
+                if (!value.startsWith(SecretsCipher.MARKER)) {
+                    if (value.isNotBlank()) {
+                        android.util.Log.w(
+                            TAG,
+                            "Happ key '$id' is stored unencrypted (legacy); it will be encrypted on the next keyring edit"
+                        )
+                    }
+                    plaintext[id] = value
+                    continue
+                }
+                try {
+                    plaintext[id] = decryptFn(value)
+                } catch (e: SecretsCipher.SecretDecryptException) {
+                    android.util.Log.w(
+                        TAG,
+                        "Happ key '$id' is undecryptable (encryption key unavailable or replaced); skipping — re-add the key in Settings"
+                    )
+                }
+            }
+            return plaintext
+        }
     }
 
     // endregion
