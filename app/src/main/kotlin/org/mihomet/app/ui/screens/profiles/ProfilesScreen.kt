@@ -60,6 +60,9 @@ fun ProfilesScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     // Profile whose override patch is being edited (P7)
     var patchDialogProfile by remember { mutableStateOf<ProfileEntity?>(null) }
+    // Subscription headers editor: profile id + decrypted "Name: Value" lines
+    // (resolved on demand — the stored headers are encrypted at rest)
+    var headersDialog by remember { mutableStateOf<HeadersDialogData?>(null) }
     // Subscription QR sharing: profile name + decrypted URL resolved on demand
     var qrDialogData by remember { mutableStateOf<ProfileQrData?>(null) }
     val clipboardManager = LocalClipboardManager.current
@@ -276,6 +279,15 @@ fun ProfilesScreen(
                             AppHaptics.perform(context, HapticType.CLICK, view)
                             patchDialogProfile = profile
                         },
+                        onEditHeaders = {
+                            AppHaptics.perform(context, HapticType.CLICK, view)
+                            scope.launch {
+                                headersDialog = HeadersDialogData(
+                                    profileId = profile.id,
+                                    initialText = viewModel.getHeadersText(profile.id)
+                                )
+                            }
+                        },
                         onShowQr = {
                             AppHaptics.perform(context, HapticType.CLICK, view)
                             scope.launch {
@@ -329,6 +341,21 @@ fun ProfilesScreen(
             )
         }
 
+        headersDialog?.let { data ->
+            SubscriptionHeadersDialog(
+                initialHeaders = data.initialText,
+                onDismiss = { headersDialog = null },
+                onSave = { headers ->
+                    // Validation failures keep the dialog open (input preserved);
+                    // the error snackbar comes through state.errorMessage.
+                    val result = viewModel.saveHeaders(data.profileId, headers)
+                    if (result.isSuccess) {
+                        headersDialog = null
+                    }
+                }
+            )
+        }
+
         qrDialogData?.let { qr ->
             SubscriptionQrDialog(
                 title = qr.name,
@@ -342,12 +369,16 @@ fun ProfilesScreen(
 /** Payload of the subscription QR dialog: profile display name + decrypted URL. */
 private data class ProfileQrData(val name: String, val url: String)
 
+/** Payload of the per-profile subscription headers dialog. */
+private data class HeadersDialogData(val profileId: Long, val initialText: String)
+
 @Composable
 fun ExpressiveProfileCard(
     profile: ProfileEntity,
     onSelect: () -> Unit,
     onEditYaml: () -> Unit,
     onEditPatch: () -> Unit,
+    onEditHeaders: () -> Unit,
     onShowQr: () -> Unit,
     onUpdate: () -> Unit,
     onDelete: () -> Unit
@@ -491,6 +522,15 @@ fun ExpressiveProfileCard(
                                     },
                                     leadingIcon = { Icon(Icons.Default.Sync, contentDescription = null) }
                                 )
+                                // Custom per-subscription HTTP headers (remote profiles only)
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.profile_headers_menu)) },
+                                    onClick = {
+                                        showMenu = false
+                                        onEditHeaders()
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.Subject, contentDescription = null) }
+                                )
                                 // QR sharing only makes sense for a subscription URL
                                 // (remote profile with a non-blank stored url).
                                 if (profile.url.isNotBlank()) {
@@ -627,6 +667,61 @@ fun ExpressiveProfileCard(
             }
         }
     }
+}
+
+/**
+ * Per-profile subscription headers editor ("Name: Value" lines): stored
+ * encrypted at rest and sent with every download of this subscription on top
+ * of the global identity settings (Settings → Subscriptions). Validation is
+ * strict (SubscriptionHeaders): a rejected input keeps the dialog open.
+ */
+@Composable
+fun SubscriptionHeadersDialog(
+    initialHeaders: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var headers by remember { mutableStateOf(initialHeaders) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.profile_headers_title), fontWeight = FontWeight.Black) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = stringResource(R.string.profile_headers_hint),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = headers,
+                    onValueChange = { headers = it },
+                    placeholder = { Text(stringResource(R.string.profiles_headers_placeholder)) },
+                    textStyle = TextStyle(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 13.sp
+                    ),
+                    minLines = 3,
+                    maxLines = 8,
+                    shape = ExpressiveShapes.Small,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(headers) },
+                shape = ExpressiveShapes.Small
+            ) {
+                Text(stringResource(R.string.action_save), fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
 }
 
 @Composable
