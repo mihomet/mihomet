@@ -89,6 +89,18 @@ data class UpdateProxyRequest(
 )
 
 @Serializable
+data class TunState(
+    val enable: Boolean = false
+)
+
+@Serializable
+data class ConfigsState(
+    val tun: TunState? = null
+) {
+    val tunEnabled: Boolean get() = tun?.enable == true
+}
+
+@Serializable
 data class ConfigsUpdateRequest(
     val mode: String? = null,
     val logLevel: String? = null

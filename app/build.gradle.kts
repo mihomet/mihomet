@@ -17,7 +17,7 @@ val coreProperties = Properties().apply {
     val file = rootProject.file("gradle/mihomo-core.properties")
     if (file.exists()) file.inputStream().use { load(it) }
 }
-val coreVersion = coreProperties.getProperty("version") ?: "core-v1.19.33-mihomet.1"
+val coreVersion = coreProperties.getProperty("version") ?: "core-v1.19.33-mihomet.3"
 val coreCacheDir = rootProject.layout.projectDirectory.dir(".mihomo-core-cache")
 
 val downloadMihomoCore by tasks.registering {
@@ -113,8 +113,8 @@ android {
         applicationId = "org.mihomet.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
