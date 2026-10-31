@@ -4,21 +4,28 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.mihomet.app.core.CoreConstants
 import org.mihomet.app.data.crypto.SecretsCipher
+import org.mihomet.app.data.db.AppDatabase
+import org.mihomet.app.data.db.ProfileDao
 import java.io.IOException
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "mihomet_settings")
 
-class SettingsRepository(private val context: Context) {
+class SettingsRepository(
+    private val context: Context,
+    private val profileDao: ProfileDao
+) {
 
     // Guard against racing collectors generating different secrets in parallel
     @Volatile
@@ -146,7 +153,7 @@ class SettingsRepository(private val context: Context) {
         return secretMutex.withLock {
             cachedSecret?.let { return it }
             val generated = CoreConstants.generateRandomHexSecret()
-            val encrypted = SecretsCipher.encrypt(generated)
+            val encrypted = encryptControllerSecretOrPlaintext(generated)
             context.dataStore.edit { preferences ->
                 // Overwrite unconditionally: an undecryptable value is garbage
                 preferences[PreferencesKeys.CONTROLLER_SECRET] = encrypted
@@ -157,16 +164,108 @@ class SettingsRepository(private val context: Context) {
     }
 
     /**
-     * Data-loss gate probe (external audit F12-а): `true` when the stored
-     * controller secret carries the encrypted marker, i.e. at least one secret
-     * has been encrypted under the AndroidKeyStore key. Wired into
-     * [SecretsCipher.keyGate] by [org.mihomet.app.MihometApplication] so the
-     * cipher refuses to (re)generate the Keystore key over existing encrypted
-     * data — a single fast DataStore read, in-memory after the first call.
+     * External audit N07-2: [SecretsCipher.encrypt] now fails closed
+     * ([SecretsCipher.SecretEncryptException]) when the Keystore key is missing
+     * while encrypted data exists, instead of silently returning plaintext. The
+     * controller secret is app-internal — losing its ciphertext costs at most a
+     * regeneration — so this caller degrades to plaintext persistence (logged)
+     * rather than blocking the whole settings stack.
      */
-    suspend fun hasEncryptedSecrets(): Boolean =
-        context.dataStore.data.first()[PreferencesKeys.CONTROLLER_SECRET]
-            ?.startsWith(SecretsCipher.MARKER) == true
+    private fun encryptControllerSecretOrPlaintext(value: String): String =
+        try {
+            SecretsCipher.encrypt(value)
+        } catch (e: SecretsCipher.SecretEncryptException) {
+            android.util.Log.e(
+                TAG,
+                "Controller secret cannot be encrypted (encryption key unavailable); storing it as plaintext",
+                e
+            )
+            value
+        }
+
+    /**
+     * Data-loss gate probe (external audit F12-а, extended by N07-1): `true`
+     * when at least one `enc1:` value exists anywhere secrets are persisted,
+     * i.e. data was encrypted under the AndroidKeyStore key and the cipher must
+     * never (re)generate it. Wired into [SecretsCipher.keyGate] by
+     * [org.mihomet.app.MihometApplication].
+     *
+     * Probed sources, cheapest first:
+     * - the controller secret (DataStore);
+     * - every stored Happ crypto keyring value (same DataStore snapshot);
+     * - every profile `url` / `customHeaders` (Room, one-shot
+     *   [ProfileDao.getAllProfilesOnce] query).
+     *
+     * The gate is CONSERVATIVE: a read error at any source (DataStore I/O,
+     * Room failure or timeout, corrupted keyring JSON) is reported as `true` —
+     * an error must never read as "no encrypted data", or a lost key would be
+     * regenerated over it. The pure decision core is
+     * [companion object][Companion.hasEncryptedSecrets].
+     *
+     * The Room probe is skipped while a Room migration is in flight
+     * ([AppDatabase.roomMigrationInFlight]): the probe would run from inside
+     * the migration thread and contend on the write connection the migration
+     * holds, and the encrypting migration (4→5) operates on columns that are
+     * plaintext by schema, so a probe can never contribute there.
+     */
+    suspend fun hasEncryptedSecrets(): Boolean {
+        val prefs = try {
+            context.dataStore.data.first()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.e(
+                TAG,
+                "Data-loss gate: DataStore read failed; conservatively assuming encrypted data exists",
+                e
+            )
+            return true
+        }
+        val controllerSecret = prefs[PreferencesKeys.CONTROLLER_SECRET]
+        if (controllerSecret?.startsWith(SecretsCipher.MARKER) == true) return true
+
+        val keyringRaw = prefs[PreferencesKeys.HAPP_CRYPTO_KEYS]
+        val keyringValues = if (keyringRaw.isNullOrBlank()) {
+            emptyList()
+        } else {
+            runCatching { Json.decodeFromString<Map<String, String>>(keyringRaw.trim()) }
+                .getOrElse {
+                    android.util.Log.e(
+                        TAG,
+                        "Data-loss gate: Happ keyring JSON unreadable; conservatively assuming encrypted data exists"
+                    )
+                    return true
+                }
+                .values.toList()
+        }
+        if (keyringValues.any { it.startsWith(SecretsCipher.MARKER) }) return true
+
+        if (AppDatabase.roomMigrationInFlight) {
+            // Room probe skipped (see KDoc); decide from the DataStore sources.
+            return hasEncryptedSecrets(controllerSecret, emptyList(), keyringValues)
+        }
+        val roomRows = try {
+            withTimeoutOrNull(ROOM_PROBE_TIMEOUT_MS) {
+                profileDao.getAllProfilesOnce().map { it.url to it.customHeaders }
+            } ?: run {
+                android.util.Log.e(
+                    TAG,
+                    "Data-loss gate: Room probe timed out; conservatively assuming encrypted data exists"
+                )
+                return true
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.e(
+                TAG,
+                "Data-loss gate: Room probe failed; conservatively assuming encrypted data exists",
+                e
+            )
+            return true
+        }
+        return hasEncryptedSecrets(controllerSecret, roomRows, keyringValues)
+    }
 
     /**
      * Returns the controller secret, or generates a random one on first use.
@@ -187,9 +286,10 @@ class SettingsRepository(private val context: Context) {
                 }
             // One-time legacy migration: a pre-encryption plaintext secret is
             // re-persisted encrypted (no-op when the Keystore is unavailable —
-            // the facade passthrough then never yields the marker).
+            // the facade passthrough then never yields the marker; an encryption
+            // refusal degrades to plaintext via the helper and skips the write).
             if (!existing.startsWith(SecretsCipher.MARKER)) {
-                val encrypted = SecretsCipher.encrypt(plain)
+                val encrypted = encryptControllerSecretOrPlaintext(plain)
                 if (encrypted.startsWith(SecretsCipher.MARKER)) {
                     context.dataStore.edit { preferences ->
                         if (preferences[PreferencesKeys.CONTROLLER_SECRET] == existing) {
@@ -204,7 +304,7 @@ class SettingsRepository(private val context: Context) {
         return secretMutex.withLock {
             cachedSecret?.let { return it }
             val generated = CoreConstants.generateRandomHexSecret()
-            val encrypted = SecretsCipher.encrypt(generated)
+            val encrypted = encryptControllerSecretOrPlaintext(generated)
             context.dataStore.edit { preferences ->
                 // Overwrite unconditionally: an undecryptable value is garbage
                 preferences[PreferencesKeys.CONTROLLER_SECRET] = encrypted
@@ -371,17 +471,35 @@ class SettingsRepository(private val context: Context) {
         return parseCryptoKeysJson(prefs[PreferencesKeys.HAPP_CRYPTO_KEYS])
     }
 
-    /** Adds or replaces the key stored under [id]. */
-    suspend fun setCryptoKey(id: String, key: String) {
+    /**
+     * Adds or replaces the key stored under [id].
+     *
+     * Returns [Result.failure] wrapping [SecretsCipher.SecretEncryptException]
+     * when the value cannot be encrypted (Keystore key unavailable while
+     * encrypted data exists, external audit N07-2): the DataStore edit aborts
+     * and the stored keyring is left untouched, so a raw AES key is never
+     * silently downgraded to plaintext. The caller must surface the failure —
+     * the user-typed key is not persisted and must be re-entered.
+     */
+    suspend fun setCryptoKey(id: String, key: String): Result<Unit> = try {
         context.dataStore.edit { prefs ->
             val updated = parseCryptoKeysJsonRaw(prefs[PreferencesKeys.HAPP_CRYPTO_KEYS]).toMutableMap()
             updated[id.trim()] = key.trim()
             // External audit F15b: every value is persisted encrypted (`enc1:`).
             // Legacy plaintext entries still present in the stored map are
-            // opportunistically re-encrypted by the same write.
+            // opportunistically re-encrypted by the same write. An encryption
+            // refusal propagates out of this transform and aborts the edit.
             prefs[PreferencesKeys.HAPP_CRYPTO_KEYS] =
                 Json.encodeToString(encodeCryptoKeys(updated, SecretsCipher::encrypt))
         }
+        Result.success(Unit)
+    } catch (e: SecretsCipher.SecretEncryptException) {
+        android.util.Log.e(
+            TAG,
+            "Happ key '$id' cannot be encrypted (encryption key unavailable); keyring left unchanged",
+            e
+        )
+        Result.failure(e)
     }
 
     /** Removes the key stored under [id] (no-op when absent). */
@@ -420,13 +538,39 @@ class SettingsRepository(private val context: Context) {
     companion object {
         private const val TAG = "SettingsRepository"
 
+        /** Upper bound for the data-loss gate's Room probe (see [hasEncryptedSecrets]). */
+        private const val ROOM_PROBE_TIMEOUT_MS = 3_000L
+
+        /**
+         * Pure decision core of the data-loss gate [hasEncryptedSecrets]
+         * (JVM-testable, external audit N07-1): `true` when any probed source
+         * carries the [SecretsCipher.MARKER]. [datastoreSecret] is the stored
+         * controller secret (may be null/blank), [roomRows] are the
+         * `url to customHeaders` pairs of all profiles, [keyringValues] are the
+         * raw stored keyring values (`enc1:` ciphertext or legacy plaintext).
+         * Read errors are handled upstream (conservative `true`) — this core is
+         * total and never throws.
+         */
+        internal fun hasEncryptedSecrets(
+            datastoreSecret: String?,
+            roomRows: List<Pair<String, String>>,
+            keyringValues: List<String>
+        ): Boolean =
+            datastoreSecret?.startsWith(SecretsCipher.MARKER) == true ||
+                roomRows.any { (url, headers) ->
+                    url.startsWith(SecretsCipher.MARKER) || headers.startsWith(SecretsCipher.MARKER)
+                } ||
+                keyringValues.any { it.startsWith(SecretsCipher.MARKER) }
+
         /**
          * At-rest encryption of the Happ crypto keyring (external audit F15b): the
          * stored JSON keeps its `{id: value}` shape, but every value is written
          * through [SecretsCipher.encryptIfSecret] so it lands as `enc1:` ciphertext
          * instead of the raw AES key. The [encryptFn] seam is JVM-testable;
          * production passes the Keystore-backed [SecretsCipher.encrypt], which
-         * degrades to passthrough when the Keystore is unavailable.
+         * either encrypts, degrades to passthrough (Keystore unusable wholesale —
+         * documented), or throws [SecretsCipher.SecretEncryptException] (fail
+         * closed while encrypted data exists, external audit N07-2).
          */
         internal fun encodeCryptoKeys(
             stored: Map<String, String>,

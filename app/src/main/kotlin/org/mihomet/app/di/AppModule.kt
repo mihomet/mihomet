@@ -31,7 +31,10 @@ val appModule = module {
     single { get<AppDatabase>().profileDao() }
 
     // Repositories & Managers
-    single { SettingsRepository(androidContext()) }
+    // SettingsRepository needs ProfileDao for the data-loss gate probe
+    // (SettingsRepository.hasEncryptedSecrets, external audit N07-1); Room is
+    // built lazily and only opened when the probe actually runs.
+    single { SettingsRepository(androidContext(), get()) }
     single { CoreManager(androidContext()) }
     single { FirewallManager() }
     single { SubscriptionRepository(androidContext(), get(), get()) }
