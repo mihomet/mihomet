@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.1 — external audit recheck (hardening wave 2)
+
+### Root / firewall
+- Per-command verification of root shell results, TPROXY post-check,
+  mode-switch serialization, atomic OEM rule publishing (recheck N03/N04/N06)
+
+### Security
+- Subscription data (URL, headers) is encrypted BEFORE any disk write;
+  keyring add/remove results surfaced to the UI (recheck N07)
+- Conservative Keystore encryption gate + typed encrypt failures — a refused
+  encryption never leaves a half-written store behind
+
+### Docs
+- Root-mode DNS interception path documented (N08); AGENTS.md refresh
+
+## 1.2.0 — external audit response (hardening)
+
 ### Hardening (external audit response)
 - All P0 findings fixed: Keystore lifecycle, non-root TUN (patched core),
   firewall whitelist semantics, fail-closed profiles, local proxy listener
@@ -14,6 +31,19 @@
   worker refresh validated too
 - Honest DNS policy disclosure; updater scope disclosure (root daemon only);
   Happ crypto keyring values encrypted
+
+### Core
+- Core releases moved to the dedicated **mihomet/core** repository
+  (patched mihomo v1.19.33, Tropa-derived non-root TUN fix); binary retargeted
+  to `ANDROID_PLATFORM=android-26` — fixes a silent exit on Android 8–13
+- OEM firewall chain save/restore + per-brand setup hints (OnePlus/Realme/ColorOS)
+
+## 1.1.1 — widget & reliability
+
+- Home-screen widget: status + one-tap toggle (RemoteViews, 30-min refresh)
+- Connection & memory stats on the dashboard; log export/share
+- Battery-optimization prompt (once per install), `allowBypass` and
+  HTTP-proxy-through-VPN options
 
 ## 1.1.0 — ecosystem compatibility & reliability
 
@@ -47,8 +77,6 @@
 - RU/EN full localization incl. converter warnings, YAML syntax highlighting
 - Advanced overrides: unified-delay, tcp-concurrent, log-level, sniffer
 - Autostart on boot, TUN stack/MTU/bypass-LAN settings, live-traffic tweaks
-- Home-screen widget (status + toggle), connection/memory stats, log export/share
-- Battery-optimization prompt, allowBypass and HTTP-proxy-through-VPN options
 
 ## 1.0.0 — first public release
 

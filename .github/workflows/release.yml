@@ -54,6 +54,60 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/mihomet-release.jks"
 
+      # Audit P3.4: a vX.Y.Z tag must have matching release notes in CHANGELOG.md.
+      - name: Check CHANGELOG has the release heading
+        run: |
+          set -euo pipefail
+          if [[ ! "${GITHUB_REF_NAME}" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "Tag ${GITHUB_REF_NAME} is not vX.Y.Z — CHANGELOG check skipped."
+            exit 0
+          fi
+          VERSION="${GITHUB_REF_NAME#v}"
+          if ! grep -Eq "^## ${VERSION}([[:space:]]|$)" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## ${VERSION}' heading. Add the release notes before tagging."
+            exit 1
+          fi
+          echo "CHANGELOG.md contains the '## ${VERSION}' heading."
+
+      # Audit P2.6: the versionCode must be strictly greater than the versionCode of
+      # the latest published release (Android refuses otherwise-identical installs).
+      # The previous code is read from the last release's version-info.json asset;
+      # the check is skipped when the API is unreachable or no baseline exists yet.
+      - name: Check versionCode monotonicity
+        run: |
+          set -euo pipefail
+          CODE="$(sed -n 's/^[[:space:]]*versionCode[[:space:]]*=[[:space:]]*\([0-9][0-9]*\).*/\1/p' app/build.gradle.kts | head -1)"
+          if [ -z "$CODE" ]; then
+            echo "::error::versionCode not found in app/build.gradle.kts"
+            exit 1
+          fi
+          echo "versionCode (app/build.gradle.kts): $CODE"
+          LATEST_JSON="$(curl -sf --max-time 20 -H 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest" || true)"
+          if [ -z "$LATEST_JSON" ]; then
+            echo "GitHub API unavailable — versionCode check skipped."
+            exit 0
+          fi
+          PREV_URL="$(printf '%s' "$LATEST_JSON" \
+            | grep -o '"browser_download_url":[[:space:]]*"[^"]*version-info\.json"' \
+            | head -1 | sed 's/.*"\(https[^"]*\)"/\1/')"
+          if [ -z "$PREV_URL" ]; then
+            echo "Latest release has no version-info.json asset — no baseline, check skipped."
+            exit 0
+          fi
+          PREV_CODE="$(curl -sfL --max-time 20 "$PREV_URL" \
+            | grep -o '"versionCode":[[:space:]]*[0-9]*' | grep -o '[0-9]*' | head -1)"
+          if [ -z "$PREV_CODE" ]; then
+            echo "version-info.json unreadable — versionCode check skipped."
+            exit 0
+          fi
+          echo "versionCode (latest published release): $PREV_CODE"
+          if [ "$CODE" -le "$PREV_CODE" ]; then
+            echo "::error::versionCode must be strictly greater than the latest published release (${PREV_CODE}); got ${CODE}"
+            exit 1
+          fi
+          echo "versionCode monotonicity OK (${CODE} > ${PREV_CODE})."
+
       - name: Build release APK
         env:
           KEYSTORE_FILE: ${{ runner.temp }}/mihomet-release.jks
@@ -67,8 +121,20 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           mv app/build/outputs/apk/release/app-release.apk "Mihomet-v${VERSION}.apk"
 
+      # Machine-readable version metadata published with every release; the
+      # versionCode-monotonicity check of the NEXT release reads it back.
+      - name: Write version info asset
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          CODE="$(sed -n 's/^[[:space:]]*versionCode[[:space:]]*=[[:space:]]*\([0-9][0-9]*\).*/\1/p' app/build.gradle.kts | head -1)"
+          printf '{\n  "versionName": "%s",\n  "versionCode": %s\n}\n' "$VERSION" "$CODE" > version-info.json
+          cat version-info.json
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: Mihomet-*.apk
+          files: |
+            Mihomet-*.apk
+            version-info.json
           generate_release_notes: true
