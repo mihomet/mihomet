@@ -61,7 +61,15 @@
 5. ✅ `FOREGROUND_SERVICE_IMMEDIATE` + core watchdog (auto-restart ×3) + Always-on (null-intent restart, onRevoke) + root-daemon watchdog (10s monitor, backoff ×3) + автообновление подписок по update-interval (WorkManager)
 6. ⬜ Смена сети → реконнект core-соединений (аналог FlClash `Core.resetNetwork`), screen-on обновление скорости
 7. ⬜ Always-on VPN + `onRevoke` graceful
-7.5 ✅ Реализовано дополнительно (утренняя сессия): виджет рабочего стола (status+toggle),
+7.5 ✅ Реализовано дополнительно (утренняя сессия + волны по повторному аудиту):
+   - Исправлено: whitelist-инверсия iptables, IPv6 mark 20/25 по family, fail-closed
+     на невалидном профиле + last-known-good, mixed-port убран, Keystore lifecycle,
+     readiness-гейт (/configs tun.enable), OEM chain save/restore, updater rollback.
+   - В работе (волна A): firewall DNS-hijack для TCP:53 + unified empty-whitelist,
+     VPN exit-ownership/cleanup, root readiness + rollback, watchdog stability window.
+   - Остаток (P2): стриминг готов (частично), DoH UI-дисклеймер, updater scope
+     disclosure, keyring encryption, OEM chain per-brand restore — в TODO.
+ виджет рабочего стола (status+toggle),
     автостарт на загрузке (последний успешный режим), TUN stack/MTU/bypass-LAN (CMFA
     additive-паттерн), QR-код подписки, стриминг-лимит тела 20 МБ, экспорт/шеринг логов,
     memory/connections на дашборде. N3 в работе: battery-промпты, allowBypass, HTTP-proxy
