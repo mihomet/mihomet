@@ -115,6 +115,12 @@ object ConfigGenerator {
         configMap["secret"] = settings.controllerSecret.ifBlank { CoreConstants.generateRandomHexSecret() }
 
         // DNS configuration
+        // Root (TProxy) mode note: intercepted DNS packets (dst port 53, any family)
+        // enter the tunnel and are handled by the tunnel/rules — mihomo's tproxy
+        // listener does NOT automatically forward them to dns.listen (no TUN
+        // dns-hijack outside VPN mode). dns.listen below serves the DNS entry that
+        // apps reach when explicitly pointed at it. Do not treat dnsPort as a
+        // firewall parameter — the firewall only needs the tproxy port.
         val existingDns = (configMap["dns"] as? Map<String, Any>)?.toMutableMap() ?: mutableMapOf()
         existingDns["enable"] = true
         existingDns["listen"] = "${CoreConstants.DEFAULT_CONTROLLER_HOST}:${settings.dnsPort}"
