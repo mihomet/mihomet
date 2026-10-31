@@ -128,8 +128,8 @@ class ConfigGeneratorWhitelistStrictTest {
         )
 
         val dropped = outcome.warnings
-            .filter { it.startsWith("Из профиля удалён ключ вне белого списка: ") }
-            .map { it.removePrefix("Из профиля удалён ключ вне белого списка: ") }
+            .filterIsInstance<org.mihomet.app.core.config.ConversionWarning.ProfileKeyDropped>()
+            .map { it.key }
             .toSet()
 
         for (key in listOf(
@@ -141,21 +141,26 @@ class ConfigGeneratorWhitelistStrictTest {
             assertTrue("dropped key '$key' must produce a warning (got $dropped)", key in dropped)
         }
         // Each warning names exactly one family — no combined lump
-        assertTrue(outcome.warnings.all { !it.contains(",") })
+        assertTrue(outcome.warnings.all { (it as? org.mihomet.app.core.config.ConversionWarning.ProfileKeyDropped)?.key?.contains(",") != true })
         assertTrue(outcome.warnings.isNotEmpty())
     }
 
     @Test
-    fun `whitelist warning literal localizes through WarningLocalizer pattern`() {
-        val warning = "Из профиля удалён ключ вне белого списка: listeners"
-        val localized = WarningLocalizer.localizePattern(warning)
+    fun `profile key dropped warning localizes through the typed WarningLocalizer mapping`() {
+        val localized = WarningLocalizer.resolve(
+            org.mihomet.app.core.config.ConversionWarning.ProfileKeyDropped("listeners")
+        )
 
         assertNotNull("whitelist warning must be recognized by the localizer", localized)
         assertEquals(org.mihomet.app.R.string.conv_warning_profile_key_dropped, localized!!.first)
-        assertEquals(listOf("listeners"), localized.second)
+        assertEquals(listOf<String?>("listeners"), localized.second)
 
-        // Unrelated warnings keep passing through untouched
-        assertNull(WarningLocalizer.localizePattern("Из профиля удалён ключ: listeners"))
+        // The mapping is type-driven (no string-prefix matching to break):
+        // a different warning kind maps to a different resource.
+        assertNotEquals(
+            localized.first,
+            WarningLocalizer.resolve(org.mihomet.app.core.config.ConversionWarning.NoNodes).first
+        )
     }
 
     @Test
@@ -172,7 +177,8 @@ class ConfigGeneratorWhitelistStrictTest {
     fun `profileKeyWarnings is pure and matches runtime drops`() {
         val warnings = ConfigGenerator.profileKeyWarnings(hostileProfile)
         val dropped = warnings
-            .map { it.removePrefix("Из профиля удалён ключ вне белого списка: ") }
+            .filterIsInstance<org.mihomet.app.core.config.ConversionWarning.ProfileKeyDropped>()
+            .map { it.key }
             .toSet()
 
         assertTrue("listeners must be reported at import time", "listeners" in dropped)

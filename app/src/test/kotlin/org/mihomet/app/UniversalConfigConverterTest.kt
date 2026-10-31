@@ -424,7 +424,13 @@ class UniversalConfigConverterTest {
 
         val outcome = UniversalConfigConverter.convertToMihomoYamlWithOutcome(uriList)
 
-        assertTrue(outcome.warnings.any { it.contains("Не удалось распознать узел") })
+        assertTrue(
+            "expected an UnrecognizedNode warning for the junk URI, got: ${outcome.warnings}",
+            outcome.warnings.any {
+                it is org.mihomet.app.core.config.ConversionWarning.UnrecognizedNode &&
+                        it.uri.contains("junk-protocol://something@nowhere:1")
+            }
+        )
         val yaml = Yaml()
         val parsed = yaml.load<Map<String, Any>>(outcome.yaml)
         val proxies = parsed["proxies"] as List<Map<String, Any>>
@@ -455,8 +461,11 @@ class UniversalConfigConverterTest {
         val outcome = UniversalConfigConverter.convertToMihomoYamlWithOutcome(brokenYaml)
 
         assertTrue(
-            "Expected a 'Ошибка YAML:' warning, got: ${outcome.warnings}",
-            outcome.warnings.any { it.startsWith("Ошибка YAML: ") }
+            "Expected a YamlError warning, got: ${outcome.warnings}",
+            outcome.warnings.any {
+                it is org.mihomet.app.core.config.ConversionWarning.YamlError &&
+                        !it.message.isNullOrBlank()
+            }
         )
         // Original content is preserved (never dropped or replaced by an empty config)
         assertTrue(outcome.yaml.contains("proxies: [unclosed"))

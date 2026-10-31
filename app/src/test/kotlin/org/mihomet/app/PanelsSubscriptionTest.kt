@@ -104,7 +104,8 @@ class PanelsSubscriptionTest {
             )
         }
         val drops = outcome.warnings.count {
-            it.startsWith("Не удалось распознать узел") || it.startsWith("Ошибка разбора узла")
+            it is org.mihomet.app.core.config.ConversionWarning.UnrecognizedNode ||
+                    it is org.mihomet.app.core.config.ConversionWarning.ProxyParseError
         }
         if (drops != unsupported + pseudoLinks) {
             fail(
