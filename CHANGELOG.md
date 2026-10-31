@@ -1,5 +1,20 @@
 # Changelog
 
+### Hardening (external audit response)
+- All P0 findings fixed: Keystore lifecycle, non-root TUN (patched core),
+  firewall whitelist semantics, fail-closed profiles, local proxy listener
+- Root: readiness gate + full rollback (firewall/Private DNS/OEM chains),
+  watchdog stability window; OEM firewall chain snapshots restored
+- VPN: TUN-attached readiness gate (connected only when the tunnel is real),
+  exit-branch ownership and cleanup, mode-switch serialization
+- Firewall: DNS hijack covers TCP:53, policy-rule purge filtered by our fwmark,
+  sysctl backup/restore, killall replaced with path-specific matching
+- Subscriptions: streamed download with hard byte cap (works without
+  Content-Length), semantic profile validation + atomic writes,
+  worker refresh validated too
+- Honest DNS policy disclosure; updater scope disclosure (root daemon only);
+  Happ crypto keyring values encrypted
+
 ## 1.1.0 — ecosystem compatibility & reliability
 
 ### Happ / Incy ecosystem
