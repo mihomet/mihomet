@@ -1,38 +1,20 @@
 package org.mihomet.app.core.vpn
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.ServiceInfo
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
-import android.net.ProxyInfo
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.os.PowerManager
-import android.system.Os
-import android.system.OsConstants
-import androidx.core.app.NotificationCompat
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeout
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.mihomet.app.R
@@ -48,31 +30,21 @@ import org.mihomet.app.ui.MainActivity
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-class MihometVpnService : VpnService(), KoinComponent {
+/**
+ * Thin orchestrator for the non-root VPN mode: owns the service lifecycle and
+ * the shared start/stop mutex, and delegates the individual responsibilities
+ * to collaborators in this package — [TunBuilder] (VpnService.Builder
+ * configuration incl. per-app split tunneling), [CoreProcessLauncher] (core
+ * process spawn + fd 3 handoff), [CoreReadinessProbe] (REST /version gate),
+ * [CoreWatchdog] (exit restarts with backoff), [VpnNotificationController]
+ * (channel, notification, live speed) and [UnderlyingNetworkTracker]
+ * (roaming / underlying networks).
+ */
+class MihometVpnService : VpnService(), KoinComponent, CoreWatchdog.Hooks {
 
     companion object {
         const val ACTION_START = "org.mihomet.app.action.VPN_START"
         const val ACTION_STOP = "org.mihomet.app.action.VPN_STOP"
-        private const val CHANNEL_ID = "mihomet_vpn_channel"
-        private const val NOTIFICATION_ID = 1002
-
-        /** Max automatic core restarts after abnormal exit before giving up (CMFA/FlClash watchdog). */
-        private const val MAX_CORE_RESTARTS = 3
-
-        /** Backoff base for core restarts: delay = CORE_RESTART_BACKOFF_MS * attempt. */
-        private const val CORE_RESTART_BACKOFF_MS = 2000L
-
-        /** Total budget for the core REST API readiness gate after the process spawns. */
-        private const val CORE_READINESS_TIMEOUT_MS = 15_000L
-
-        /** Per-probe cap so a hanging /version call cannot stretch the readiness budget. */
-        private const val CORE_READINESS_PROBE_TIMEOUT_MS = 2_000L
-
-        /** Interval between core REST API readiness probes. */
-        private const val CORE_READINESS_INTERVAL_MS = 500L
-
-        /** Uptime (with reachable API) the core must reach before the restart counter resets. */
-        private const val CORE_STABILITY_DELAY_MS = 30_000L
 
         fun start(context: Context) {
             val intent = Intent(context, MihometVpnService::class.java).apply {
@@ -104,49 +76,33 @@ class MihometVpnService : VpnService(), KoinComponent {
     private val apiClientProvider: org.mihomet.app.data.api.MihomoApiClientProvider by inject()
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private var speedJob: Job? = null
-    private var screenStateReceiver: BroadcastReceiver? = null
-    private var isScreenOn = true
-    private var speedBaseText: String? = null
     private val vpnMutex = Mutex()
+
+    private val notifications by lazy {
+        VpnNotificationController(this, serviceScope, apiClientProvider, settingsRepository)
+    }
+    private val processLauncher by lazy { CoreProcessLauncher(this, coreManager) }
+    private val readinessProbe by lazy { CoreReadinessProbe(apiClientProvider) }
+    private val networkTracker by lazy { UnderlyingNetworkTracker(this, serviceScope, apiClientProvider) }
+    private val coreWatchdog by lazy { CoreWatchdog(serviceScope, vpnMutex, hooks = this) }
 
     /** True while a user-initiated stop is in progress; blocks the core watchdog from restarting. */
     @Volatile
     private var isStopping = false
 
-    /**
-     * Consecutive automatic core restart attempts. Reset to 0 only after the
-     * core has stayed up with a reachable API for [CORE_STABILITY_DELAY_MS], so
-     * a crash-looping core cannot renew its restart budget on every spawn.
-     */
-    @Volatile
-    private var coreRestartAttempts = 0
-
     private var vpnInterface: ParcelFileDescriptor? = null
     private var mihomoProcess: Process? = null
     private var wakeLock: PowerManager.WakeLock? = null
-    private var connectivityManager: ConnectivityManager? = null
-    private var networkCallback: ConnectivityManager.NetworkCallback? = null
-    private var currentActiveNetwork: Network? = null
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
+        notifications.createChannel()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                val notification = buildNotification(getString(R.string.vpn_notification_starting))
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    startForeground(
-                        NOTIFICATION_ID,
-                        notification,
-                        ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED
-                    )
-                } else {
-                    startForeground(NOTIFICATION_ID, notification)
-                }
+                startForegroundWithNotification()
                 serviceScope.launch {
                     startVpn()
                 }
@@ -167,22 +123,26 @@ class MihometVpnService : VpnService(), KoinComponent {
             // System restarted the service (Always-on VPN / START_STICKY path):
             // restore the tunnel from persisted settings, like CMFA does
             null -> {
-                val notification = buildNotification(getString(R.string.vpn_notification_starting))
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    startForeground(
-                        NOTIFICATION_ID,
-                        notification,
-                        ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED
-                    )
-                } else {
-                    startForeground(NOTIFICATION_ID, notification)
-                }
+                startForegroundWithNotification()
                 serviceScope.launch {
                     startVpn()
                 }
             }
         }
         return START_STICKY
+    }
+
+    private fun startForegroundWithNotification() {
+        val notification = notifications.build(getString(R.string.vpn_notification_starting))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(
+                VpnNotificationController.NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED
+            )
+        } else {
+            startForeground(VpnNotificationController.NOTIFICATION_ID, notification)
+        }
     }
 
     override fun onRevoke() {
@@ -267,153 +227,15 @@ class MihometVpnService : VpnService(), KoinComponent {
             }
 
             // "Settings" button in the system VPN dialog opens our app (CMFA/FlClash pattern)
-            val configureIntent = PendingIntent.getActivity(
+            val configureIntent = android.app.PendingIntent.getActivity(
                 this,
                 2,
                 Intent(this, MainActivity::class.java),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
             )
 
-            // Build TUN interface with non-blocking mode; MTU comes from settings
-            // (clamped to 1280..65535, default 9000 — CMFA standard for gVisor) and
-            // must match ConfigGenerator's tun.mtu.
-            val builder = Builder()
-                .setSession("Mihomet")
-                .setMtu(org.mihomet.app.data.preferences.TunOptions.sanitizeMtu(settings.tunMtu))
-                .setBlocking(false)
-                .setConfigureIntent(configureIntent)
-                .addAddress(CoreConstants.TUN_IPV4_ADDR, CoreConstants.TUN_IPV4_PREFIX)
-                .addDnsServer(CoreConstants.TUN_IPV4_DNS)
-
-            if (settings.bypassLan) {
-                // CMFA bypassPrivateNetwork pattern: Android VPN routes are additive,
-                // so bypassing private networks means routing the COMPLEMENT (every
-                // public unicast prefix) into the tunnel and leaving 10/8, 172.16/12,
-                // 192.168/16, link-local and multicast to the underlying network.
-                CoreConstants.TUN_BYPASS_LAN_ROUTES_V4.forEach { (net, prefix) ->
-                    builder.addRoute(net, prefix)
-                }
-                // Virtual DNS (inside the fake-ip range) is not covered by the
-                // complement — explicit host route, exactly like CMFA.
-                builder.addRoute(CoreConstants.TUN_IPV4_DNS, 32)
-            } else {
-                builder.addRoute("0.0.0.0", 0)
-            }
-
-            // Always trap IPv6 into TUN interface to prevent carrier leakage / Happy Eyeballs hangs in Telegram
-            builder.addAddress(CoreConstants.TUN_IPV6_ADDR, CoreConstants.TUN_IPV6_PREFIX)
-            builder.addDnsServer(CoreConstants.TUN_IPV6_DNS)
-            if (settings.bypassLan) {
-                // Same complement for IPv6: global unicast stays captured (no carrier
-                // leak), while fe80::/10 (link-local) and fc00::/7 (ULA — the "private"
-                // IPv6 ranges) bypass to the underlying network like their IPv4 peers.
-                CoreConstants.TUN_BYPASS_LAN_ROUTES_V6.forEach { (net, prefix) ->
-                    builder.addRoute(net, prefix)
-                }
-                // The virtual IPv6 DNS is a ULA address (fdfe:…::2) — outside the
-                // complement — so it needs its own host route (CMFA TUN_DNS6/128).
-                builder.addRoute(CoreConstants.TUN_IPV6_DNS, 128)
-            } else {
-                builder.addRoute("::", 0)
-            }
-
-            // Do not mark VPN traffic as metered when underlying network is unmetered Wi-Fi (API 29+)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                builder.setMetered(false)
-            }
-
-            // CMFA/FlClash allowBypass pattern (opt-in): apps that explicitly request
-            // the bypass option may route around the VPN. Off by default — with the
-            // default, Android blocks applications' bypass attempts, so nothing can
-            // escape the tunnel without the user's consent.
-            if (settings.vpnAllowBypass && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                builder.allowBypass()
-            }
-
-            // CMFA/FlClash setHttpProxy pattern (opt-in): publish a local HTTP proxy
-            // to apps that honor the system proxy inside the VPN profile. Requires
-            // ConfigGenerator to re-enable the mixed-port listener for this session
-            // (see the documented security compromise there): the listener binds to
-            // 127.0.0.1 only (bind-address), is UNAUTHENTICATED, and any on-device
-            // app can reach it directly — the user consciously opted in via
-            // Settings → Advanced, so this does not violate "no silent exposure".
-            if (settings.vpnHttpProxy && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                runCatching {
-                    builder.setHttpProxy(
-                        ProxyInfo.buildDirectProxy("127.0.0.1", settings.mixedPort)
-                    )
-                }.onFailure {
-                    android.util.Log.w("MihometVpn", "setHttpProxy failed: ${it.message}")
-                }
-            }
-
-            // Per-app split tunneling (VpnService does not allow mixing allowed and disallowed apps)
-            val pm = packageManager
-            when (settings.perAppMode) {
-                org.mihomet.app.data.preferences.PerAppMode.WHITELIST -> {
-                    // "Only selected" mode: route ONLY the picked apps through the VPN.
-                    //
-                    // Android quirk: a VpnService established without a single
-                    // addAllowedApplication() call routes EVERY app ("absent allow
-                    // list" means "allow all"), which contradicts the "only selected"
-                    // expectation. An empty selection therefore deliberately behaves
-                    // like ALL mode — everything except our own app is proxied; the
-                    // Routing screen shows a hint for this state
-                    // (R.string.perapp_empty_whitelist).
-                    if (settings.selectedAppUids.isEmpty()) {
-                        // Same config as ALL mode: exclude only our own app so the
-                        // core's traffic does not loop back into the TUN it feeds.
-                        builder.addDisallowedApplication(packageName)
-                    } else {
-                        // Count the packages ACTUALLY added (audit N02):
-                        // getPackagesForUid can return nothing for a stale uid and
-                        // addAllowedApplication can fail — with zero entries added
-                        // the "absent allow list = allow all" quirk would silently
-                        // route EVERY app, including ours (→ TUN loop).
-                        var addedCount = 0
-                        settings.selectedAppUids.forEach { uid ->
-                            pm.getPackagesForUid(uid)?.forEach { pkg ->
-                                // Never allow our own package, even if the user picked
-                                // Mihomet itself: the core runs inside our uid, so its
-                                // outbound traffic would loop into the TUN interface.
-                                if (pkg != packageName) {
-                                    runCatching { builder.addAllowedApplication(pkg) }
-                                        .onSuccess { addedCount++ }
-                                }
-                            }
-                        }
-                        if (addedCount == 0) {
-                            // Degenerate selection (only Mihomet picked, stale uids,
-                            // or every add failed): fall back to the ALL-mode shape —
-                            // the explicit disallow keeps the "proxy everything"
-                            // semantics AND excludes our own app, so the quirk can
-                            // neither surprise the user nor loop our traffic. The
-                            // Routing screen warns about the only-self state
-                            // (R.string.perapp_only_self).
-                            android.util.Log.w(
-                                "MihometVpn",
-                                "Per-app whitelist: 0 of ${settings.selectedAppUids.size} selected uids actually allowed — excluding only our own package"
-                            )
-                            builder.addDisallowedApplication(packageName)
-                        }
-                    }
-                }
-                org.mihomet.app.data.preferences.PerAppMode.BLACKLIST -> {
-                    // Exclude our own app plus selected blacklisted apps
-                    builder.addDisallowedApplication(packageName)
-                    settings.selectedAppUids.forEach { uid ->
-                        pm.getPackagesForUid(uid)?.forEach { pkg ->
-                            if (pkg != packageName) {
-                                runCatching { builder.addDisallowedApplication(pkg) }
-                            }
-                        }
-                    }
-                }
-                org.mihomet.app.data.preferences.PerAppMode.ALL -> {
-                    // Exclude only our own app so core traffic doesn't loop
-                    builder.addDisallowedApplication(packageName)
-                }
-            }
+            val builder = TunBuilder(settings, packageName, packageManager)
+                .configure(Builder(), configureIntent)
 
             val pfd = builder.establish() ?: throw RuntimeException("Failed to establish VpnService")
             vpnInterface = pfd
@@ -427,27 +249,14 @@ class MihometVpnService : VpnService(), KoinComponent {
                 }
             }
 
-            // Clear FD_CLOEXEC so child process inherits the descriptor
-            val fd = pfd.fd
-            val fdObj = pfd.fileDescriptor
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                val currentFlags = Os.fcntlInt(fdObj, OsConstants.F_GETFD, 0)
-                Os.fcntlInt(fdObj, OsConstants.F_SETFD, currentFlags and OsConstants.FD_CLOEXEC.inv())
-            } else {
-                runCatching {
-                    val fcntlIntMethod = Os::class.java.getMethod("fcntlInt", java.io.FileDescriptor::class.java, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)
-                    val currentFlags = fcntlIntMethod.invoke(null, fdObj, OsConstants.F_GETFD, 0) as Int
-                    fcntlIntMethod.invoke(null, fdObj, OsConstants.F_SETFD, currentFlags and OsConstants.FD_CLOEXEC.inv())
-                }
-            }
+            val vpnRunDir = File(filesDir, "vpn_run")
+            val lastGoodConfigFile = File(vpnRunDir, "config.lastgood.yaml")
 
             // Pass fd 3 (duplicated from stdin via shell launcher)
             // Fail-closed (P0): a broken profile YAML must never start the core with an
             // empty config (everything routed to DIRECT while UI shows "connected").
             // If a last known-good runtime config exists from a previous successful
             // start, start the core with it and warn; otherwise abort the start.
-            val vpnRunDir = File(filesDir, "vpn_run")
-            val lastGoodConfigFile = File(vpnRunDir, "config.lastgood.yaml")
             var profileBroken = false
             val runtimeYaml = try {
                 ConfigGenerator.generateRuntimeConfig(
@@ -492,139 +301,22 @@ class MihometVpnService : VpnService(), KoinComponent {
                 }
             }
 
-            val vpnWorkDir = vpnRunDir.apply { mkdirs() }
-            coreManager.ensureGeoDatabases(vpnWorkDir)
-            val vpnConfigFile = File(vpnWorkDir, "config.yaml").apply {
-                writeText(runtimeYaml)
-            }
-            val vpnLogFile = File(vpnWorkDir, "mihomo.log")
-
-            val binaryPath = coreManager.getBundledLibraryPath()
-            val pb = ProcessBuilder(
-                "/system/bin/sh",
-                "-c",
-                "exec \"$binaryPath\" -d \"${vpnWorkDir.absolutePath}\" -f \"${vpnConfigFile.absolutePath}\" ${CoreConstants.TUN_FD_SHELL_REDIRECT}"
-            ).redirectInput(ProcessBuilder.Redirect.INHERIT)
-             .redirectErrorStream(true)
-             .redirectOutput(ProcessBuilder.Redirect.appendTo(vpnLogFile))
-
-            pb.environment()["HOME"] = vpnWorkDir.absolutePath
-            pb.environment()["TMPDIR"] = cacheDir.absolutePath
-
-            val savedStdin = runCatching { Os.dup(java.io.FileDescriptor.`in`) }.getOrNull()
-            val proc = try {
-                Os.dup2(fdObj, 0)
-                pb.start()
-            } finally {
-                if (savedStdin != null) {
-                    runCatching {
-                        Os.dup2(savedStdin, 0)
-                        Os.close(savedStdin)
-                    }
-                } else {
-                    runCatching {
-                        val devNull = Os.open("/dev/null", OsConstants.O_RDONLY, 0)
-                        Os.dup2(devNull, 0)
-                        Os.close(devNull)
-                    }
-                }
-            }
+            val launch = processLauncher.launch(runtimeYaml, vpnRunDir, pfd)
+            val proc = launch.process
+            val vpnLogFile = launch.logFile
             mihomoProcess = proc
 
             // Register NetworkCallback to handle WiFi <-> Mobile roaming dynamically
-            registerNetworkCallback()
+            networkTracker.register()
 
-            serviceScope.launch {
-                try {
-                    val exitCode = proc.waitFor()
-                    android.util.Log.d("MihometVpn", "Mihomo process exited with code $exitCode")
-                    // Ownership check: if the user stopped (or a newer start replaced the process),
-                    // this watchdog no longer owns the service state and must stay silent.
-                    // Every terminal branch below re-verifies ownership under the mutex
-                    // before touching state or resources (audit F08: a stale generation
-                    // must never reset the state of a newer one, and must never leave
-                    // the TUN fd / wake lock / foreground state behind).
-                    val watchdogOwnsProcess = mihomoProcess === proc && !isStopping
-                    when {
-                        !watchdogOwnsProcess -> {
-                            // User stop or a newer start owns the state — nothing to do
-                        }
-                        exitCode == 0 -> {
-                            // A clean core exit is terminal too: the tunnel is dead, so
-                            // the foreground service must not keep showing "connected"
-                            // with the TUN, wake lock and callbacks still held.
-                            // cleanupVpnResources() also flips ServiceState and widgets.
-                            android.util.Log.i("MihometVpn", "Core exited cleanly — tearing down")
-                            vpnMutex.withLock {
-                                // Re-check under the mutex: a user START may have
-                                // acquired it meanwhile and spawned a new generation.
-                                if (mihomoProcess === proc && !isStopping) {
-                                    cleanupVpnResources()
-                                    stopForeground(STOP_FOREGROUND_REMOVE)
-                                    stopSelf()
-                                }
-                            }
-                        }
-                        coreRestartAttempts < MAX_CORE_RESTARTS -> {
-                            // Automatic restart with linear backoff (CMFA/FlClash watchdog pattern)
-                            coreRestartAttempts++
-                            val attempt = coreRestartAttempts
-                            val tailLogs = runCatching { vpnLogFile.readLines().takeLast(10).joinToString("\n") }.getOrNull()
-                            android.util.Log.w("MihometVpn", "Core exited with $exitCode, restarting (attempt $attempt/$MAX_CORE_RESTARTS): $tailLogs")
-                            updateNotification(getString(R.string.vpn_restarting))
-                            // The dead generation's resources (TUN fd, wake lock,
-                            // callbacks) are deliberately NOT cleaned up here: the
-                            // mutex is free during the backoff so a user STOP/START
-                            // can win immediately, and cleanup without the mutex
-                            // could kill a NEW generation's resources (audit N05).
-                            delay(CORE_RESTART_BACKOFF_MS * attempt)
-                            // User may have pressed Stop during the backoff delay, or started fresh.
-                            // Serialize with user START/STOP so their action always wins.
-                            vpnMutex.withLock {
-                                // Ownership re-check under the mutex (audit N05):
-                                // clean up and restart only while this watchdog's
-                                // process is still the current generation — a user
-                                // START that acquired the mutex meanwhile spawned a
-                                // new generation whose resources must stay intact.
-                                if (!isStopping && mihomoProcess === proc) {
-                                    cleanupVpnResources()
-                                    startVpnInternal()
-                                }
-                            }
-                        }
-                        else -> {
-                            // Restart attempts exhausted — final failure: release the
-                            // TUN fd, wake lock, callbacks and foreground state before
-                            // reporting, instead of leaving a dead tunnel's resources held.
-                            val tailLogs = runCatching { vpnLogFile.readLines().takeLast(10).joinToString("\n") }.getOrNull()
-                            android.util.Log.e("MihometVpn", "Core exited with $exitCode, restarts exhausted: $tailLogs")
-                            vpnMutex.withLock {
-                                if (mihomoProcess === proc && !isStopping) {
-                                    cleanupVpnResources()
-                                    stopForeground(STOP_FOREGROUND_REMOVE)
-                                    stopSelf()
-                                    // Posted after stopForeground(REMOVE) so the system does
-                                    // not tear the notification down together with the
-                                    // foreground state, and non-ongoing so the user can
-                                    // dismiss it (same pattern as the readiness-fail path).
-                                    updateNotification(getString(R.string.vpn_error_core, exitCode), ongoing = false)
-                                }
-                            }
-                        }
-                    }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    android.util.Log.d("MihometVpn", "waitFor() canceled: ${e.message}")
-                }
-            }
+            coreWatchdog.watch(proc, vpnLogFile)
 
             // Readiness gate: the controller port may already be bound while the
             // core is still booting, and a spawned process alone proves nothing —
             // only a /version answer means the core (TUN fd handed over, API up)
             // is actually usable. Until then the UI must NOT show "connected".
             android.util.Log.d("MihometVpn", "Waiting for core readiness (REST API /version)")
-            if (!awaitCoreReadiness(proc)) {
+            if (!readinessProbe.await(proc) { isStopping || mihomoProcess !== proc }) {
                 // Ownership check: a user stop or a newer start (watchdog restart)
                 // owns the state now — stay silent, they are responsible for cleanup.
                 if (isStopping || mihomoProcess !== proc) {
@@ -638,7 +330,7 @@ class MihometVpnService : VpnService(), KoinComponent {
                 // process, and the service is torn down right after.
                 android.util.Log.e(
                     "MihometVpn",
-                    "Core did not answer the REST API within ${CORE_READINESS_TIMEOUT_MS / 1000}s — failing start"
+                    "Core did not answer the REST API within ${CoreReadinessProbe.TIMEOUT_MS / 1000}s — failing start"
                 )
                 abortStart(getString(R.string.vpn_error_core_timeout))
                 return
@@ -663,33 +355,20 @@ class MihometVpnService : VpnService(), KoinComponent {
             } else {
                 getString(R.string.vpn_connected, profileLabel)
             }
-            speedBaseText = baseText
-            updateNotification(baseText)
+            notifications.baseText = baseText
+            notifications.update(baseText)
 
-            registerScreenStateReceiver()
+            notifications.registerScreenStateReceiver()
 
             // Live speed in the notification (optional toggle in settings).
             // Updates run only while the screen is on (FlClash pattern) — a 1 Hz
             // notification refresh in the pocket wastes battery for nothing.
-            speedJob?.cancel()
-            if (settings.showSpeedInNotification && isScreenOn) {
-                startSpeedUpdates()
+            notifications.stopSpeedUpdates()
+            if (settings.showSpeedInNotification && notifications.screenOn) {
+                notifications.startSpeedUpdates()
             }
 
-            // Stability gate: the watchdog restart counter is wiped only after this
-            // exact process has been up with a reachable API for a while. Resetting
-            // at spawn (old behavior) let a crash-looping core renew its budget on
-            // every cycle, so MAX_CORE_RESTARTS never exhausted.
-            serviceScope.launch {
-                delay(CORE_STABILITY_DELAY_MS)
-                if (!isStopping && mihomoProcess === proc && proc.isAlive) {
-                    android.util.Log.d(
-                        "MihometVpn",
-                        "Core stable for ${CORE_STABILITY_DELAY_MS / 1000}s — coreRestartAttempts reset"
-                    )
-                    coreRestartAttempts = 0
-                }
-            }
+            coreWatchdog.scheduleStabilityReset(proc)
         } catch (e: Exception) {
             android.util.Log.e("MihometVpn", "startVpn() exception", e)
             // Release whatever was already acquired (TUN interface, wake lock) so a
@@ -697,7 +376,7 @@ class MihometVpnService : VpnService(), KoinComponent {
             // does not leak resources until the next start attempt.
             cleanupVpnResources()
             ServiceState.stopService(org.mihomet.app.core.RunningService.VPN)
-            updateNotification(getString(R.string.vpn_error, e.message ?: "null"))
+            notifications.update(getString(R.string.vpn_error, e.message ?: "null"))
             e.printStackTrace()
         }
     }
@@ -715,97 +394,35 @@ class MihometVpnService : VpnService(), KoinComponent {
         cleanupVpnResources()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
-        updateNotification(message, ongoing = false)
+        notifications.update(message, ongoing = false)
     }
 
-    /**
-     * Polls the core REST API (`GET /version`) until it answers, the core
-     * process goes away, a stop is requested, or [CORE_READINESS_TIMEOUT_MS]
-     * elapses. Called with the start mutex held, so the watchdog restart path
-     * cannot race a readiness probe.
-     */
-    private suspend fun awaitCoreReadiness(proc: Process): Boolean {
-        val deadline = System.currentTimeMillis() + CORE_READINESS_TIMEOUT_MS
-        while (!isStopping && mihomoProcess === proc && proc.isAlive) {
-            val answered = runCatching {
-                withTimeout(CORE_READINESS_PROBE_TIMEOUT_MS) {
-                    val api = apiClientProvider.current()
-                    // /version alone proves the process — a live core with a dead TUN
-                    // (audit §5/F04) must not report connected: verify the tunnel too
-                    // VPN path: the core must have actually attached the TUN fd —
-                    // a live API with a dead TUN must not report connected (audit F04)
-                    val configs = api.getConfigs().getOrNull()
-                    configs != null && configs.tunEnabled
-                }
-            }.getOrDefault(false)
-            if (answered) return true
-            if (System.currentTimeMillis() >= deadline) break
-            delay(CORE_READINESS_INTERVAL_MS)
-        }
-        return false
+    // region CoreWatchdog.Hooks
+
+    override fun currentProcess(): Process? = mihomoProcess
+
+    override fun isStopping(): Boolean = isStopping
+
+    override fun restartNotificationText(): String = getString(R.string.vpn_restarting)
+
+    override fun giveUpNotificationText(exitCode: Int): String = getString(R.string.vpn_error_core, exitCode)
+
+    override fun updateNotification(text: String, ongoing: Boolean) {
+        notifications.update(text, ongoing)
     }
 
-    private fun registerNetworkCallback() {
-        try {
-            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            connectivityManager = cm
-            val request = NetworkRequest.Builder()
-                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
-                .build()
-
-            val callback = object : ConnectivityManager.NetworkCallback() {
-                override fun onAvailable(network: Network) {
-                    android.util.Log.d("MihometVpn", "Network available: $network")
-                    currentActiveNetwork = network
-                    updateUnderlyingNetwork(network)
-                }
-
-                override fun onLost(network: Network) {
-                    android.util.Log.d("MihometVpn", "Network lost: $network")
-                    if (currentActiveNetwork == network) {
-                        currentActiveNetwork = null
-                        val fallback = cm.activeNetwork
-                        updateUnderlyingNetwork(fallback)
-                    }
-                }
-
-                override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
-                    if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                        !networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
-                    ) {
-                        currentActiveNetwork = network
-                        updateUnderlyingNetwork(network)
-                    }
-                }
-            }
-            networkCallback = callback
-            cm.registerNetworkCallback(request, callback)
-            cm.activeNetwork?.let { updateUnderlyingNetwork(it) }
-        } catch (e: Exception) {
-            android.util.Log.w("MihometVpn", "Failed to register network callback: ${e.message}")
-        }
+    override fun teardownForegroundService() {
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
     }
 
-    private fun updateUnderlyingNetwork(network: Network?) {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
-                val networks = if (network != null) arrayOf(network) else null
-                setUnderlyingNetworks(networks)
-                android.util.Log.d("MihometVpn", "setUnderlyingNetworks updated: $network")
-            }
-            // Trigger connection flush so Mihomo drops stale sockets and reconnects on new interface
-            serviceScope.launch {
-                runCatching {
-                    apiClientProvider.current().closeAllConnections()
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.w("MihometVpn", "updateUnderlyingNetwork error: ${e.message}")
-        }
+    override suspend fun restartCore() {
+        startVpnInternal()
     }
 
-    private fun cleanupVpnResources() {
+    // endregion
+
+    override fun cleanupVpnResources() {
         ServiceState.stopService(org.mihomet.app.core.RunningService.VPN)
         // Refresh home screen widgets — every teardown path goes through here.
         MihometWidgetProvider.updateAll(this@MihometVpnService)
@@ -824,36 +441,21 @@ class MihometVpnService : VpnService(), KoinComponent {
         runCatching { vpnInterface?.close() }
         vpnInterface = null
 
-        runCatching {
-            networkCallback?.let { connectivityManager?.unregisterNetworkCallback(it) }
-        }
-        networkCallback = null
+        networkTracker.unregister()
 
         runCatching {
             if (wakeLock?.isHeld == true) wakeLock?.release()
         }
         wakeLock = null
 
-        screenStateReceiver?.let { runCatching { unregisterReceiver(it) } }
-        screenStateReceiver = null
+        notifications.unregisterScreenStateReceiver()
     }
 
     private fun stopVpn() {
         android.util.Log.d("MihometVpn", "stopVpn() called")
         isStopping = true
-        speedJob?.cancel()
-        speedJob = null
+        notifications.stopSpeedUpdates()
         cleanupVpnResources()
-    }
-
-    private fun formatSpeed(bytesPerSec: Long): String {
-        val kb = bytesPerSec / 1024.0
-        val mb = kb / 1024.0
-        return when {
-            mb >= 1.0 -> getString(R.string.speed_mb_per_s, mb)
-            kb >= 1.0 -> getString(R.string.speed_kb_per_s, kb)
-            else -> getString(R.string.speed_b_per_s, bytesPerSec)
-        }
     }
 
     override fun onDestroy() {
@@ -861,101 +463,5 @@ class MihometVpnService : VpnService(), KoinComponent {
         android.util.Log.d("MihometVpn", "MihometVpnService onDestroy() called!")
         stopVpn()
         serviceScope.cancel()
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                getString(R.string.vpn_channel_name),
-                NotificationManager.IMPORTANCE_LOW
-            )
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
-        }
-    }
-
-    private fun buildNotification(text: String, ongoing: Boolean = true): Notification {
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
-        val stopIntent = PendingIntent.getService(
-            this,
-            1,
-            Intent(this, MihometVpnService::class.java).apply { action = ACTION_STOP },
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.vpn_notification_title))
-            .setContentText(text)
-            .setSmallIcon(R.drawable.ic_proxy_tile)
-            .setContentIntent(pendingIntent)
-            .addAction(R.drawable.ic_proxy_tile, getString(R.string.action_disconnect), stopIntent)
-            .setOngoing(ongoing)
-            // Show the foreground notification immediately instead of after the system delay (API 27+)
-            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            .build()
-    }
-
-    private fun startSpeedUpdates() {
-        speedJob?.cancel()
-        val baseText = speedBaseText ?: return
-        speedJob = serviceScope.launch {
-            apiClientProvider.current().streamTraffic().collect { sample ->
-                updateNotification(
-                    "$baseText · ↓ ${formatSpeed(sample.down)} ↑ ${formatSpeed(sample.up)}"
-                )
-            }
-        }
-    }
-
-    /**
-     * Pauses the 1 Hz speed updates while the screen is off (battery) and
-     * resumes them on SCREEN_ON, restoring the plain connected text meanwhile.
-     */
-    private fun registerScreenStateReceiver() {
-        if (screenStateReceiver != null) return
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                when (intent.action) {
-                    Intent.ACTION_SCREEN_ON -> {
-                        isScreenOn = true
-                        // Audit P2.2: broadcast receivers must not runBlocking
-                        // (onReceive runs on the main thread). The settings read
-                        // happens on the service scope; the notification state it
-                        // guards is only refreshed a moment later.
-                        serviceScope.launch {
-                            val settings = runCatching {
-                                settingsRepository.settingsFlow.first()
-                            }.getOrNull()
-                            if (settings?.showSpeedInNotification == true) {
-                                startSpeedUpdates()
-                            }
-                        }
-                    }
-                    Intent.ACTION_SCREEN_OFF -> {
-                        isScreenOn = false
-                        speedJob?.cancel()
-                        speedJob = null
-                        speedBaseText?.let { updateNotification(it) }
-                    }
-                }
-            }
-        }
-        screenStateReceiver = receiver
-        registerReceiver(receiver, IntentFilter().apply {
-            addAction(Intent.ACTION_SCREEN_ON)
-            addAction(Intent.ACTION_SCREEN_OFF)
-        })
-    }
-
-    private fun updateNotification(text: String, ongoing: Boolean = true) {
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(NOTIFICATION_ID, buildNotification(text, ongoing))
     }
 }
