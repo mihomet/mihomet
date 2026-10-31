@@ -119,6 +119,43 @@ class ProfileValidationTest {
     }
 
     @Test
+    fun `proxies list of null entries is not a routing source`() {
+        // Audit N01: the generator keeps only Map proxies, so a list of nulls
+        // yields an empty node set — it must not count as a routing source.
+        assertFalse(ProfileValidation.isValid("proxies: [null]\nrules: []"))
+        assertFalse(ProfileValidation.isValid("proxies:\n  - null"))
+    }
+
+    @Test
+    fun `proxies list of scalar entries is not a routing source`() {
+        // Same as nulls: scalar elements are filtered out by the generator.
+        assertFalse(ProfileValidation.isValid("proxies: [\"скаляр\"]\nrules: []"))
+        assertFalse(ProfileValidation.isValid("proxies:\n  - just-a-string\nrules: []"))
+    }
+
+    @Test
+    fun `proxies with null entries plus non-empty rules is valid`() {
+        // `rules` stays an independent routing source (happ://routing profiles).
+        assertTrue(ProfileValidation.isValid("proxies: [null]\nrules:\n  - MATCH,PROXY"))
+    }
+
+    @Test
+    fun `proxies with a mapping entry is valid`() {
+        assertTrue(
+            ProfileValidation.isValid("proxies: [{name: Node, type: ss, server: 1.2.3.4, port: 8388}]")
+        )
+    }
+
+    @Test
+    fun `proxies list mixing null and a mapping entry is valid`() {
+        assertTrue(
+            ProfileValidation.isValid(
+                "proxies:\n  - null\n  - {name: Node, type: ss, server: 1.2.3.4, port: 8388}"
+            )
+        )
+    }
+
+    @Test
     fun `empty proxy-providers map is invalid`() {
         assertFalse(ProfileValidation.isValid("proxy-providers: {}"))
     }
@@ -170,6 +207,7 @@ class ProfileValidationTest {
 
         assertTrue(ProfilesViewModel.isValidGeneratedConfig(valid))
         assertFalse(ProfilesViewModel.isValidGeneratedConfig("proxies: []\nrules: []"))
+        assertFalse(ProfilesViewModel.isValidGeneratedConfig("proxies: [null]\nrules: []"))
         assertFalse(ProfilesViewModel.isValidGeneratedConfig(""))
     }
 }

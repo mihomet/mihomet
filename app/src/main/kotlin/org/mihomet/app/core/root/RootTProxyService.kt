@@ -20,6 +20,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -31,6 +33,7 @@ import org.mihomet.app.core.config.ConfigGenerator
 import org.mihomet.app.core.firewall.FirewallManager
 import org.mihomet.app.data.db.ProfileDao
 import org.mihomet.app.data.preferences.SettingsRepository
+import org.mihomet.app.data.subs.ProfileValidation
 import org.mihomet.app.service.MihometWidgetProvider
 import org.mihomet.app.ui.MainActivity
 import java.io.File
@@ -106,6 +109,18 @@ class RootTProxyService : Service(), KoinComponent {
     private var daemonMonitorJob: kotlinx.coroutines.Job? = null
 
     /**
+     * Serializes root START and STOP (audit N06): without a shared mutex a STOP
+     * could finish its whole teardown while a START is still reading settings,
+     * and the START would then spawn the daemon and apply firewall rules AFTER
+     * the teardown — a zombie root session. Under the mutex a STOP always waits
+     * for an in-flight START to finish (or abort), and vice versa. The
+     * [isStopping] flag is set synchronously in onStartCommand (outside the
+     * mutex), so a readiness probe in flight aborts at once instead of making
+     * the queued STOP wait out the whole 15s budget (VPN service parity).
+     */
+    private val rootMutex = Mutex()
+
+    /**
      * True while a user-initiated stop is in progress; a start in its readiness
      * gate checks this flag and aborts instead of resurrecting the running state
      * after the teardown already happened (VPN service parity).
@@ -157,31 +172,65 @@ class RootTProxyService : Service(), KoinComponent {
     }
 
     private suspend fun startProxy() {
-        // A fresh start clears a stale stop flag (VPN parity): a queued user STOP
-        // still runs right after this start and wins (it is the last user action).
+        // Serialized with stopProxy (audit N06): a START and a STOP can never
+        // interleave — see [rootMutex].
+        rootMutex.withLock {
+            startProxyLocked()
+        }
+    }
+
+    private suspend fun startProxyLocked() {
+        // A fresh start clears a stale stop flag (VPN parity): the mutex
+        // serializes us with any queued user STOP, which still runs right after
+        // this start and wins (it is the last user action).
         isStopping = false
-        // Set once the daemon PID exists: any failure after this point (firewall
-        // setup error, readiness timeout) must roll the daemon and the modified
-        // system settings back instead of leaving a zombie session (audit F11).
-        var rootDaemonStarted = false
+        // N06: armed BEFORE the first system-state change (Private DNS / OEM
+        // chains recovery, daemon spawn): ANY failure from here on must roll the
+        // session back (audit F11). rollbackRootStart() is best-effort and
+        // idempotent — running it even before the daemon spawn is safe and also
+        // recovers leftovers of a previously crashed session.
+        var rootDaemonStarted = true
         try {
-            // 0. Recover Private DNS if the previous root session crashed before
-            // stopDaemon() could restore it (.prev_dns exists while daemon is dead)
-            RootShellManager.maybeRestorePrivateDns()
-            RootShellManager.maybeRestoreOplusChains()
-
-            // 1. Bootstrap root binary if missing
-            coreManager.bootstrapRootBinary().getOrThrow()
-
-            // 2. Read active profile & settings
+            // 0. Fail-closed profile gate (audit N01-services) BEFORE any system
+            //    state is touched: read the active profile and validate it. A
+            //    missing file of the ALREADY SELECTED profile must never be
+            //    silently replaced with the bundled default config, and a
+            //    profile without any routing source must never start the core.
+            //    Only the first launch without any profile
+            //    (selectedProfile == null) may use the default.
             val settings = settingsRepository.settingsFlow.first()
             val selectedProfile = profileDao.getSelectedProfile()
 
-            val rawYaml = if (selectedProfile != null && File(selectedProfile.filePath).exists()) {
-                File(selectedProfile.filePath).readText()
+            val rawYaml = if (selectedProfile != null) {
+                val profileFile = File(selectedProfile.filePath)
+                if (!profileFile.exists()) {
+                    abortRootStart(getString(R.string.profile_file_missing, selectedProfile.name))
+                    return
+                }
+                profileFile.readText()
             } else {
                 assets.open("default_config.yaml").bufferedReader().use { it.readText() }
             }
+
+            // Fail-closed (audit N01-services): validate the profile semantics
+            // BEFORE the daemon and the firewall rules are set up — earlier and
+            // clearer than the generator's own fail-closed check (W2).
+            // Rules-only routing profiles (happ://routing) stay valid: the
+            // validator accepts a non-empty `rules` list as a routing source.
+            if (!ProfileValidation.isValid(rawYaml)) {
+                val profileLabel = selectedProfile?.name
+                    ?: getString(R.string.dashboard_default_profile_name)
+                abortRootStart(getString(R.string.profile_invalid, profileLabel))
+                return
+            }
+
+            // 1. Recover Private DNS if the previous root session crashed before
+            //    stopDaemon() could restore it (.prev_dns exists while daemon is dead)
+            RootShellManager.maybeRestorePrivateDns()
+            RootShellManager.maybeRestoreOplusChains()
+
+            // 2. Bootstrap root binary if missing
+            coreManager.bootstrapRootBinary().getOrThrow()
 
             // 3. Generate runtime config
             // Fail-closed (P0): a broken profile YAML must never start the core with an
@@ -342,8 +391,13 @@ class RootTProxyService : Service(), KoinComponent {
                     stableSinceMillis = null
                     attempts++
                     if (attempts > MAX_DAEMON_RESTARTS) {
+                        // Restart budget exhausted (audit N06): full rollback
+                        // before stopping — the daemon is dead, but Private DNS /
+                        // OEM chains may still be modified and firewall rules may
+                        // still be applied. rollbackRootStart() also flips the
+                        // ServiceState and refreshes the widgets.
+                        rollbackRootStart()
                         updateNotification(getString(R.string.root_error, "daemon keeps crashing"))
-                        org.mihomet.app.core.ServiceState.stopService(org.mihomet.app.core.RunningService.ROOT)
                         break
                     }
                     updateNotification(getString(R.string.vpn_restarting))
@@ -359,11 +413,14 @@ class RootTProxyService : Service(), KoinComponent {
                 }
             }
         } catch (e: Exception) {
+            // Rollback (audit F11/N06): a failure at ANY point of the start must
+            // not leave a live daemon with modified Private DNS / OEM chains and
+            // half-applied firewall rules behind. rootDaemonStarted is armed
+            // before the first system change (N06), so this covers every failure
+            // from the recovery step onwards; the rollback is best-effort and
+            // idempotent, which also makes it safe on the earliest failures.
             if (rootDaemonStarted) {
-                // Rollback (audit F11): a failure after the daemon spawn (e.g. a
-                // firewall setup error) must not leave a live daemon with modified
-                // Private DNS / OEM chains and half-applied firewall rules behind.
-                android.util.Log.e("RootTProxy", "Root start failed after daemon spawn — rolling back", e)
+                android.util.Log.e("RootTProxy", "Root start failed — rolling back", e)
                 rollbackRootStart()
             } else {
                 ServiceState.stopService(org.mihomet.app.core.RunningService.ROOT)
@@ -417,29 +474,53 @@ class RootTProxyService : Service(), KoinComponent {
         MihometWidgetProvider.updateAll(this@RootTProxyService)
     }
 
+    /**
+     * Fail-closed start abort (audit N01-services): the start was refused
+     * before the daemon spawned — report why and stop the service WITHOUT
+     * starting the core. [rollbackRootStart] also recovers leftovers of a
+     * previously crashed session (Private DNS / OEM chains / stale firewall
+     * rules), since the abort happens before the normal recovery steps ran.
+     * The notification is posted non-ongoing AFTER stopForeground(REMOVE), so
+     * the system cannot tear it down together with the foreground state and
+     * the user can dismiss it (VPN abortStart parity).
+     */
+    private fun abortRootStart(message: String) {
+        rollbackRootStart()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+        updateNotification(message, ongoing = false)
+    }
+
     private suspend fun stopProxy(completion: CompletableDeferred<Unit>? = teardownCompleted) {
-        // Teardown must never skip ServiceState.stopService: a failing root shell
-        // (e.g. firewallManager.teardown throwing) would otherwise leave the UI
-        // stuck on "connected" until the app is restarted.
-        daemonMonitorJob?.cancel()
-        daemonMonitorJob = null
-        try {
+        // Serialized with startProxy (audit N06): the teardown must never
+        // interleave with an in-flight start (firewall rules applied after the
+        // teardown would leave a zombie session). A start in its readiness gate
+        // sees [isStopping] — set synchronously by ACTION_STOP, outside this
+        // mutex — and aborts promptly, so the wait here is short.
+        rootMutex.withLock {
+            // Teardown must never skip ServiceState.stopService: a failing root shell
+            // (e.g. firewallManager.teardown throwing) would otherwise leave the UI
+            // stuck on "connected" until the app is restarted.
+            daemonMonitorJob?.cancel()
+            daemonMonitorJob = null
             try {
-                val settings = settingsRepository.settingsFlow.first()
-                firewallManager.teardown(settings.ipv6Enabled)
+                try {
+                    val settings = settingsRepository.settingsFlow.first()
+                    firewallManager.teardown(settings.ipv6Enabled)
+                } finally {
+                    // Stop the daemon even if the firewall teardown failed
+                    RootShellManager.stopDaemon()
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("RootTProxyService", "Root proxy teardown failed", e)
             } finally {
-                // Stop the daemon even if the firewall teardown failed
-                RootShellManager.stopDaemon()
+                ServiceState.stopService(org.mihomet.app.core.RunningService.ROOT)
+                // Refresh home screen widgets after the state flip.
+                MihometWidgetProvider.updateAll(this@RootTProxyService)
+                // Release awaiters even when the teardown failed: they proceed with a
+                // best-effort torn-down state instead of blocking until a timeout.
+                completion?.complete(Unit)
             }
-        } catch (e: Exception) {
-            android.util.Log.e("RootTProxyService", "Root proxy teardown failed", e)
-        } finally {
-            ServiceState.stopService(org.mihomet.app.core.RunningService.ROOT)
-            // Refresh home screen widgets after the state flip.
-            MihometWidgetProvider.updateAll(this@RootTProxyService)
-            // Release awaiters even when the teardown failed: they proceed with a
-            // best-effort torn-down state instead of blocking until a timeout.
-            completion?.complete(Unit)
         }
     }
 
@@ -469,7 +550,7 @@ class RootTProxyService : Service(), KoinComponent {
         }
     }
 
-    private fun buildNotification(text: String): Notification {
+    private fun buildNotification(text: String, ongoing: Boolean = true): Notification {
         val pendingIntent = PendingIntent.getActivity(
             this,
             0,
@@ -490,12 +571,12 @@ class RootTProxyService : Service(), KoinComponent {
             .setSmallIcon(R.drawable.ic_proxy_tile)
             .setContentIntent(pendingIntent)
             .addAction(R.drawable.ic_proxy_tile, getString(R.string.action_disconnect), stopIntent)
-            .setOngoing(true)
+            .setOngoing(ongoing)
             .build()
     }
 
-    private fun updateNotification(text: String) {
+    private fun updateNotification(text: String, ongoing: Boolean = true) {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(NOTIFICATION_ID, buildNotification(text))
+        manager.notify(NOTIFICATION_ID, buildNotification(text, ongoing))
     }
 }
