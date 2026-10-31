@@ -288,8 +288,12 @@ class CoreManager(private val context: Context) {
                 mkdirs()
             }
 
-            val probePort = CoreConstants.PROBE_PORT
-            val probeSecret = CoreConstants.PROBE_SECRET
+            // Audit P1 §2.2: per-run random secret + ephemeral free port. The probe
+            // core is a fully functional mihomo instance — a static secret baked into
+            // the APK (or a fixed port) would let any local app reach its controller
+            // API and would race with other listeners.
+            val probePort = CoreConstants.findFreePort()
+            val probeSecret = CoreConstants.generateRandomHexSecret()
             val probeConfig = ConfigGenerator.generateRuntimeConfig(
                 profileYamlContent = rawYaml,
                 settings = AppSettings(
@@ -339,8 +343,30 @@ class CoreManager(private val context: Context) {
                 block(probeApiClient)
             } finally {
                 process.destroy()
+                // Release the probe client's Ktor engine (short-lived client, single
+                // probe run) — see closeProbeClient for the access rationale.
+                closeProbeClient(probeApiClient)
                 runCatching { probeDir.deleteRecursively() }
             }
+        }
+    }
+
+    /**
+     * Best-effort release of the probe client's underlying Ktor [HttpClient].
+     *
+     * [MihomoApiClient] keeps its client private (single shared API surface), so the
+     * engine of this short-lived probe client is released reflectively. A narrow
+     * ProGuard keep rule (proguard-rules.pro) pins the field name for release builds.
+     * Fail-open: if access ever fails, the worst case is the pre-existing leak —
+     * never a crash.
+     */
+    private fun closeProbeClient(client: MihomoApiClient) {
+        runCatching {
+            val field = MihomoApiClient::class.java.getDeclaredField("httpClient")
+            field.isAccessible = true
+            (field.get(client) as? io.ktor.client.HttpClient)?.close()
+        }.onFailure {
+            android.util.Log.w("CoreManager", "Probe HttpClient close skipped: ${it.message}")
         }
     }
 }

@@ -83,8 +83,37 @@ object CoreConstants {
     )
 
     // Temporary core probe (offline node delay testing)
-    const val PROBE_PORT = 9095
-    const val PROBE_SECRET = "mihomet_probe_token"
+    // Audit P1 §2.2: NO static probe port and NO static probe secret. Every probe run
+    // generates a random per-run secret (generateRandomHexSecret) and binds the
+    // controller to a free ephemeral port (findFreePort) — a fixed port is a race
+    // (another listener wins it → probe never comes up) and a static secret in the APK
+    // would let any on-device app talk to the probe's controller API.
+
+    private val secureRandom = SecureRandom()
+
+    /**
+     * Generates a random hex secret. With the default [charCount] of 32 this
+     * consumes 16 random bytes and renders them as 32 hexadecimal characters.
+     */
+    fun generateRandomHexSecret(charCount: Int = 32): String {
+        val byteCount = charCount / 2
+        val bytes = ByteArray(byteCount)
+        secureRandom.nextBytes(bytes)
+        return bytes.joinToString("") { "%02x".format(it) }
+    }
+
+    /**
+     * Picks a currently free ephemeral TCP port by binding an ephemeral
+     * ServerSocket and releasing it. Small TOCTOU window remains (the port can
+     * be taken between the release and the core binding it), but it eliminates
+     * the guaranteed collision of a fixed probe port.
+     */
+    fun findFreePort(): Int {
+        java.net.ServerSocket(0).use { socket ->
+            socket.reuseAddress = true
+            return socket.localPort
+        }
+    }
 
     // Root-mode filesystem layout
     const val ROOT_BASE_DIR = "/data/adb/mihomet"
@@ -124,16 +153,4 @@ object CoreConstants {
     // on the file's absence) and the restore is a no-op when nothing was changed.
     const val ROOT_SYSCTL_BACKUP_FILE = "$ROOT_RUN_DIR/.sysctl.bak"
 
-    private val secureRandom = SecureRandom()
-
-    /**
-     * Generates a random hex secret. With the default [charCount] of 32 this
-     * consumes 16 random bytes and renders them as 32 hexadecimal characters.
-     */
-    fun generateRandomHexSecret(charCount: Int = 32): String {
-        val byteCount = charCount / 2
-        val bytes = ByteArray(byteCount)
-        secureRandom.nextBytes(bytes)
-        return bytes.joinToString("") { "%02x".format(it) }
-    }
 }
