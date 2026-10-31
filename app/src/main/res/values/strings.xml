@@ -336,7 +336,7 @@
     <string name="vpn_error_core">Core error (%1$d)</string>
     <string name="vpn_error">VPN error: %1$s</string>
     <string name="vpn_restarting">Restarting core…</string>
-    <string name="vpn_last_good_used">Profile is broken — using the last working version</string>
+    <string name="vpn_last_good_used">Profile is broken — running the last working configuration (%1$s)</string>
     <string name="vpn_error_core_timeout">Core did not respond within 15 seconds</string>
 
     <!-- Root TProxy service notifications -->
@@ -349,6 +349,11 @@
     <string name="root_error_timeout">Core did not respond within 15 seconds</string>
     <string name="root_last_good_used">Profile is broken — running the last working configuration (%1$s)</string>
     <string name="profiles_subscription_undecryptable">Could not decrypt the subscription data — the encryption key is unavailable or was replaced. Please add the subscription again.</string>
+
+    <!-- Fail-closed start guards: a selected profile with a missing file or no
+         routing source (no proxies / providers / rules) must never start the core -->
+    <string name="profile_file_missing">Profile file not found: %1$s</string>
+    <string name="profile_invalid">Profile is invalid (no proxies, providers or rules): %1$s</string>
 
     <!-- Subscription QR sharing -->
     <string name="profile_show_qr">Show QR</string>

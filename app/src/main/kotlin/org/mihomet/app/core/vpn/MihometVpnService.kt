@@ -42,6 +42,7 @@ import org.mihomet.app.core.ServiceState
 import org.mihomet.app.core.config.ConfigGenerator
 import org.mihomet.app.data.db.ProfileDao
 import org.mihomet.app.data.preferences.SettingsRepository
+import org.mihomet.app.data.subs.ProfileValidation
 import org.mihomet.app.service.MihometWidgetProvider
 import org.mihomet.app.ui.MainActivity
 import java.io.File
@@ -234,10 +235,35 @@ class MihometVpnService : VpnService(), KoinComponent {
             val settings = settingsRepository.settingsFlow.first()
             val selectedProfile = profileDao.getSelectedProfile()
 
-            val rawYaml = if (selectedProfile != null && File(selectedProfile.filePath).exists()) {
-                File(selectedProfile.filePath).readText()
+            // Fail-closed (audit N01-services): a missing file of the ALREADY
+            // SELECTED profile must never be silently replaced with the bundled
+            // default config — the tunnel would run a config the user never
+            // chose. Only the first launch without any profile
+            // (selectedProfile == null) may use the default. Abort with a
+            // notification naming the profile, without starting the core.
+            val rawYaml = if (selectedProfile != null) {
+                val profileFile = File(selectedProfile.filePath)
+                if (!profileFile.exists()) {
+                    abortStart(getString(R.string.profile_file_missing, selectedProfile.name))
+                    return
+                }
+                profileFile.readText()
             } else {
                 assets.open("default_config.yaml").bufferedReader().use { it.readText() }
+            }
+
+            // Fail-closed (audit N01-services): validate the profile semantics
+            // BEFORE the TUN interface and the core are set up — earlier and
+            // clearer than the generator's own fail-closed check (W2).
+            // Rules-only routing profiles (happ://routing) stay valid: the
+            // validator accepts a non-empty `rules` list as a routing source.
+            // (The bundled default config always passes — it ships non-empty
+            // rules — so an invalid profile here is necessarily a selected one.)
+            if (!ProfileValidation.isValid(rawYaml)) {
+                val profileName = selectedProfile?.name
+                    ?: getString(R.string.dashboard_default_profile_name)
+                abortStart(getString(R.string.profile_invalid, profileName))
+                return
             }
 
             // "Settings" button in the system VPN dialog opens our app (CMFA/FlClash pattern)
@@ -339,6 +365,12 @@ class MihometVpnService : VpnService(), KoinComponent {
                         // core's traffic does not loop back into the TUN it feeds.
                         builder.addDisallowedApplication(packageName)
                     } else {
+                        // Count the packages ACTUALLY added (audit N02):
+                        // getPackagesForUid can return nothing for a stale uid and
+                        // addAllowedApplication can fail — with zero entries added
+                        // the "absent allow list = allow all" quirk would silently
+                        // route EVERY app, including ours (→ TUN loop).
+                        var addedCount = 0
                         settings.selectedAppUids.forEach { uid ->
                             pm.getPackagesForUid(uid)?.forEach { pkg ->
                                 // Never allow our own package, even if the user picked
@@ -346,8 +378,23 @@ class MihometVpnService : VpnService(), KoinComponent {
                                 // outbound traffic would loop into the TUN interface.
                                 if (pkg != packageName) {
                                     runCatching { builder.addAllowedApplication(pkg) }
+                                        .onSuccess { addedCount++ }
                                 }
                             }
+                        }
+                        if (addedCount == 0) {
+                            // Degenerate selection (only Mihomet picked, stale uids,
+                            // or every add failed): fall back to the ALL-mode shape —
+                            // the explicit disallow keeps the "proxy everything"
+                            // semantics AND excludes our own app, so the quirk can
+                            // neither surprise the user nor loop our traffic. The
+                            // Routing screen warns about the only-self state
+                            // (R.string.perapp_only_self).
+                            android.util.Log.w(
+                                "MihometVpn",
+                                "Per-app whitelist: 0 of ${settings.selectedAppUids.size} selected uids actually allowed — excluding only our own package"
+                            )
+                            builder.addDisallowedApplication(packageName)
                         }
                     }
                 }
@@ -418,7 +465,31 @@ class MihometVpnService : VpnService(), KoinComponent {
                 if (lastGoodYaml.isNullOrBlank()) throw e
                 android.util.Log.w("MihometVpn", "Profile YAML is broken, starting with last known-good config", e)
                 profileBroken = true
-                lastGoodYaml
+                // Consistency (external audit F13/N09, root-mode parity): the
+                // last-good YAML was generated under the settings of a PREVIOUS
+                // session — ports, DNS, controller secret may have changed since.
+                // Re-run it through the ConfigGenerator so every app-managed
+                // mandatory key is rebuilt on top of it from the CURRENT settings
+                // (tunFd → VPN mode: tproxy keys stripped, tun block rebuilt) and
+                // the core listeners can never disagree with the VpnService
+                // builder. The override patch is deliberately NOT applied: it
+                // belongs to the broken profile and may be the very thing that
+                // broke it. If even the last-good content cannot be regenerated
+                // (corrupted file), fail closed with the original error.
+                try {
+                    ConfigGenerator.generateRuntimeConfig(
+                        profileYamlContent = lastGoodYaml,
+                        settings = settings,
+                        tunFd = CoreConstants.TUN_FILE_DESCRIPTOR
+                    )
+                } catch (regenError: Exception) {
+                    android.util.Log.e(
+                        "MihometVpn",
+                        "Last known-good config is unusable; failing the start",
+                        regenError
+                    )
+                    throw e
+                }
             }
 
             val vpnWorkDir = vpnRunDir.apply { mkdirs() }
@@ -500,13 +571,23 @@ class MihometVpnService : VpnService(), KoinComponent {
                             val attempt = coreRestartAttempts
                             val tailLogs = runCatching { vpnLogFile.readLines().takeLast(10).joinToString("\n") }.getOrNull()
                             android.util.Log.w("MihometVpn", "Core exited with $exitCode, restarting (attempt $attempt/$MAX_CORE_RESTARTS): $tailLogs")
-                            cleanupVpnResources()
                             updateNotification(getString(R.string.vpn_restarting))
+                            // The dead generation's resources (TUN fd, wake lock,
+                            // callbacks) are deliberately NOT cleaned up here: the
+                            // mutex is free during the backoff so a user STOP/START
+                            // can win immediately, and cleanup without the mutex
+                            // could kill a NEW generation's resources (audit N05).
                             delay(CORE_RESTART_BACKOFF_MS * attempt)
                             // User may have pressed Stop during the backoff delay, or started fresh.
                             // Serialize with user START/STOP so their action always wins.
                             vpnMutex.withLock {
-                                if (!isStopping && mihomoProcess == null) {
+                                // Ownership re-check under the mutex (audit N05):
+                                // clean up and restart only while this watchdog's
+                                // process is still the current generation — a user
+                                // START that acquired the mutex meanwhile spawned a
+                                // new generation whose resources must stay intact.
+                                if (!isStopping && mihomoProcess === proc) {
+                                    cleanupVpnResources()
                                     startVpnInternal()
                                 }
                             }
@@ -559,13 +640,7 @@ class MihometVpnService : VpnService(), KoinComponent {
                     "MihometVpn",
                     "Core did not answer the REST API within ${CORE_READINESS_TIMEOUT_MS / 1000}s — failing start"
                 )
-                cleanupVpnResources()
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
-                // Posted after stopForeground(REMOVE) so the system does not tear
-                // the notification down together with the foreground state, and
-                // non-ongoing so the user can dismiss it.
-                updateNotification(getString(R.string.vpn_error_core_timeout), ongoing = false)
+                abortStart(getString(R.string.vpn_error_core_timeout))
                 return
             }
 
@@ -582,7 +657,9 @@ class MihometVpnService : VpnService(), KoinComponent {
             runCatching { lastGoodConfigFile.writeText(runtimeYaml) }
             val profileLabel = selectedProfile?.name ?: getString(R.string.dashboard_default_profile_name)
             val baseText = if (profileBroken) {
-                getString(R.string.vpn_last_good_used)
+                // F13: name the profile whose start failed, so the user sees
+                // which profile is actually serving traffic (the last-good one).
+                getString(R.string.vpn_last_good_used, profileLabel)
             } else {
                 getString(R.string.vpn_connected, profileLabel)
             }
@@ -623,6 +700,22 @@ class MihometVpnService : VpnService(), KoinComponent {
             updateNotification(getString(R.string.vpn_error, e.message ?: "null"))
             e.printStackTrace()
         }
+    }
+
+    /**
+     * Fail-closed start abort (audit N01-services): the start was refused
+     * before the core spawned — report why, release everything the aborted
+     * start could hold, tear down the foreground state and stop the service
+     * WITHOUT starting the core. Callers run with the start mutex held.
+     * The notification is posted non-ongoing AFTER stopForeground(REMOVE),
+     * so the system cannot tear it down together with the foreground state
+     * and the user can dismiss it (same pattern as the readiness-fail path).
+     */
+    private fun abortStart(message: String) {
+        cleanupVpnResources()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+        updateNotification(message, ongoing = false)
     }
 
     /**

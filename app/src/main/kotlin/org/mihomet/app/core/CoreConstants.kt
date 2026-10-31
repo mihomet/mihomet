@@ -109,6 +109,13 @@ object CoreConstants {
     const val ROOT_OPLUS_RULES_V4_FILE = "$ROOT_RUN_DIR/.oplus_v4.rules"
     const val ROOT_OPLUS_RULES_V6_FILE = "$ROOT_RUN_DIR/.oplus_v6.rules"
 
+    // H2: staging files for the atomic OEM chain snapshot. The iptables-save
+    // dump lands here first and is renamed over the matching save file above
+    // only after content verification, so a partial/failed dump can never
+    // truncate a good snapshot (same directory => rename(2) => atomic).
+    const val ROOT_OPLUS_RULES_V4_TMP_FILE = "$ROOT_RUN_DIR/.oplus_v4.rules.tmp"
+    const val ROOT_OPLUS_RULES_V6_TMP_FILE = "$ROOT_RUN_DIR/.oplus_v6.rules.tmp"
+
     // F10: snapshot of the sysctls the firewall engines mutate (net/ipv4/ip_forward,
     // conf/all/rp_filter, conf/default/rp_filter — one value per line, in that order).
     // Written before the FIRST sysctl change of a root session; the engines' teardown
