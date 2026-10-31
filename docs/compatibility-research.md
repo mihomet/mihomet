@@ -14,7 +14,7 @@
 | `sing-box://import-remote?url=` | SFA | ✅ |
 | `happ://add/<base64-payload>` | однотап добавление узла | ✅ |
 | `happ://routing/add|onadd/{base64-JSON}` | роутинг-профиль (GlobalProxy, DirectSites…) | ✅ (onadd = импорт + активировать) |
-| `happ://crypt4/`, `crypt5/` | зашифрованная подписка (AES-128-GCM, `crypto.happ.su`) | ✅ расшифровка по спеке (ключница в DataStore, IV 'kkkkkkkkkkkk', тег в encrypt-tag); keyring-UI — TODO |
+| `happ://crypt4/`, `crypt5/` | зашифрованная подписка (AES-128-GCM, `crypto.happ.su`) | ✅ расшифровка по спеке (ключница в DataStore, IV 'kkkkkkkkkkkk', тег в encrypt-tag); keyring-UI готов (Настройки → Продвинутые) |
 | `incy://add/<url>`, `incy://import/{data}` | Incy | ✅ |
 | `incy://crypt1/<payload>` | base64url(iv‖ct‖tag) | passthrough (warning) |
 | `incy://connect|disconnect|toggle`, `mihomet://start|stop` | управление VPN по ссылке | ✅ (MainActivity.handleControlLink) |
