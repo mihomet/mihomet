@@ -56,7 +56,7 @@ val downloadMihomoCore by tasks.registering {
         }
 
         // Core binary: Mihomet patched core (mihomo v1.19.33 + non-root TUN fix,
-        // see core-patch/mihomo-android-nonroot.patch, built by core-build/build-core.sh).
+        // see the mihomet/core repository: patch + reproducible build script).
         // Published as raw (non-gzip) libmihomo-<abi>.so on the mihomet GitHub release,
         // verified by sha256 of the .so itself.
         listOf("arm64-v8a", "armeabi-v7a", "x86_64").forEach { abi ->
@@ -70,7 +70,7 @@ val downloadMihomoCore by tasks.registering {
                 ?: throw GradleException("gradle/mihomo-core.properties is missing checksum.$abi")
             if (!so.isFile || !sha256(so).equals(expectedSha, ignoreCase = true)) {
                 download(
-                    "https://github.com/mihomet/mihomet/releases/download/$coreVersion/libmihomo-$abi.so",
+                    "https://github.com/mihomet/core/releases/download/$coreVersion/libmihomo-$abi.so",
                     so,
                     expectedSha
                 )

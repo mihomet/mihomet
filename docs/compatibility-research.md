@@ -45,7 +45,7 @@
 1. ✅ Deep-link импорт (см. таблицу)
 2. ✅ Watchdog ядра (авторестарт с backoff, 3 попытки)
    Attribution: non-root TUN core patch taken from Tropa (nvsbunny/tropa,
-   tools/mihomo-android-nonroot.patch @ v0.2.5) — core-patch/ в репозитории,
+   tools/mihomo-android-nonroot.patch @ v0.2.5) — репозиторий mihomet/core,
    GPL-3.0 совместим. VERIFIED on API 35 emulator (non-root): TUN adapter up
    (no packages.xml error), real app traffic routed via the selected proxy node
    (mihomo.log: [TCP] … match Match using → Remnawave[🇫🇷]).
