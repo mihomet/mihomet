@@ -469,12 +469,32 @@ class MihometVpnService : VpnService(), KoinComponent {
                     android.util.Log.d("MihometVpn", "Mihomo process exited with code $exitCode")
                     // Ownership check: if the user stopped (or a newer start replaced the process),
                     // this watchdog no longer owns the service state and must stay silent.
+                    // Every terminal branch below re-verifies ownership under the mutex
+                    // before touching state or resources (audit F08: a stale generation
+                    // must never reset the state of a newer one, and must never leave
+                    // the TUN fd / wake lock / foreground state behind).
                     val watchdogOwnsProcess = mihomoProcess === proc && !isStopping
                     when {
-                        exitCode == 0 -> {
-                            ServiceState.stopService(org.mihomet.app.core.RunningService.VPN)
+                        !watchdogOwnsProcess -> {
+                            // User stop or a newer start owns the state — nothing to do
                         }
-                        watchdogOwnsProcess && coreRestartAttempts < MAX_CORE_RESTARTS -> {
+                        exitCode == 0 -> {
+                            // A clean core exit is terminal too: the tunnel is dead, so
+                            // the foreground service must not keep showing "connected"
+                            // with the TUN, wake lock and callbacks still held.
+                            // cleanupVpnResources() also flips ServiceState and widgets.
+                            android.util.Log.i("MihometVpn", "Core exited cleanly — tearing down")
+                            vpnMutex.withLock {
+                                // Re-check under the mutex: a user START may have
+                                // acquired it meanwhile and spawned a new generation.
+                                if (mihomoProcess === proc && !isStopping) {
+                                    cleanupVpnResources()
+                                    stopForeground(STOP_FOREGROUND_REMOVE)
+                                    stopSelf()
+                                }
+                            }
+                        }
+                        coreRestartAttempts < MAX_CORE_RESTARTS -> {
                             // Automatic restart with linear backoff (CMFA/FlClash watchdog pattern)
                             coreRestartAttempts++
                             val attempt = coreRestartAttempts
@@ -491,14 +511,25 @@ class MihometVpnService : VpnService(), KoinComponent {
                                 }
                             }
                         }
-                        watchdogOwnsProcess -> {
-                            // Restart attempts exhausted — final failure
+                        else -> {
+                            // Restart attempts exhausted — final failure: release the
+                            // TUN fd, wake lock, callbacks and foreground state before
+                            // reporting, instead of leaving a dead tunnel's resources held.
                             val tailLogs = runCatching { vpnLogFile.readLines().takeLast(10).joinToString("\n") }.getOrNull()
                             android.util.Log.e("MihometVpn", "Core exited with $exitCode, restarts exhausted: $tailLogs")
-                            ServiceState.stopService(org.mihomet.app.core.RunningService.VPN)
-                            updateNotification(getString(R.string.vpn_error_core, exitCode))
+                            vpnMutex.withLock {
+                                if (mihomoProcess === proc && !isStopping) {
+                                    cleanupVpnResources()
+                                    stopForeground(STOP_FOREGROUND_REMOVE)
+                                    stopSelf()
+                                    // Posted after stopForeground(REMOVE) so the system does
+                                    // not tear the notification down together with the
+                                    // foreground state, and non-ongoing so the user can
+                                    // dismiss it (same pattern as the readiness-fail path).
+                                    updateNotification(getString(R.string.vpn_error_core, exitCode), ongoing = false)
+                                }
+                            }
                         }
-                        // else: user stop or a newer start owns the state — nothing to do
                     }
                 } catch (e: CancellationException) {
                     throw e
