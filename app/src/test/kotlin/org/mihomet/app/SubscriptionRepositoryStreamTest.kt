@@ -171,15 +171,12 @@ class SubscriptionRepositoryStreamTest {
             }
             assertEquals("Ответ подписки слишком большой (>20 МБ)", error.message)
             assertTrue("server thread did not finish in time", serverDone.await(15, TimeUnit.SECONDS))
-            // The client really did receive past the cap (that is what triggered
+            // The client really did stream past the cap (that is what triggered
             // the abort)...
             assertTrue("server sent ${sentBytes.get()}, expected > $limit", sentBytes.get() > limit)
-            // ...but the transfer was cut off long before the full body: the
-            // server could not write $totalBodyBytes bytes into a dead connection.
-            assertTrue(
-                "server sent ${sentBytes.get()}, expected < $totalBodyBytes",
-                sentBytes.get() < totalBodyBytes
-            )
+            // The strict "client never read past the cap" invariant is covered by the
+            // ByteReadChannel-level test below (server-side sent-byte counts depend on
+            // kernel socket buffering and are timing-flaky on CI runners).
         } finally {
             runCatching { serverSocket.close() }
             runCatching { serverThread.join(5000) }
@@ -244,5 +241,26 @@ class SubscriptionRepositoryStreamTest {
         val text = SubscriptionRepository.readBodyWithLimit(ByteReadChannel.Empty, 1024, "too large")
 
         assertTrue(text.isEmpty())
+    }
+
+    @Test
+    fun `streaming read never consumes past the cap at the channel level`() {
+        // Deterministic client-side invariant (no server timing involved):
+        // readBodyWithLimit must stop consuming at the cap — the audited F05
+        // behavior (buffer the whole body first) would read every byte.
+        val limit = SubscriptionRepository.MAX_SUBSCRIPTION_BYTES
+        val body = ByteArray((limit + 4L * 1024 * 1024).toInt()) { 'x'.code.toByte() }
+        val channel = io.ktor.utils.io.ByteReadChannel(body)
+        val error = assertThrows(SubscriptionTooLargeException::class.java) {
+            runBlocking {
+                org.mihomet.app.data.subs.SubscriptionRepository
+                    .readBodyWithLimitForTest(channel, limit, "too big")
+            }
+        }
+        assertEquals("too big", error.message)
+        assertTrue(
+            "client read ${channel.totalBytesRead}, expected <= ${limit + 64L * 1024}",
+            channel.totalBytesRead <= limit + 64L * 1024
+        )
     }
 }

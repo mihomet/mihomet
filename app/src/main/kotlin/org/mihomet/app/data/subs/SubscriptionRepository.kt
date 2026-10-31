@@ -386,6 +386,9 @@ class SubscriptionRepository(
          * Throws [SubscriptionTooLargeException] with [tooLargeMessage] on overflow.
          * Internal so JVM tests can drive it against a real HTTP server.
          */
+        suspend fun readBodyWithLimitForTest(channel: io.ktor.utils.io.ByteReadChannel, maxBytes: Long, tooLarge: String): String =
+            readBodyWithLimit(channel, maxBytes, tooLarge)
+
         internal suspend fun readBodyWithLimit(
             channel: ByteReadChannel,
             maxBytes: Long,
