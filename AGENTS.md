@@ -13,8 +13,8 @@
 - **Language**: Kotlin 2.1, Coroutines/Flow, kotlinx.serialization.
 - **UI**: Jetpack Compose (BOM 2024.12.01), **Material 3 Expressive**.
 - **Localization**: strings live in resources — `values/strings.xml` (**EN**, default) and `values-ru/` (Russian).
-  Historically the UI was Russian-only; strings are being extracted (see TODO.md Phase 3). New UI text **must** go through
-  `stringResource`, never hardcoded, and must be added to **both** locales.
+  New UI text **must** go through `stringResource`, never hardcoded, and must be added to **both** locales.
+  Converter warnings are localized at display time by `core/config/WarningLocalizer.kt` (RU/EN pattern list).
 - **License**: GPL-3.0 (the bundled mihomo core is GPL — do not change the license).
 
 ## 2. Architecture & Directory Map
@@ -25,8 +25,14 @@ app/src/main/kotlin/org/mihomet/app/
 │   ├── CoreConstants.kt         # SINGLE source of truth: ports, fwmarks, TUN, root paths
 │   ├── CoreManager.kt           # libmihomo.so lifecycle, updates, temporary probe instance
 │   ├── ServiceState.kt          # Global reactive state (isRunning, runningService: VPN | ROOT)
+│   ├── DeepLinkParser.kt        # happ://, incy://, clash://, v2rayng://, sing-box://, share-target
+│   ├── HappCrypto.kt            # Happ AES-128-GCM encrypted subscriptions
+│   ├── HwidProvider.kt          # x-hwid device header for panel compatibility
+│   ├── OemHints.kt              # OEM-specific firewall hints (MIUI battery killers etc.)
 │   ├── config/                  # ConfigGenerator (runtime YAML), UniversalConfigConverter,
-│   │                            #   ConversionOutcome (convertToMihomoYamlWithOutcome → warnings)
+│   │                            #   ConversionOutcome (convertToMihomoYamlWithOutcome → warnings),
+│   │                            #   WarningLocalizer (display-time RU/EN warning translation)
+│   ├── dns/DnsPresets.kt        # DNS server presets + custom DNS setting
 │   ├── firewall/                # FirewallManager + IptablesEngine / NftablesEngine
 │   ├── network/NodePingTester   # Direct TCP/TLS/HTTP/ICMP latency (capped by Semaphore(8))
 │   ├── root/                    # RootShellManager (pid-file daemon), RootTProxyService
@@ -34,15 +40,24 @@ app/src/main/kotlin/org/mihomet/app/
 ├── data/
 │   ├── api/                     # MihomoApiClient (REST+WS, auto-reconnect), MihomoApiClientProvider
 │   │                            #   (provider rebuilds the client when port/secret change)
+│   ├── crypto/SecretsCipher.kt  # Keystore-backed encryption of sensitive settings + keyring
 │   ├── db/                      # Room: AppDatabase, ProfileDao, ProfileEntity
-│   └── preferences/             # DataStore: SettingsRepository (generates random controller secret)
+│   ├── preferences/             # DataStore: SettingsRepository (generates random controller secret)
+│   └── subs/                    # SubscriptionRepository (streamed download, hard byte cap),
+│                                #   ProfileValidation (semantic checks + atomic writes),
+│                                #   SubscriptionRefreshWorker (WorkManager auto-refresh)
 ├── di/AppModule.kt              # Koin: ViewModels, repositories, MihomoApiClientProvider
-├── service/MihometTileService   # Quick-settings tile (SupervisorJob scope)
+├── service/                     # MihometTileService (quick-settings tile), widget provider
 └── ui/                          # Compose M3 Expressive
     ├── components/              # ExpressiveNavigationBar, badges, pulsing dot
     ├── navigation/              # NavGraph (shared-axis transitions), Screen.kt
     ├── screens/                 # dashboard, proxies, profiles, routing, settings, logs, connections
     └── theme/                   # Theme/Color/Shape/AppHaptics (light, dark, AMOLED)
+```
+
+Docs worth reading before touching a sensitive area: `README.md`, `TODO.md` (roadmap + panel
+compatibility matrix), `CHANGELOG.md`, `docs/compatibility-research.md` (panel format traps &
+fixtures), `SECURITY.md`, `CONTRIBUTING.md`.
 ```
 
 ## 3. Key Facts & Invariants
@@ -56,9 +71,15 @@ app/src/main/kotlin/org/mihomet/app/
    (TProxy rules and root fallback).
 4. **Security defaults**: `allow-lan: false`, DNS/`bind-address` on `127.0.0.1`, `allowBackup="false"`.
    Do not relax them without an explicit user-visible toggle.
-5. **The mihomo binary is not in git.** `downloadMihomoCore` (app/build.gradle.kts) downloads the pinned
-   release + verifies sha256 from `gradle/mihomo-core.properties`. Bump versions ONLY by updating that
-   file (checksums from the official MetaCubeX release).
+5. **The bundled core is NOT stock MetaCubeX mihomo.** It is mihomo v1.19.33 patched for non-root TUN
+   (stock core dies reading `/data/system/packages.xml`; patch idea: Tropa, GPL-3.0), built by the
+   separate **`mihomet/core`** repo (docker golang + Android NDK, `-tags with_gvisor`,
+   `ANDROID_PLATFORM=android-26` — targeting newer silently breaks Android 8–13) and published as raw
+   `libmihomo-<abi>.so` at `github.com/mihomet/core/releases`. `downloadMihomoCore` (app/build.gradle.kts)
+   fetches the pinned release, verifies sha256+size from `gradle/mihomo-core.properties` and installs to
+   `app/src/main/jniLibs/`. Bump versions ONLY by updating that properties file, and only after verifying
+   the release artifacts — the binary runs on-device, including as root. Local rebuild outputs land in
+   `core-build/dist/` (gitignored); geo DBs track the rolling MetaCubeX/meta-rules-dat "latest".
 6. **No disruptive snackbars for core start/stop** — state is shown via the hero button and badges.
 7. **Converter losses are never silent**: use `convertToMihomoYamlWithOutcome` and surface
    `warnings` to the user; new protocols must be added to `parseUriToMihomoProxy` dispatch + tests.
@@ -67,6 +88,12 @@ app/src/main/kotlin/org/mihomet/app/
 9. **Localization**: strings live in `res/values/strings.xml` (English, default) and `res/values-ru/strings.xml`
    (Russian). All UI text must go through `stringResource` (or `getString` in services/ViewModels) — never
    hardcode user-facing text, and every new string **must be added to both locales**.
+10. **Subscription handling is defensive by design**: downloads are streamed with a hard byte cap
+   (works without `Content-Length`), profile writes are semantically validated + atomic
+   (`data/subs/`). Encrypted subscriptions (Happ `encrypt-tag`, AES-128-GCM) keep keys in the
+   client-side keyring; keyring values are Keystore-encrypted (`SecretsCipher`). New panel quirks /
+    share-link schemes go into `UniversalConfigConverter` / `DeepLinkParser` **with fixture tests**
+    (`PanelsSubscriptionTest` et al. — see `docs/compatibility-research.md`).
 
 ## 4. UI Guidelines (Material 3 Expressive)
 
@@ -83,17 +110,21 @@ Always run these before finishing a task:
 
 ```bash
 ./gradlew compileDebugKotlin      # 1. compile check
-./gradlew testDebugUnitTest       # 2. unit tests (40+)
+./gradlew testDebugUnitTest       # 2. unit tests (39 classes / 350+ @Test, incl. strict suites)
 ./gradlew assembleDebug           # 3. debug APK → app/build/outputs/apk/debug/
 ./gradlew assembleRelease         # 4. release APK (unsigned without KEYSTORE_* env vars)
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-First build (or CI) downloads the mihomo core + geo databases into `.mihomo-core-cache/`
-(after that, builds are offline-friendly).
+Requires **JDK 21** (CI pins it). The `preBuild`-dependent `downloadMihomoCore` task installs the pinned
+core `.so` into `app/src/main/jniLibs/` and geo databases into `.mihomo-core-cache/`
+(after the first build, this is offline-friendly except geo refreshes).
 
 ## 6. Release / CI
 
-- CI (`.github/workflows/ci.yml`): compile + tests + debug APK on every push/PR.
+- CI (`.github/workflows/ci.yml`, JDK 21): compile + tests + debug APK on every push/PR (gradle + core caches).
 - Release (`.github/workflows/release.yml`): tag `v*` → signed APK via repo secrets
   (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) → GitHub Release.
+  Bump `versionCode`/`versionName` in `app/build.gradle.kts` and update `CHANGELOG.md` in the same PR.
+- **Core updates are a two-step flow**: cut a release in the `mihomet/core` repo first, then point
+  `gradle/mihomo-core.properties` at the new tag (sha256+size verified at build time).
