@@ -1,0 +1,40 @@
+package org.mihomet.app.core.config
+
+import org.yaml.snakeyaml.DumperOptions
+import org.yaml.snakeyaml.Yaml
+import java.io.StringWriter
+
+/**
+ * Clash YAML branch of the converter: detection and the normalization pass.
+ *
+ * Re-dumps a Clash YAML profile through SnakeYAML for normalization.
+ * Never silent: a YAML parsing error is reported through [warnings]
+ * ("Ошибка YAML: <message>") and the original content is returned unchanged,
+ * so downstream fail-closed guards (ConfigGenerator / profile validation)
+ * stop the invalid profile instead of silently routing everything to DIRECT.
+ */
+internal object ClashYamlConverter {
+
+    fun isClashYaml(str: String): Boolean {
+        if (str.startsWith("{") || str.startsWith("[")) return false
+        return str.contains("proxies:") || str.contains("proxy-groups:") || (str.contains("mixed-port:") && str.contains("rules:"))
+    }
+
+    fun validateAndNormalizeYaml(yamlContent: String, warnings: MutableList<String>? = null): String {
+        return try {
+            val yaml = Yaml()
+            val parsed = yaml.load<Map<String, Any>>(yamlContent) ?: return yamlContent
+            val dumperOptions = DumperOptions().apply {
+                defaultFlowStyle = DumperOptions.FlowStyle.BLOCK
+                isPrettyFlow = true
+                indent = 2
+            }
+            val writer = StringWriter()
+            Yaml(dumperOptions).dump(parsed, writer)
+            writer.toString()
+        } catch (e: Exception) {
+            warnings?.add("Ошибка YAML: ${e.message ?: "неизвестная ошибка"}")
+            yamlContent
+        }
+    }
+}
