@@ -68,6 +68,64 @@
 
 ---
 
+## 🔍 External audit (31.10.2026, 24 findings) — closure status
+
+### Wave 1 — closed (merged in this milestone)
+- [x] **P0.1** Deep-link hardening: unconditional import confirmation dialog (payload + source + name),
+  panel behavior headers (autoconnect / per-app / **tun-mode→root switch**) applied only after explicit
+  consent, `mihomet://` control links moved out of BROWSABLE into a non-BROWSABLE `activity-alias`,
+  decision logic extracted into testable `DeepLinkPolicy` (fail-closed origin).
+- [x] **P0.2** Core updater: only `mihomet/core` releases, RSA-4096 signed `manifest.json`
+  (signature → sha256 → size → `mihomo -v` from the *new* binary) → backup + atomic install + rollback;
+  fail-closed without manifest/signature. Signing key: `/mnt/Data/mihomet-keys/`, helper
+  `scripts/sign-core-manifest.sh`. **Follow-up: mihomet/core releases must start shipping the signed
+  manifest.json — until then the runtime updater refuses all updates (by design).**
+- [x] **P1.1** ConfigGenerator profile-key whitelist (`listeners`, `tunnels`, `external-ui`, `geox-url`,
+  `interface-name`, … dropped with warnings) + hostile-profile strict test.
+- [x] **P1.2** Probe core: per-run random secret + ephemeral port + client closed.
+- [x] **P2.2** No `runBlocking` on main thread (VpnService receiver, Application key gate → background
+  coroutine + StateFlow, 5s bounded wait, conservative fallback).
+- [x] **P2.3** `MihomoApiClient : Closeable`; provider closes swapped-out clients (30s grace) + `dispose()`
+  from `onTerminate`; probe client closed in `finally`.
+- [x] **P2.6** CI release gates: CHANGELOG heading check on `vX.Y.Z` tags, versionCode monotonicity vs
+  the latest release's `version-info.json` (releases now ship it).
+- [x] **P3.1** SECURITY.md rewritten to match reality (patched `mihomet/core` builds, per-run probe secret).
+- [x] **P3.3** Garbled patch URL in `gradle/mihomo-core.properties` fixed.
+- [x] **P3.4** CHANGELOG restructured by versions (1.2.1/1.2.0/1.1.1; no 1.1.2 tag exists).
+- [x] **P3.6 (part)** `<queries>` MAIN/LAUNCHER instead of `QUERY_ALL_PACKAGES`; night-history branch
+  pushed (README promise kept); locale parity guard test (333=333); GitHub issue/PR templates +
+  CODE_OF_CONDUCT.
+
+### Wave 2 — open (features delivered alongside)
+- [x] Per-subscription custom HTTP headers (strict parser, injection guards, encrypted at rest,
+  editor in profile card) with precedence **profile > global > default**.
+- [x] Global subscription identity: User-Agent override + x-hwid toggle + custom hwid (Settings → Subscriptions).
+- [x] Free MTU (1280–65535 numeric input + presets) and TUN stack choice instead of hardcodes.
+- [x] App language picker (per-app locales, API 33+) + `localeConfig`.
+
+### Wave 3 — remaining (audit long tail)
+- [ ] **P1.3** Instrumented tests: `connectedAndroidTest` on API 29/35 emulators in CI (VpnService smoke,
+  deep-link import, Room migrations); JaCoCo coverage gate.
+- [ ] **P1.4** In-app update check (GitHub releases; signature-checked APK install — see Tropa Updater.kt).
+- [ ] **P2.1** Split god files: `MihometVpnService.startVpnInternal` (~500 lines) → TunBuilder /
+  CoreProcessLauncher / NotificationController; `UniversalConfigConverter` (1.7k) → per-format
+  converters; `SettingsScreen` (1.7k) → per-section files.
+- [ ] **P2.4** Dependency ladder: AndroidX + Compose BOM → Room 2.8 → Koin 4 → AGP 9/Kotlin 2.3 →
+  Ktor 3; add `ben-manes/gradle-versions` job.
+- [ ] **P2.5** `compileSdk 37`, `targetSdk 36` after emulator matrix run.
+- [ ] **P2.7** Static analysis in CI: Android Lint (`abortOnError`/baseline), detekt with file/function
+  size limits.
+- [ ] **P2.8** ICMP honestly via `/system/bin/ping` (feature-detect) or drop "ICMP" from UI.
+- [ ] **P2.9** Typed `ConversionWarning` instead of RU-prefix string matching in `WarningLocalizer`.
+- [ ] **P2.10** ABI splits (or runtime core download → APK <10MB).
+- [ ] **P2.11** Trim shotgun R8 keeps (`io.ktor.**`, `org.yaml.snakeyaml.**`, `org.koin.**`) after
+  release-build smoke test.
+- [ ] **P3 (rest)** Signed tags/GPG for releases; doc drift sweep (TODO `exportSchema` note — schemas
+  2..5 exported; `docs/compatibility-research.md` keyring note); versionCode still manual (5) — bump
+  on next release.
+
+---
+
 ## 📋 Completed Milestones
 - [x] Full UI Redesign to Material 3 Expressive (Pills, ExpressiveShapes, Haptics).
 - [x] Pure Carbon Neutral AMOLED theme (zero purple, `R==G==B` containers, white/titanium accents).
