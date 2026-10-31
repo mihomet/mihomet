@@ -56,6 +56,10 @@ fun SettingsScreen(
     var showPortsDialog by remember { mutableStateOf(false) }
     var showLatencyDialog by remember { mutableStateOf(false) }
     var showDnsDialog by remember { mutableStateOf(false) }
+    var showSubscriptionUaDialog by remember { mutableStateOf(false) }
+    var showSubscriptionHwidDialog by remember { mutableStateOf(false) }
+    var showMtuDialog by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
     var isAdvancedExpanded by remember { mutableStateOf(false) }
 
     // Manufacturer diagnostics — only on devices from vendors whose power
@@ -276,7 +280,106 @@ fun SettingsScreen(
                 }
             }
 
-            // 3. Notifications Card
+            // 3. Subscriptions identity card (global UA / x-hwid merge defaults;
+            //    per-profile custom headers override these — see Profiles screen)
+            item {
+                SettingsSectionTitle(stringResource(R.string.settings_subs_section))
+                Spacer(modifier = Modifier.height(6.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = ExpressiveShapes.Large,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        // Subscription User-Agent (blank = built-in default chain)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(ExpressiveShapes.Small)
+                                .clickable {
+                                    AppHaptics.perform(context, HapticType.CLICK, view)
+                                    showSubscriptionUaDialog = true
+                                }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                Text(
+                                    stringResource(R.string.settings_subs_ua),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    stringResource(
+                                        R.string.settings_subs_ua_summary,
+                                        settings.subscriptionUserAgent.ifBlank {
+                                            stringResource(R.string.settings_subs_ua_desc)
+                                        }
+                                    ),
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Icon(Icons.Default.Badge, contentDescription = null, modifier = Modifier.size(18.dp))
+                        }
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                        // x-hwid device header toggle
+                        ExpressiveSwitchRow(
+                            icon = Icons.Default.Fingerprint,
+                            iconBg = MaterialTheme.colorScheme.tertiaryContainer,
+                            iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
+                            title = stringResource(R.string.settings_subs_hwid),
+                            subtitle = stringResource(R.string.settings_subs_hwid_desc),
+                            checked = settings.sendHwid,
+                            onCheckedChange = {
+                                AppHaptics.perform(context, HapticType.CLICK, view)
+                                viewModel.updateSendHwid(it)
+                            }
+                        )
+
+                        // Custom x-hwid override (only meaningful while the header is sent)
+                        if (settings.sendHwid) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(ExpressiveShapes.Small)
+                                    .clickable {
+                                        AppHaptics.perform(context, HapticType.CLICK, view)
+                                        showSubscriptionHwidDialog = true
+                                    }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        stringResource(R.string.settings_subs_hwid_custom),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                    Text(
+                                        stringResource(R.string.settings_subs_hwid_custom_desc),
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Icon(Icons.Default.Tag, contentDescription = null, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. Notifications Card
             item {
                 SettingsSectionTitle(stringResource(R.string.settings_notifications))
                 Spacer(modifier = Modifier.height(6.dp))
@@ -417,6 +520,64 @@ fun SettingsScreen(
                                     viewModel.updateTheme(settings.dynamicColor, settings.darkTheme, it)
                                 }
                             )
+                        }
+
+                        // Per-app language (platform API, Android 13+; hidden below)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(ExpressiveShapes.Small)
+                                    .clickable {
+                                        AppHaptics.perform(context, HapticType.CLICK, view)
+                                        showLanguageDialog = true
+                                    }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Surface(
+                                        shape = ExpressiveShapes.Small,
+                                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        modifier = Modifier.size(38.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                Icons.Default.Language,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.width(14.dp))
+
+                                    Column {
+                                        Text(
+                                            stringResource(R.string.settings_language),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        )
+                                        Text(
+                                            stringResource(R.string.settings_language_desc),
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                Icon(
+                                    Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -616,17 +777,14 @@ fun SettingsScreen(
 
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
-                                // TUN MTU (tap to cycle 1500 → 8500 → 9000)
+                                // TUN MTU — free numeric input (1280..65535), presets inside the dialog
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(ExpressiveShapes.Small)
                                         .clickable {
                                             AppHaptics.perform(context, HapticType.CLICK, view)
-                                            val choices = TunOptions.MTU_CHOICES
-                                            val currentIndex = choices.indexOf(settings.tunMtu)
-                                            val next = choices[(currentIndex + 1).mod(choices.size)]
-                                            viewModel.updateTunMtu(next)
+                                            showMtuDialog = true
                                         }
                                         .padding(vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -1029,6 +1187,45 @@ fun SettingsScreen(
                     viewModel.updateCustomDns(selectedDns)
                     showDnsDialog = false
                 }
+            )
+        }
+
+        if (showSubscriptionUaDialog) {
+            SubscriptionUserAgentDialog(
+                currentUa = settings.subscriptionUserAgent,
+                onDismiss = { showSubscriptionUaDialog = false },
+                onSave = { ua ->
+                    viewModel.updateSubscriptionUserAgent(ua)
+                    showSubscriptionUaDialog = false
+                }
+            )
+        }
+
+        if (showSubscriptionHwidDialog) {
+            SubscriptionHwidDialog(
+                currentHwid = settings.customHwid,
+                onDismiss = { showSubscriptionHwidDialog = false },
+                onSave = { hwid ->
+                    viewModel.updateCustomHwid(hwid)
+                    showSubscriptionHwidDialog = false
+                }
+            )
+        }
+
+        if (showMtuDialog) {
+            TunMtuConfigDialog(
+                currentMtu = settings.tunMtu,
+                onDismiss = { showMtuDialog = false },
+                onSave = { mtu ->
+                    viewModel.updateTunMtu(mtu)
+                    showMtuDialog = false
+                }
+            )
+        }
+
+        if (showLanguageDialog) {
+            LanguageDialog(
+                onDismiss = { showLanguageDialog = false }
             )
         }
     }
@@ -1727,4 +1924,308 @@ fun DnsPresetDisplayName(uri: String): String {
         "quad9_doh" -> stringResource(R.string.dns_preset_quad9)
         else -> preset.uri
     }
+}
+
+/**
+ * Global subscription User-Agent (Settings → Subscriptions). Blank input
+ * restores the built-in honest default chain — the hint spells it out.
+ */
+@Composable
+fun SubscriptionUserAgentDialog(
+    currentUa: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var uaInput by remember { mutableStateOf(currentUa) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_subs_ua_dialog_title), fontWeight = FontWeight.Black) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = uaInput,
+                    onValueChange = { uaInput = it },
+                    label = { Text(stringResource(R.string.settings_subs_ua)) },
+                    placeholder = { Text(org.mihomet.app.data.subs.SubscriptionRepository.APP_USER_AGENT) },
+                    shape = ExpressiveShapes.Small,
+                    singleLine = true,
+                    trailingIcon = {
+                        if (uaInput.isNotEmpty()) {
+                            IconButton(onClick = { uaInput = "" }) {
+                                Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.cd_clear))
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    text = stringResource(
+                        R.string.settings_subs_ua_hint,
+                        org.mihomet.app.data.subs.SubscriptionRepository.APP_USER_AGENT
+                    ),
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(uaInput.trim()) },
+                shape = ExpressiveShapes.Small
+            ) {
+                Text(stringResource(R.string.action_save), fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+/** Custom `x-hwid` override (Settings → Subscriptions); blank = device-derived id. */
+@Composable
+fun SubscriptionHwidDialog(
+    currentHwid: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var hwidInput by remember { mutableStateOf(currentHwid) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_subs_hwid_dialog_title), fontWeight = FontWeight.Black) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = hwidInput,
+                    onValueChange = { hwidInput = it },
+                    label = { Text(stringResource(R.string.settings_subs_hwid_custom)) },
+                    placeholder = { Text("0123456789abcdef0123456789abcdef") },
+                    shape = ExpressiveShapes.Small,
+                    singleLine = true,
+                    trailingIcon = {
+                        if (hwidInput.isNotEmpty()) {
+                            IconButton(onClick = { hwidInput = "" }) {
+                                Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.cd_clear))
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    text = stringResource(R.string.settings_subs_hwid_hint),
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(hwidInput) },
+                shape = ExpressiveShapes.Small
+            ) {
+                Text(stringResource(R.string.action_save), fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+/**
+ * Free-form TUN MTU input (1280..65535, [TunOptions] clamps/persists), with
+ * the common gVisor-friendly presets as one-tap shortcuts.
+ */
+@Composable
+fun TunMtuConfigDialog(
+    currentMtu: Int,
+    onDismiss: () -> Unit,
+    onSave: (Int) -> Unit
+) {
+    var mtuInput by remember { mutableStateOf(currentMtu.toString()) }
+
+    val numberError = stringResource(R.string.settings_tun_mtu_error_number)
+    val rangeError = stringResource(R.string.settings_tun_mtu_error_range)
+    val mtu = mtuInput.toIntOrNull()
+    val error = when {
+        mtu == null -> numberError
+        mtu < TunOptions.MIN_MTU || mtu > TunOptions.MAX_MTU -> rangeError
+        else -> null
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_tun_mtu_dialog_title), fontWeight = FontWeight.Black) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = mtuInput,
+                    onValueChange = { mtuInput = it },
+                    label = { Text(stringResource(R.string.settings_tun_mtu)) },
+                    supportingText = {
+                        Text(stringResource(R.string.settings_tun_mtu_hint, TunOptions.DEFAULT_MTU))
+                    },
+                    isError = error != null,
+                    shape = ExpressiveShapes.Small,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (error != null) {
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(1500, 8500, 9000).forEach { preset ->
+                        FilledTonalButton(
+                            onClick = { mtuInput = preset.toString() },
+                            modifier = Modifier.weight(1f),
+                            shape = ExpressiveShapes.Small
+                        ) {
+                            Text(preset.toString(), fontSize = 11.sp)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(mtu ?: return@Button) },
+                enabled = error == null,
+                shape = ExpressiveShapes.Small
+            ) {
+                Text(stringResource(R.string.action_save), fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+/** One selectable row inside [LanguageDialog]. */
+@Composable
+private fun LanguageOptionRow(
+    label: String,
+    isSelected: Boolean,
+    onSelect: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(ExpressiveShapes.Small)
+            .clickable { onSelect() },
+        color = if (isSelected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f)
+        },
+        shape = ExpressiveShapes.Small,
+        border = if (isSelected) {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+        } else null
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = label,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                fontSize = 13.sp,
+                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+            )
+            if (isSelected) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Per-app language picker (Android 13+ platform API; the entry row is hidden
+ * below API 33). Applies en/ru/system through [LocaleManager] — the system
+ * recreates activities automatically.
+ */
+@Composable
+fun LanguageDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val currentTags = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            runCatching {
+                context.getSystemService(android.app.LocaleManager::class.java)
+                    .applicationLocales.toLanguageTags()
+            }.getOrDefault("")
+        } else ""
+    }
+    val selected = when {
+        currentTags.isBlank() -> "system"
+        currentTags.startsWith("ru") -> "ru"
+        else -> "en"
+    }
+
+    fun apply(tags: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        runCatching {
+            val localeManager = context.getSystemService(android.app.LocaleManager::class.java)
+            localeManager.applicationLocales = if (tags.isBlank()) {
+                android.os.LocaleList.getEmptyLocaleList()
+            } else {
+                android.os.LocaleList.forLanguageTags(tags)
+            }
+        }
+        onDismiss()
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_language_dialog_title), fontWeight = FontWeight.Black) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LanguageOptionRow(
+                    label = stringResource(R.string.language_system),
+                    isSelected = selected == "system",
+                    onSelect = { apply("") }
+                )
+                LanguageOptionRow(
+                    label = stringResource(R.string.language_english),
+                    isSelected = selected == "en",
+                    onSelect = { apply("en") }
+                )
+                LanguageOptionRow(
+                    label = stringResource(R.string.language_russian),
+                    isSelected = selected == "ru",
+                    onSelect = { apply("ru") }
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
 }

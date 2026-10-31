@@ -19,6 +19,7 @@ import org.mihomet.app.data.crypto.SecretsCipher
 import org.mihomet.app.data.preferences.PerAppMode
 import org.mihomet.app.data.preferences.SettingsRepository
 import org.mihomet.app.data.subs.ProfileValidation
+import org.mihomet.app.data.subs.SubscriptionHeaders
 import org.mihomet.app.data.subs.SubscriptionRepository
 import org.yaml.snakeyaml.Yaml
 import java.io.File
@@ -167,7 +168,15 @@ class ProfilesViewModel(
         viewModelScope.launch {
             try {
                 val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
-                val normalizedHeaders = SubscriptionRepository.normalizeHeadersJson(customHeaders)
+                // Strict content validation BEFORE anything is stored or sent:
+                // CR/LF inside a value would be a header-injection vector, size
+                // caps keep the stored row and the request bounded.
+                val normalizedHeaders = try {
+                    SubscriptionHeaders.toJson(SubscriptionHeaders.parse(customHeaders))
+                } catch (e: SubscriptionHeaders.HeaderValidationException) {
+                    errorMessageFlow.value = headerViolationMessage(e.violation)
+                    return@launch
+                }
                 val download = subscriptionRepository.downloadAndConvert(url, normalizedHeaders)
                 // Profile-key whitelist warnings (audit P1 §2.1): never silent.
                 val outcome = withProfileKeyWarnings(download.outcome)
@@ -562,6 +571,82 @@ class ProfilesViewModel(
             .getOrElse { emptyList() }
         return if (extra.isEmpty()) outcome else outcome.copy(warnings = outcome.warnings + extra)
     }
+
+    /**
+     * Validates and stores the per-profile custom subscription headers
+     * ("Name: Value" lines or a JSON object map; see [SubscriptionHeaders] for
+     * the strict guards — header-injection, size caps). A blank input clears
+     * the custom headers. Validation runs synchronously so the caller can keep
+     * the dialog open on failure; success/failure snackbars go through the
+     * shared [ProfilesUiState.successMessage] / [ProfilesUiState.errorMessage] flows.
+     */
+    fun saveHeaders(profileId: Long, headersText: String): Result<Unit> {
+        val normalized = try {
+            SubscriptionHeaders.toJson(SubscriptionHeaders.parse(headersText))
+        } catch (e: SubscriptionHeaders.HeaderValidationException) {
+            val error = IllegalArgumentException(headerViolationMessage(e.violation))
+            errorMessageFlow.value = error.message
+            return Result.failure(error)
+        }
+
+        viewModelScope.launch {
+            try {
+                val entity = profileDao.getProfileById(profileId)
+                    ?: throw IllegalArgumentException("Profile not found")
+                // Headers may carry panel API tokens — encrypt before the write,
+                // exactly like url / keyring values (audit I2 / F15b).
+                val encrypted = try {
+                    SecretsCipher.encryptIfSecret(normalized)
+                } catch (e: SecretsCipher.SecretEncryptException) {
+                    throw IllegalStateException(context.getString(R.string.profiles_encrypt_failed))
+                }
+                profileDao.updateProfile(
+                    entity.copy(customHeaders = encrypted, lastUpdated = System.currentTimeMillis())
+                )
+                errorMessageFlow.value = null
+                successMessageFlow.value = context.getString(R.string.profile_headers_saved)
+            } catch (e: Exception) {
+                errorMessageFlow.value =
+                    context.getString(R.string.profiles_update_failed, e.message ?: context.getString(R.string.profiles_unknown_error))
+            }
+        }
+        return Result.success(Unit)
+    }
+
+    /**
+     * Resolves the decrypted custom headers of a remote profile as human-facing
+     * `Name: Value` lines for the editor dialog. Empty string when the profile
+     * has none (or is not remote); a decrypt failure is surfaced through
+     * [ProfilesUiState.errorMessage] (reuses `profiles_subscription_undecryptable`).
+     */
+    suspend fun getHeadersText(profileId: Long): String = withContext(Dispatchers.IO) {
+        val entity = profileDao.getProfileById(profileId) ?: return@withContext ""
+        if (entity.type != ProfileType.REMOTE) return@withContext ""
+        val stored = try {
+            SecretsCipher.decrypt(entity.customHeaders)
+        } catch (e: SecretsCipher.SecretDecryptException) {
+            errorMessageFlow.value = context.getString(R.string.profiles_subscription_undecryptable)
+            return@withContext ""
+        }
+        SubscriptionHeaders.toLines(SubscriptionHeaders.parseLenient(stored))
+    }
+
+    /** Maps a pure parser [SubscriptionHeaders.Violation] to a localized message. */
+    private fun headerViolationMessage(violation: SubscriptionHeaders.Violation): String =
+        when (violation) {
+            SubscriptionHeaders.Violation.RAW_TOO_LARGE ->
+                context.getString(R.string.profiles_headers_error_size)
+            SubscriptionHeaders.Violation.TOO_MANY_HEADERS ->
+                context.getString(R.string.profiles_headers_error_too_many, SubscriptionHeaders.MAX_HEADERS)
+            SubscriptionHeaders.Violation.NAME_TOO_LONG ->
+                context.getString(R.string.profiles_headers_error_name_long)
+            SubscriptionHeaders.Violation.VALUE_TOO_LONG ->
+                context.getString(R.string.profiles_headers_error_value_long)
+            SubscriptionHeaders.Violation.FORBIDDEN_CHAR ->
+                context.getString(R.string.profiles_headers_error_chars)
+            SubscriptionHeaders.Violation.EMPTY_NAME ->
+                context.getString(R.string.profiles_headers_error_empty_name)
+        }
 
     fun deleteProfile(profile: ProfileEntity) {
         viewModelScope.launch {

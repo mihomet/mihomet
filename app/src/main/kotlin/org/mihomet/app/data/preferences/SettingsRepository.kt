@@ -65,6 +65,9 @@ class SettingsRepository(
         val VPN_HTTP_PROXY = booleanPreferencesKey("vpn_http_proxy")
         val BATT_PROMPT_SHOWN = booleanPreferencesKey("batt_prompt_shown")
         val HAPP_CRYPTO_KEYS = stringPreferencesKey("happ_crypto_keys")
+        val SUBSCRIPTION_USER_AGENT = stringPreferencesKey("subscription_user_agent")
+        val SEND_HWID = booleanPreferencesKey("send_hwid")
+        val CUSTOM_HWID = stringPreferencesKey("custom_hwid")
     }
 
     val settingsFlow: Flow<AppSettings> = context.dataStore.data
@@ -121,7 +124,10 @@ class SettingsRepository(
                 bypassLan = preferences[PreferencesKeys.BYPASS_LAN] ?: false,
                 vpnAllowBypass = preferences[PreferencesKeys.VPN_ALLOW_BYPASS] ?: false,
                 vpnHttpProxy = preferences[PreferencesKeys.VPN_HTTP_PROXY] ?: false,
-                battPromptShown = preferences[PreferencesKeys.BATT_PROMPT_SHOWN] ?: false
+                battPromptShown = preferences[PreferencesKeys.BATT_PROMPT_SHOWN] ?: false,
+                subscriptionUserAgent = preferences[PreferencesKeys.SUBSCRIPTION_USER_AGENT].orEmpty(),
+                sendHwid = preferences[PreferencesKeys.SEND_HWID] ?: true,
+                customHwid = preferences[PreferencesKeys.CUSTOM_HWID].orEmpty()
             )
         }
 
@@ -444,6 +450,25 @@ class SettingsRepository(
         context.dataStore.edit { it[PreferencesKeys.BATT_PROMPT_SHOWN] = shown }
     }
 
+    // region Subscription identity (Settings → Subscriptions)
+
+    /** Persists the global subscription User-Agent (blank = built-in default chain). */
+    suspend fun updateSubscriptionUserAgent(ua: String) {
+        context.dataStore.edit { it[PreferencesKeys.SUBSCRIPTION_USER_AGENT] = sanitizeUserAgent(ua) }
+    }
+
+    /** Toggles sending the `x-hwid` device header with subscription downloads. */
+    suspend fun updateSendHwid(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.SEND_HWID] = enabled }
+    }
+
+    /** Persists the custom `x-hwid` override (blank = device-derived id). */
+    suspend fun updateCustomHwid(hwid: String) {
+        context.dataStore.edit { it[PreferencesKeys.CUSTOM_HWID] = sanitizeHwid(hwid) }
+    }
+
+    // endregion
+
     // region Happ crypto keyring (encrypted subscriptions, see core/HappCrypto.kt)
 
     /**
@@ -540,6 +565,32 @@ class SettingsRepository(
 
         /** Upper bound for the data-loss gate's Room probe (see [hasEncryptedSecrets]). */
         private const val ROOM_PROBE_TIMEOUT_MS = 3_000L
+
+        /** Upper bound for a stored custom subscription User-Agent. */
+        const val MAX_USER_AGENT_LENGTH = 512
+
+        /** Upper bound for a stored custom `x-hwid` (HwidProvider emits 32 hex chars). */
+        const val MAX_HWID_LENGTH = 128
+
+        /**
+         * Pure sanitizer (JVM-testable) for a user-typed subscription
+         * User-Agent: CR/LF would split the HTTP request line (header
+         * injection), so every control character is replaced with a space
+         * (runs collapsed) and the ends trimmed before persistence.
+         */
+        internal fun sanitizeUserAgent(raw: String): String =
+            sanitizeSingleLine(raw, MAX_USER_AGENT_LENGTH)
+
+        /** Same guard for the custom `x-hwid` value. */
+        internal fun sanitizeHwid(raw: String): String =
+            sanitizeSingleLine(raw, MAX_HWID_LENGTH)
+
+        private fun sanitizeSingleLine(raw: String, maxLength: Int): String =
+            raw.map { if (it.code < 0x20 || it.code == 0x7F) ' ' else it }
+                .joinToString("")
+                .trim()
+                .replace(Regex(" +"), " ")
+                .take(maxLength)
 
         /**
          * Pure decision core of the data-loss gate [hasEncryptedSecrets]

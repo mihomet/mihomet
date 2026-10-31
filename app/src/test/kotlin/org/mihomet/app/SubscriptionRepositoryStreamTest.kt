@@ -14,6 +14,7 @@ import okhttp3.mockwebserver.MockWebServer
 import okio.Buffer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -212,6 +213,67 @@ class SubscriptionRepositoryStreamTest {
         val recorded = server.takeRequest()
 
         assertEquals("streaming", recorded.getHeader("X-Test"))
+    }
+
+    @Test
+    fun `merged subscription request plan carries custom headers on the wire`() = runBlocking {
+        // The repository cannot be constructed on the JVM (Android Context),
+        // so the merge result is verified at the wire level: build the plan
+        // exactly like SubscriptionRepository.downloadAndConvert does (strict
+        // parse → sanitize → plan) and apply it with the same Ktor calls —
+        // then assert what the server actually received.
+        val identity = org.mihomet.app.data.subs.SubscriptionIdentitySettings(
+            globalUserAgent = "",
+            sendHwid = true,
+            customHwid = "global-custom-hwid"
+        )
+        val profileHeaders = org.mihomet.app.data.subs.SubscriptionHeaders.sanitizeForRequest(
+            org.mihomet.app.data.subs.SubscriptionHeaders.parse(
+                "Authorization: Bearer token123\nx-panel: custom-value\nUser-Agent: ProfileAgent/2.0"
+            )
+        )
+        val plan = org.mihomet.app.data.subs.SubscriptionRequestPlan.build(
+            profileHeaders, identity, deviceHwid = "device-hwid-abcdef"
+        )
+
+        server.enqueue(MockResponse().setResponseCode(200).setBody("proxies: []"))
+        client.prepareGet(subUrl()) {
+            header("User-Agent", plan.userAgentsToTry.first())
+            plan.hwidHeader?.let { header(org.mihomet.app.core.HwidProvider.HWID_HEADER, it) }
+            plan.extraHeaders.forEach { (k, v) -> header(k, v) }
+        }.execute { }
+        val recorded = server.takeRequest()
+
+        assertEquals("ProfileAgent/2.0", recorded.getHeader("User-Agent"))
+        assertEquals("Bearer token123", recorded.getHeader("Authorization"))
+        assertEquals("custom-value", recorded.getHeader("x-panel"))
+        // x-hwid resolved by the merge (no profile override → global custom value)
+        assertEquals("global-custom-hwid", recorded.getHeader("x-hwid"))
+    }
+
+    @Test
+    fun `merged plan omits x-hwid when the global toggle is off`() = runBlocking {
+        val identity = org.mihomet.app.data.subs.SubscriptionIdentitySettings(
+            globalUserAgent = "GlobalAgent/1.0",
+            sendHwid = false,
+            customHwid = "ignored"
+        )
+        val plan = org.mihomet.app.data.subs.SubscriptionRequestPlan.build(
+            org.mihomet.app.data.subs.SubscriptionHeaders.sanitizeForRequest(emptyMap()),
+            identity,
+            deviceHwid = "device-hwid-abcdef"
+        )
+
+        server.enqueue(MockResponse().setResponseCode(200).setBody("proxies: []"))
+        client.prepareGet(subUrl()) {
+            header("User-Agent", plan.userAgentsToTry.first())
+            plan.hwidHeader?.let { header(org.mihomet.app.core.HwidProvider.HWID_HEADER, it) }
+            plan.extraHeaders.forEach { (k, v) -> header(k, v) }
+        }.execute { }
+        val recorded = server.takeRequest()
+
+        assertEquals("GlobalAgent/1.0", recorded.getHeader("User-Agent"))
+        assertNull("x-hwid must be absent when sendHwid is off", recorded.getHeader("x-hwid"))
     }
 
     // ------------------------------------------------------ exact cap boundary (in-memory channels)

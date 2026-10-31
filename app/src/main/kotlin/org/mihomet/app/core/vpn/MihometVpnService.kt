@@ -925,10 +925,18 @@ class MihometVpnService : VpnService(), KoinComponent {
                 when (intent.action) {
                     Intent.ACTION_SCREEN_ON -> {
                         isScreenOn = true
-                        val settings = runCatching {
-                            kotlinx.coroutines.runBlocking { settingsRepository.settingsFlow.first() }
-                        }.getOrNull()
-                        if (settings?.showSpeedInNotification == true) startSpeedUpdates()
+                        // Audit P2.2: broadcast receivers must not runBlocking
+                        // (onReceive runs on the main thread). The settings read
+                        // happens on the service scope; the notification state it
+                        // guards is only refreshed a moment later.
+                        serviceScope.launch {
+                            val settings = runCatching {
+                                settingsRepository.settingsFlow.first()
+                            }.getOrNull()
+                            if (settings?.showSpeedInNotification == true) {
+                                startSpeedUpdates()
+                            }
+                        }
                     }
                     Intent.ACTION_SCREEN_OFF -> {
                         isScreenOn = false

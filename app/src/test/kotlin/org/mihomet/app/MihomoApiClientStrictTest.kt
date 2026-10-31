@@ -385,6 +385,20 @@ class MihomoApiClientStrictTest {
         assertTrue(result.isFailure)
     }
 
+    // ------------------------------------------------------------- lifecycle (P2.3)
+
+    @Test
+    fun `close releases the engine and is idempotent`() = runTest {
+        val isolated = MihomoApiClient("127.0.0.1", closedPort(), SECRET)
+
+        isolated.close()
+        isolated.close() // second close must not throw either
+
+        // Calls after close fail as a Result (never crash the caller).
+        val result = isolated.getVersion()
+        assertTrue(result.isFailure)
+    }
+
     private fun closedPort(): Int = ServerSocket(0).use { it.localPort }
 
     private companion object {
