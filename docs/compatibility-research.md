@@ -48,7 +48,11 @@
    tools/mihomo-android-nonroot.patch @ v0.2.5) — core-patch/ в репозитории,
    GPL-3.0 совместим. VERIFIED on API 35 emulator (non-root): TUN adapter up
    (no packages.xml error), real app traffic routed via the selected proxy node
-   (mihomo.log: [TCP] … match Match using → Remnawave[🇫🇷]). Audit tails closed:
+   (mihomo.log: [TCP] … match Match using → Remnawave[🇫🇷]).
+   API-LEVEL MATRIX (emulator): API 26 minSdk ✅ (TUN up + routed traffic + deep-link
+   import), API 29 ✅ (TUN up), API 35 ✅. Found+fixed by the matrix: the first patched
+   build targeted NDK API 34 and silently exited on Android 8-13 — rebuilt targeting
+   android-26 (core-v1.19.33-mihomet.2). Audit tails closed:
    readiness-gate before 'connected', watchdog stability reset, mode-switch
    serialization + root-firewall cleanup on VPN start, updater rollback guard,
    empty-whitelist semantics + own-package loop guard, YAML highlighting.
