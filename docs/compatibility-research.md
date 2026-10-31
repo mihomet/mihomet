@@ -67,8 +67,15 @@
      readiness-гейт (/configs tun.enable), OEM chain save/restore, updater rollback.
    - В работе (волна A): firewall DNS-hijack для TCP:53 + unified empty-whitelist,
      VPN exit-ownership/cleanup, root readiness + rollback, watchdog stability window.
-   - Остаток (P2): стриминг готов (частично), DoH UI-дисклеймер, updater scope
-     disclosure, keyring encryption, OEM chain per-brand restore — в TODO.
+   - Волна A (сделано): firewall DNS-hijack для TCP:53 + unified empty-whitelist,
+     VPN exit-ownership/cleanup, root readiness + rollback, watchdog stability window.
+   - Волна H (в работе): сервисы (отсутствующий файл выбранного профиля = fail-closed,
+     семантическая валидация до запуска, per-app фактически добавленные пакеты,
+     сериализация root start/stop, VPN last-good регенерация), OEM-снапшот атомарный
+     (tmp+mv, flush гейтом), Keystore gate консервативный (enc1: в DataStore/Room/keyring),
+     encrypt бросает вместо тихого plaintext.
+   - Остаток (P2): DoH UI-дисклеймер, updater scope disclosure готов (частично),
+     subconverter, JS-override — в TODO.
  виджет рабочего стола (status+toggle),
     автостарт на загрузке (последний успешный режим), TUN stack/MTU/bypass-LAN (CMFA
     additive-паттерн), QR-код подписки, стриминг-лимит тела 20 МБ, экспорт/шеринг логов,
