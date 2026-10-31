@@ -45,16 +45,21 @@ class NftablesEngine : FirewallEngine {
             defaultTable: String = DefaultTableProbe.FALLBACK
         ): String =
             // Purge stale fwmark-666 rules from previous sessions on other networks —
-            // a rule pointing at a dead network blackholes every core DNS query
-            "while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done; " +
+            // a rule pointing at a dead network blackholes every core DNS query.
+            // F10: filtered by our fwmark — a bare `pref 100` loop would also delete
+            // foreign pref-100 rules belonging to other VPN/firewall apps.
+            "while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} fwmark ${CoreConstants.CORE_ROUTING_MARK} 2>/dev/null; do true; done; " +
             "ip rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup $defaultTable pref ${CoreConstants.POLICY_RULE_PREF_MAIN}; " +
             "ip rule add fwmark ${CoreConstants.TPROXY_MARK_IPV4} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL}; " +
             "ip route add local 0.0.0.0/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE}; " +
+            // F10: snapshot the sysctls we are about to change into .sysctl.bak —
+            // teardown writes the original values back
+            FirewallEngine.buildSysctlBackupCommands().joinToString("; ") + "; " +
             "echo 1 > /proc/sys/net/ipv4/ip_forward; " +
             "echo 2 > /proc/sys/net/ipv4/conf/all/rp_filter 2>/dev/null || true; " +
             "echo 2 > /proc/sys/net/ipv4/conf/default/rp_filter 2>/dev/null || true; " +
             if (ipv6Enabled) {
-                "while ip -6 rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done; " +
+                "while ip -6 rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} fwmark ${CoreConstants.CORE_ROUTING_MARK} 2>/dev/null; do true; done; " +
                 "ip -6 rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup $defaultTable pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null || true; " +
                 "ip -6 rule add fwmark ${CoreConstants.TPROXY_MARK_IPV6} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL} 2>/dev/null || true; " +
                 "ip -6 route add local ::/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE} 2>/dev/null || true"
@@ -186,17 +191,19 @@ class NftablesEngine : FirewallEngine {
 
         /**
          * Pure builder for the nftables teardown batch. Deletes the whole table
-         * (removing every chain at once) and purges both fwmark rule families.
+         * (removing every chain at once), purges our fwmark rule families (F10:
+         * filtered by our fwmark — foreign pref-100 rules survive) and restores
+         * the sysctls snapshotted by [buildRoutingCommands] (no-op when no
+         * backup exists).
          */
         fun buildTeardownCommands(): List<String> = listOf(
-            // Purge ALL fwmark-666 rules — stale ones from sessions on other networks linger forever
-            "while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done; " +
-            "while ip -6 rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done; ",
+            "while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} fwmark ${CoreConstants.CORE_ROUTING_MARK} 2>/dev/null; do true; done; " +
+            "while ip -6 rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} fwmark ${CoreConstants.CORE_ROUTING_MARK} 2>/dev/null; do true; done; ",
             "nft delete table inet mihomet 2>/dev/null || true",
             "ip rule del fwmark ${CoreConstants.TPROXY_MARK_IPV4} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL} 2>/dev/null || true",
             "ip route del local default dev lo table ${CoreConstants.POLICY_ROUTING_TABLE} 2>/dev/null || true",
             "ip -6 rule del fwmark ${CoreConstants.TPROXY_MARK_IPV6} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL} 2>/dev/null || true",
             "ip -6 route del local default dev lo table ${CoreConstants.POLICY_ROUTING_TABLE} 2>/dev/null || true"
-        )
+        ) + FirewallEngine.buildSysctlRestoreCommands()
     }
 }

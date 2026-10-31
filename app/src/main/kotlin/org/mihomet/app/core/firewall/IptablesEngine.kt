@@ -61,13 +61,17 @@ class IptablesEngine : FirewallEngine {
             // Critical: Route Mihomo core traffic (fwmark 666) to physical network interface table.
             // First purge stale fwmark rules from previous sessions: a rule pointing at a dead
             // network (e.g. mobile data when the phone is now on Wi-Fi) blackholes every core
-            // DNS query ("dns resolve failed: context deadline exceeded"). Deleting by pref is
-            // safe — pref 100 is reserved for our fwmark rules only.
-            add("while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done")
+            // DNS query ("dns resolve failed: context deadline exceeded"). Deleting by pref AND
+            // our fwmark (F10) — never by pref alone: a bare `pref 100` loop also deletes
+            // foreign pref-100 rules belonging to other VPN/firewall apps sharing the netns.
+            add("while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} fwmark ${CoreConstants.CORE_ROUTING_MARK} 2>/dev/null; do true; done")
             add("ip rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup $defaultTable pref ${CoreConstants.POLICY_RULE_PREF_MAIN}")
             // Route marked packets to local loopback table 2025
             add("ip rule add fwmark ${CoreConstants.TPROXY_MARK_IPV4} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL}")
             add("ip route add local 0.0.0.0/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE}")
+            // F10: snapshot the sysctls we are about to change into .sysctl.bak —
+            // teardown writes the original values back
+            addAll(FirewallEngine.buildSysctlBackupCommands())
             add("echo 1 > /proc/sys/net/ipv4/ip_forward")
             add("echo 2 > /proc/sys/net/ipv4/conf/all/rp_filter 2>/dev/null || true")
             add("echo 2 > /proc/sys/net/ipv4/conf/default/rp_filter 2>/dev/null || true")
@@ -75,7 +79,8 @@ class IptablesEngine : FirewallEngine {
             if (ipv6Enabled) {
                 // Purge stale IPv6 fwmark rules symmetrically to the IPv4 purge above —
                 // a leftover rule pointing at a dead network blackholes core DNS over IPv6.
-                add("while ip -6 rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done")
+                // Same F10 fwmark filter: foreign pref-100 v6 rules must survive.
+                add("while ip -6 rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} fwmark ${CoreConstants.CORE_ROUTING_MARK} 2>/dev/null; do true; done")
                 add("ip -6 rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup $defaultTable pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null || true")
                 add("ip -6 rule add fwmark ${CoreConstants.TPROXY_MARK_IPV6} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL} 2>/dev/null || true")
                 add("ip -6 route add local ::/0 dev lo table ${CoreConstants.POLICY_ROUTING_TABLE} 2>/dev/null || true")
@@ -111,11 +116,12 @@ class IptablesEngine : FirewallEngine {
          * and the local routes.
          */
         fun buildTeardownCommands(): List<String> = buildList {
-            // Purge ALL fwmark-666 rules, not just the one for the current default table —
-            // rules left over from a session on another network would otherwise linger forever
+            // Purge ALL our fwmark-666 rules, not just the one for the current default table —
+            // rules left over from a session on another network would otherwise linger forever.
+            // F10: filtered by our fwmark — foreign pref-100 rules survive.
             add(
-                "while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done; " +
-                "while ip -6 rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done; "
+                "while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} fwmark ${CoreConstants.CORE_ROUTING_MARK} 2>/dev/null; do true; done; " +
+                "while ip -6 rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} fwmark ${CoreConstants.CORE_ROUTING_MARK} 2>/dev/null; do true; done; "
             )
             for (tool in listOf("iptables", "ip6tables")) {
                 // every jump attached with -I must be detached with -D
@@ -135,6 +141,9 @@ class IptablesEngine : FirewallEngine {
             add("ip route del local default dev lo table ${CoreConstants.POLICY_ROUTING_TABLE} 2>/dev/null || true")
             add("ip -6 rule del fwmark ${CoreConstants.TPROXY_MARK_IPV6} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL} 2>/dev/null || true")
             add("ip -6 route del local default dev lo table ${CoreConstants.POLICY_ROUTING_TABLE} 2>/dev/null || true")
+            // F10: restore the sysctls snapshotted by [buildSetupCommands] — a no-op
+            // when no backup exists (nothing was changed)
+            addAll(FirewallEngine.buildSysctlRestoreCommands())
         }
 
         // ---------------------------------------------------------------------
