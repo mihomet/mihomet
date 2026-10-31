@@ -27,7 +27,13 @@ import org.mihomet.app.data.preferences.PerAppMode
  *    went direct and per-app mode was dead);
  *  - the IPv6 mark mismatch (the `ip -6` policy rules wait for fwmark
  *    [CoreConstants.TPROXY_MARK_IPV6] while output marked everything with
- *    [CoreConstants.TPROXY_MARK_IPV4], so IPv6 silently stayed unproxied).
+ *    [CoreConstants.TPROXY_MARK_IPV4], so IPv6 silently stayed unproxied);
+ *  - the udp-only DNS bypass (tcp:53 to the router/private resolvers was ACCEPTed
+ *    by the bypass chain and went direct while the docs promised DNS interception —
+ *    both protocols must fall through into the MARK rules);
+ *  - the empty-whitelist divergence (root engines ACCEPTed/RETURNed everything
+ *    unmarked = all direct, contradicting the VPN engine where an empty allow
+ *    list routes every app — an empty whitelist must behave like ALL mode).
  *
  * Every port/mark/table/pref must come from [CoreConstants] (or an explicit
  * builder parameter) and nothing else.
@@ -44,7 +50,9 @@ class FirewallCommandsStrictTest {
      * Anything outside this set is foreign magic that must fail the build.
      */
     private val allowedFirewallNumbers: Set<Int> = buildSet {
-        // Routing values — must originate from CoreConstants only
+        // Routing values — must originate from CoreConstants only.
+        // Note: DEFAULT_DNS_PORT is deliberately absent — the firewall builders have
+        // no dnsPort parameter (DNS hijack is dst-port-53 based, protocol-agnostic).
         addAll(
             listOf(
                 CoreConstants.CORE_ROUTING_MARK,      // 666 — core SO_MARK
@@ -53,8 +61,7 @@ class FirewallCommandsStrictTest {
                 CoreConstants.POLICY_ROUTING_TABLE,   // 2025 — local routing table
                 CoreConstants.POLICY_RULE_PREF_MAIN,  // 100 — fwmark-666 rule pref
                 CoreConstants.POLICY_RULE_PREF_LOCAL, // 2025 — tproxy rule pref
-                CoreConstants.DEFAULT_TPROXY_PORT,    // 7893 — tproxy port passed in these tests
-                CoreConstants.DEFAULT_DNS_PORT        // 1053 — dnsPort passed in these tests
+                CoreConstants.DEFAULT_TPROXY_PORT     // 7893 — tproxy port passed in these tests
             )
         )
         // Non-routing system values
@@ -89,7 +96,6 @@ class FirewallCommandsStrictTest {
         defaultTable: String = "wlan0"
     ): List<String> = IptablesEngine.buildSetupCommands(
         tproxyPort = tproxyPort,
-        dnsPort = CoreConstants.DEFAULT_DNS_PORT,
         perAppMode = perAppMode,
         appUids = appUids,
         ipv6Enabled = ipv6Enabled,
@@ -141,7 +147,7 @@ class FirewallCommandsStrictTest {
     private val RX_PROTO_UID_MARK = Regex("^-p (tcp|udp) -m owner --uid-owner (\\d+) -j MARK --set-mark (\\d+)$")
     private val RX_PROTO_MARK = Regex("^-p (tcp|udp) -j MARK --set-mark (\\d+)$")
     private val RX_BYPASS_UDP_DNS = Regex("^-d (\\S+) -p udp ! --dport (\\d+) -j ACCEPT$")
-    private val RX_BYPASS_NOT_UDP = Regex("^-d (\\S+) ! -p udp -j ACCEPT$")
+    private val RX_BYPASS_TCP_DNS = Regex("^-d (\\S+) -p tcp ! --dport (\\d+) -j ACCEPT$")
     private val RX_BYPASS_DEST = Regex("^-d (\\S+) -j ACCEPT$")
 
     /**
@@ -207,9 +213,14 @@ class FirewallCommandsStrictTest {
                 ) return true
                 continue
             }
-            val bypassNotUdp = RX_BYPASS_NOT_UDP.matchEntire(rule)
-            if (bypassNotUdp != null) {
-                if (inSubnet(bypassNotUdp.groupValues[1], pkt.dest) && pkt.proto != "udp") return true
+            val bypassTcpDns = RX_BYPASS_TCP_DNS.matchEntire(rule)
+            if (bypassTcpDns != null) {
+                // Same DNS exemption for tcp: a tcp:53 packet to a private range is
+                // NOT accepted here — it falls through and gets marked for tproxy
+                if (inSubnet(bypassTcpDns.groupValues[1], pkt.dest) &&
+                    pkt.proto == "tcp" &&
+                    pkt.dport != bypassTcpDns.groupValues[2].toInt()
+                ) return true
                 continue
             }
             val bypassDest = RX_BYPASS_DEST.matchEntire(rule)
@@ -361,18 +372,25 @@ class FirewallCommandsStrictTest {
         assertDirect(pkt("tcp", 1234, "127.0.0.1", dport = 8080), cmds, "iptables")
         assertDirect(pkt("tcp", 1234, "224.0.0.1"), cmds, "iptables")
         assertDirect(pkt("udp", 1234, "255.255.255.255"), cmds, "iptables")
+        // mDNS (udp 5353) to a private destination is NOT DNS — must stay bypassed
+        assertDirect(pkt("udp", 1234, "192.168.1.5", dport = 5353), cmds, "iptables")
 
-        // but UDP DNS to those ranges must stay interceptable (marked for tproxy)
+        // but DNS to those ranges must stay interceptable (marked for tproxy) —
+        // for BOTH protocols (F06: tcp:53 used to slip through the bypass)
         assertTproxy(pkt("udp", 1234, "192.168.1.5", dport = 53), cmds, "iptables", CoreConstants.TPROXY_MARK_IPV4)
         assertTproxy(pkt("udp", 1234, "10.0.0.1", dport = 53), cmds, "iptables", CoreConstants.TPROXY_MARK_IPV4)
         assertTproxy(pkt("udp", 1234, "127.0.0.1", dport = 53), cmds, "iptables", CoreConstants.TPROXY_MARK_IPV4)
         assertTproxy(pkt("udp", 1234, "172.16.0.1", dport = 53), cmds, "iptables", CoreConstants.TPROXY_MARK_IPV4)
+        assertTproxy(pkt("tcp", 1234, "192.168.1.1", dport = 53), cmds, "iptables", CoreConstants.TPROXY_MARK_IPV4)
+        assertTproxy(pkt("tcp", 1234, "10.0.0.1", dport = 53), cmds, "iptables", CoreConstants.TPROXY_MARK_IPV4)
+        assertTproxy(pkt("tcp", 1234, "127.0.0.1", dport = 53), cmds, "iptables", CoreConstants.TPROXY_MARK_IPV4)
     }
 
     @Test
-    fun `iptables setup never bypasses udp dns from private ranges`() {
-        // Regression guard: udp dport 53 to private ranges must NOT be accepted by
-        // the bypass chain, otherwise the core DNS hijack is silently bypassed.
+    fun `iptables setup never bypasses dns to private ranges for either protocol`() {
+        // Regression guard: dport 53 to private ranges must NOT be accepted by the
+        // bypass chain for udp OR tcp, otherwise the core DNS hijack is silently
+        // bypassed for DoT-style plain tcp resolvers on the LAN.
         val bypassAccepts = iptablesSetup(ipv6Enabled = false).filter { it.contains("-A MIHOMET_BYPASS -d") }
 
         for (net in listOf("127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")) {
@@ -381,20 +399,33 @@ class FirewallCommandsStrictTest {
                 bypassAccepts.any { it.contains("-d $net -p udp ! --dport 53 -j ACCEPT") }
             )
             assertTrue(
-                "non-udp traffic to $net must be bypassed",
-                bypassAccepts.any { it.contains("-d $net ! -p udp -j ACCEPT") }
+                "tcp dns (dport 53) to $net must stay exempt from the bypass chain",
+                bypassAccepts.any { it.contains("-d $net -p tcp ! --dport 53 -j ACCEPT") }
             )
             assertFalse(
                 "an unconditional accept for $net would blackhole DNS interception",
                 bypassAccepts.any {
-                    it.contains("-d $net") && it.endsWith("-j ACCEPT") &&
-                        "! --dport 53" !in it && "! -p udp" !in it
+                    it.contains("-d $net") && it.endsWith("-j ACCEPT") && "! --dport 53" !in it
                 }
             )
         }
         // Multicast / broadcast stay fully bypassed
         assertTrue(bypassAccepts.any { it.contains("-d 224.0.0.0/4 -j ACCEPT") })
         assertTrue(bypassAccepts.any { it.contains("-d 255.255.255.255/32 -j ACCEPT") })
+    }
+
+    @Test
+    fun `iptables dns hijack covers tcp and udp to v6 private ranges too`() {
+        // F06 ipv6 mirror: tcp:53 to loopback / ULA / link-local must be intercepted,
+        // everything else to those ranges stays bypassed.
+        val cmds = iptablesSetup(perAppMode = PerAppMode.ALL, ipv6Enabled = true)
+
+        assertTproxy(pkt("tcp", 1234, "::1", dport = 53), cmds, "ip6tables", CoreConstants.TPROXY_MARK_IPV6)
+        assertTproxy(pkt("tcp", 1234, "fc00::1", dport = 53), cmds, "ip6tables", CoreConstants.TPROXY_MARK_IPV6)
+        assertTproxy(pkt("tcp", 1234, "fe80::1", dport = 53), cmds, "ip6tables", CoreConstants.TPROXY_MARK_IPV6)
+        // non-DNS ports stay bypassed
+        assertDirect(pkt("tcp", 1234, "fe80::1", dport = 8080), cmds, "ip6tables")
+        assertDirect(pkt("udp", 1234, "fc00::1", dport = 5353), cmds, "ip6tables")
     }
 
     // ---------- iptables prerouting (tproxy interception) ----------
@@ -456,15 +487,30 @@ class FirewallCommandsStrictTest {
     }
 
     @Test
-    fun `iptables whitelist with empty uid set sends everything direct`() {
+    fun `iptables whitelist with empty uid set proxies everything like all mode`() {
+        // F07 regression guard: an empty whitelist must behave like ALL — the VPN
+        // engine routes every app when the allow list is absent and the Routing
+        // screen hint promises "all traffic is proxied". The old unconditional
+        // ACCEPT (everything direct) contradicted both.
         val cmds = iptablesSetup(perAppMode = PerAppMode.WHITELIST, appUids = emptySet(), ipv6Enabled = false)
 
-        assertDirect(pkt("tcp", 1234, "1.2.3.4"), cmds, "iptables")
-        assertDirect(pkt("udp", 1234, "8.8.8.8"), cmds, "iptables")
+        assertTproxy(pkt("tcp", 1234, "1.2.3.4"), cmds, "iptables", CoreConstants.TPROXY_MARK_IPV4)
+        assertTproxy(pkt("udp", 1234, "8.8.8.8"), cmds, "iptables", CoreConstants.TPROXY_MARK_IPV4)
+        // DNS to private ranges is still hijacked, non-DNS private stays bypassed
+        assertTproxy(pkt("udp", 1234, "192.168.1.1", dport = 53), cmds, "iptables", CoreConstants.TPROXY_MARK_IPV4)
+        assertDirect(pkt("tcp", 1234, "192.168.1.5"), cmds, "iptables")
+
+        val output = chainRules(cmds, "iptables", "MIHOMET_OUTPUT")
+        assertFalse(
+            "empty whitelist must not terminate with a catch-all ACCEPT (that would send everything direct)",
+            output.contains("-j ACCEPT")
+        )
+        // the trailing catch-all MARK rules must be present and reachable for both protocols
+        assertTrue(output.contains("-p tcp -j MARK --set-mark ${CoreConstants.TPROXY_MARK_IPV4}"))
+        assertTrue(output.contains("-p udp -j MARK --set-mark ${CoreConstants.TPROXY_MARK_IPV4}"))
 
         val joined = cmds.joinToString("\n")
         assertFalse(joined.contains("MIHOMET_UIDS"))
-        assertFalse("empty whitelist must not mark anything", joined.contains("--set-mark"))
         // only the core-owner bypass (uid 0) may carry --uid-owner
         assertFalse(Regex("--uid-owner (?!0\\s)").containsMatchIn(joined))
     }
@@ -711,17 +757,17 @@ class FirewallCommandsStrictTest {
             "bypass"
         )
 
-        // v4 private ranges: bypass everything except udp dport 53 (DNS interception)
+        // v4 private ranges: bypass everything except dport 53 over udp AND tcp
+        // (F06: DNS interception used to be udp-only, tcp:53 went direct)
         assertTrue(bypass.contains("ip daddr { 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } udp dport != 53 accept"))
-        assertTrue(bypass.contains("ip daddr { 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } meta l4proto != udp accept"))
-        // v6 mirror: loopback / ULA / link-local, same DNS exception
+        assertTrue(bypass.contains("ip daddr { 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } tcp dport != 53 accept"))
+        // v6 mirror: loopback / ULA / link-local, same DNS exception for both protocols
         assertTrue(bypass.contains("ip6 daddr { ::1/128, fc00::/7, fe80::/10 } udp dport != 53 accept"))
-        assertTrue(bypass.contains("ip6 daddr { ::1/128, fc00::/7, fe80::/10 } meta l4proto != udp accept"))
+        assertTrue(bypass.contains("ip6 daddr { ::1/128, fc00::/7, fe80::/10 } tcp dport != 53 accept"))
 
         // the only unconditional destination accepts must be multicast/broadcast
         val unconditional = bypass.filter {
-            it.contains("daddr") && it.endsWith("accept") &&
-                "dport != 53" !in it && "l4proto != udp" !in it
+            it.contains("daddr") && it.endsWith("accept") && "dport != 53" !in it
         }
         assertEquals(
             listOf(
@@ -758,7 +804,9 @@ class FirewallCommandsStrictTest {
             NftablesEngine.buildNftScript(CoreConstants.DEFAULT_TPROXY_PORT, PerAppMode.WHITELIST, emptySet(), ipv6Enabled = true),
             "output"
         )
-        assertTrue(whitelistEmpty.contains("return"))
+        // F07: an empty whitelist must behave like ALL — no early return, so every
+        // tcp/udp packet falls through into the family mark rules and is proxied
+        assertFalse("empty whitelist must not return before the mark rules", whitelistEmpty.contains("return"))
         assertFalse(whitelistEmpty.contains("skuid !="))
 
         val blacklist = nftChain(

@@ -8,7 +8,6 @@ interface FirewallEngine {
 
     fun setup(
         tproxyPort: Int,
-        dnsPort: Int,
         perAppMode: PerAppMode,
         appUids: Set<Int>,
         ipv6Enabled: Boolean
