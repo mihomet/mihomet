@@ -39,7 +39,7 @@ class DeepLinkBusStrictTest {
         // Two successive links before any collector subscribes — a StateFlow would
         // keep only the last value; the Channel must deliver both, FIFO.
         DeepLinkBus.post("happ://add/first-payload")
-        DeepLinkBus.post("happ://add/second-payload")
+        DeepLinkBus.post("happ://add/second-payload", source = "android-app://com.example.source")
 
         val received = withTimeout(5_000) {
             DeepLinkBus.flow.take(2).toList()
@@ -47,8 +47,12 @@ class DeepLinkBusStrictTest {
 
         assertEquals(
             listOf("happ://add/first-payload", "happ://add/second-payload"),
-            received
+            received.map { it.text }
         )
+        // The second post carries its source for the confirmation dialog; the
+        // first (posted without one) stays null.
+        assertEquals(null, received[0].source)
+        assertEquals("android-app://com.example.source", received[1].source)
     }
 
     @Test
@@ -70,6 +74,9 @@ class DeepLinkBusStrictTest {
         DeepLinkBus.post("clash://install-config?url=https%3A%2F%2Fafter-consume.example")
         val received = withTimeout(5_000) { DeepLinkBus.flow.first() }
 
-        assertEquals("clash://install-config?url=https%3A%2F%2Fafter-consume.example", received)
+        assertEquals(
+            "clash://install-config?url=https%3A%2F%2Fafter-consume.example",
+            received.text
+        )
     }
 }

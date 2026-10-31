@@ -81,20 +81,10 @@ fun ProfilesScreen(
         }
     }
 
-    // One-tap import deep links (happ://add, clash://install-config, v2rayng://, sing-box://,
-    // incy://) and "Share → Mihomet" payloads arrive here through DeepLinkBus
-    LaunchedEffect(Unit) {
-        org.mihomet.app.core.DeepLinkBus.flow.collect { text ->
-            if (!text.isNullOrBlank()) {
-                org.mihomet.app.core.DeepLinkBus.consume()
-                viewModel.importFromClipboard(
-                    text = text,
-                    onSuccess = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
-                    onError = { err -> scope.launch { snackbarHostState.showSnackbar(err, withDismissAction = true) } }
-                )
-            }
-        }
-    }
+    // External deep-link imports (happ://add, clash://install-config, v2rayng://,
+    // sing-box://, incy://, share targets) are collected by the ViewModel and
+    // parked in state.pendingImport — the dialog below gates the actual import
+    // behind an explicit user confirmation (audit P0 §1.1).
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -336,11 +326,172 @@ fun ProfilesScreen(
                 onDismiss = { qrDialogData = null }
             )
         }
+
+        // Audit P0 §1.1: every external import waits for explicit confirmation.
+        state.pendingImport?.let { pending ->
+            DeepLinkImportDialog(
+                pending = pending,
+                onConfirm = { viewModel.confirmPendingImport() },
+                onDismiss = { viewModel.cancelPendingImport() }
+            )
+        }
+
+        // Audit P0 §1.1: panel behavior headers apply only after explicit consent.
+        state.behaviorConsent?.let { consent ->
+            BehaviorConsentDialog(
+                consent = consent,
+                onApply = { viewModel.applyBehaviorConsent() },
+                onDecline = { viewModel.declineBehaviorConsent() }
+            )
+        }
     }
 }
 
 /** Payload of the subscription QR dialog: profile display name + decrypted URL. */
 private data class ProfileQrData(val name: String, val url: String)
+
+/**
+ * Confirmation gate for external imports (audit P0 §1.1): shows the payload, the
+ * best-effort source (referrer / originating package) and the profile name the
+ * import would create. Nothing has been fetched or stored yet — the download and
+ * conversion happen only after the user confirms.
+ */
+@Composable
+fun DeepLinkImportDialog(
+    pending: PendingImport,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.deeplink_import_title), fontWeight = FontWeight.Black) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = stringResource(R.string.deeplink_import_payload),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = pending.text,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 6,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ExpressiveShapes.Small)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                        .padding(8.dp)
+                )
+                Text(
+                    text = if (pending.source.isNullOrBlank()) {
+                        stringResource(R.string.deeplink_import_source_unknown)
+                    } else {
+                        stringResource(R.string.deeplink_import_source, pending.source)
+                    },
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = stringResource(R.string.deeplink_import_name, pending.previewName),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = onConfirm, shape = ExpressiveShapes.Small) {
+                Text(stringResource(R.string.action_add), fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+/**
+ * One-time consent dialog for panel behavior headers (audit P0 §1.1): lists
+ * EXACTLY what the panel wants to change (active profile, per-app routing,
+ * root/VPN mode). Nothing — especially the root-mode switch — is applied unless
+ * the user presses Apply.
+ */
+@Composable
+fun BehaviorConsentDialog(
+    consent: BehaviorConsent,
+    onApply: () -> Unit,
+    onDecline: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDecline,
+        title = { Text(stringResource(R.string.consent_title), fontWeight = FontWeight.Black) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = stringResource(R.string.consent_description),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (consent.autoConnect) {
+                    ConsentBullet(
+                        text = stringResource(R.string.consent_autoconnect, consent.profileName)
+                    )
+                }
+                when (consent.perAppWhitelist) {
+                    true -> ConsentBullet(
+                        text = stringResource(R.string.consent_perapp_whitelist, consent.perAppUids.size)
+                    )
+                    false -> ConsentBullet(
+                        text = stringResource(R.string.consent_perapp_blacklist, consent.perAppUids.size)
+                    )
+                    null -> {}
+                }
+                when (consent.tunModeHint) {
+                    true -> ConsentBullet(text = stringResource(R.string.consent_tun_vpn))
+                    false -> ConsentBullet(text = stringResource(R.string.consent_tun_root))
+                    null -> {}
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onApply, shape = ExpressiveShapes.Small) {
+                Text(stringResource(R.string.consent_apply), fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDecline) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun ConsentBullet(text: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary)
+        )
+        Text(
+            text = text,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
 
 @Composable
 fun ExpressiveProfileCard(

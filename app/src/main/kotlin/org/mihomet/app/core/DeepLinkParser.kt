@@ -144,16 +144,24 @@ object DeepLinkParser {
 }
 
 /**
+ * One external import payload: the parsed text plus a best-effort source
+ * description (referrer / originating package, null when unknown). The source is
+ * shown in the mandatory import-confirmation dialog — imports never proceed
+ * without it (audit P0 §1.1).
+ */
+data class DeepLinkImport(val text: String, val source: String? = null)
+
+/**
  * Bridge for payloads arriving from VIEW/SEND intents before the Profiles
  * screen is reached (singleTop activity → delivered via onNewIntent).
  * A Channel (not StateFlow) so rapid successive links are not conflated.
  */
 object DeepLinkBus {
-    private val pending = kotlinx.coroutines.channels.Channel<String>(capacity = 8)
-    val flow: Flow<String> get() = pending.receiveAsFlow()
+    private val pending = kotlinx.coroutines.channels.Channel<DeepLinkImport>(capacity = 8)
+    val flow: Flow<DeepLinkImport> get() = pending.receiveAsFlow()
 
-    fun post(text: String?) {
-        text?.let { runCatching { pending.trySend(it) } }
+    fun post(text: String?, source: String? = null) {
+        text?.let { runCatching { pending.trySend(DeepLinkImport(it, source)) } }
     }
 
     fun consume() {

@@ -28,8 +28,45 @@ data class ProfilesUiState(
     val profiles: List<ProfileEntity> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val successMessage: String? = null
+    val successMessage: String? = null,
+    // External deep-link import awaiting explicit user confirmation (audit P0 §1.1):
+    // never imported silently — the dialog shows the payload, its source and the
+    // target profile name; import runs only after Confirm.
+    val pendingImport: PendingImport? = null,
+    // Behavior-header changes requested by the subscription panel (audit P0 §1.1):
+    // applied ONLY after the user accepts the consent dialog.
+    val behaviorConsent: BehaviorConsent? = null
 )
+
+/**
+ * An external import (deep link / share target) waiting for the user's explicit
+ * confirmation. [source] is the raw referrer / originating package when known.
+ */
+data class PendingImport(
+    val text: String,
+    val source: String?,
+    val previewName: String
+)
+
+/**
+ * The exact behavior changes the panel requested via the Happ/Incy headers.
+ * Built after a successful profile save; nothing is applied until the user
+ * accepts — in particular the root/VPN mode switch ([tunModeHint]) NEVER
+ * happens without this explicit consent.
+ */
+data class BehaviorConsent(
+    val profileId: Long,
+    val profileName: String,
+    val autoConnect: Boolean = false,
+    /** null = no per-app change; true = whitelist, false = blacklist. */
+    val perAppWhitelist: Boolean? = null,
+    val perAppUids: Set<Int> = emptySet(),
+    /** null = no mode change; true = non-root VPN (TUN), false = root TProxy. */
+    val tunModeHint: Boolean? = null
+) {
+    val hasChanges: Boolean
+        get() = autoConnect || perAppWhitelist != null || tunModeHint != null
+}
 
 class ProfilesViewModel(
     private val context: Context,
@@ -40,14 +77,72 @@ class ProfilesViewModel(
 
     private val errorMessageFlow = MutableStateFlow<String?>(null)
     private val successMessageFlow = MutableStateFlow<String?>(null)
+    private val pendingImportFlow = MutableStateFlow<PendingImport?>(null)
+    private val behaviorConsentFlow = MutableStateFlow<BehaviorConsent?>(null)
 
     val uiState: StateFlow<ProfilesUiState> = combine(
         profileDao.getAllProfiles(),
         errorMessageFlow,
-        successMessageFlow
-    ) { profiles, error, success ->
-        ProfilesUiState(profiles = profiles, errorMessage = error, successMessage = success)
+        successMessageFlow,
+        pendingImportFlow,
+        behaviorConsentFlow
+    ) { profiles, error, success, pendingImport, behaviorConsent ->
+        ProfilesUiState(
+            profiles = profiles,
+            errorMessage = error,
+            successMessage = success,
+            pendingImport = pendingImport,
+            behaviorConsent = behaviorConsent
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProfilesUiState(isLoading = true))
+
+    init {
+        // External deep-link / share-target imports arrive here (audit P0 §1.1):
+        // parked into [pendingImportFlow] for the confirmation dialog — the
+        // ViewModel NEVER imports on its own.
+        viewModelScope.launch {
+            org.mihomet.app.core.DeepLinkBus.flow.collect { import ->
+                if (import.text.isNotBlank()) {
+                    pendingImportFlow.value = PendingImport(
+                        text = import.text,
+                        source = import.source,
+                        previewName = previewImportName(import.text)
+                    )
+                }
+            }
+        }
+    }
+
+    /** Dialog preview of the profile name the import would produce. */
+    private fun previewImportName(text: String): String {
+        val trimmed = text.trim()
+        if (trimmed.startsWith("http://", ignoreCase = true) ||
+            trimmed.startsWith("https://", ignoreCase = true)
+        ) {
+            val url = trimmed.lines().firstOrNull { it.isNotBlank() }?.trim() ?: trimmed
+            val host = runCatching { java.net.URI(url).host }.getOrNull()?.removePrefix("www.")
+            if (!host.isNullOrBlank()) {
+                return context.getString(R.string.profile_auto_name, host)
+            }
+        }
+        return context.getString(R.string.profile_auto_name_import)
+    }
+
+    /** User confirmed the pending external import — run the real import now. */
+    fun confirmPendingImport() {
+        val pending = pendingImportFlow.value ?: return
+        pendingImportFlow.value = null
+        importFromClipboard(
+            text = pending.text,
+            onSuccess = { successMessageFlow.value = it },
+            onError = { errorMessageFlow.value = it }
+        )
+    }
+
+    /** User rejected the pending external import — drop it, nothing was fetched. */
+    fun cancelPendingImport() {
+        pendingImportFlow.value = null
+    }
 
     fun clearError() {
         errorMessageFlow.value = null
@@ -137,7 +232,7 @@ class ProfilesViewModel(
                 if (isFirst) {
                     profileDao.selectProfile(newId)
                 }
-                applyBehaviorHeaders(newId, meta)
+                requestBehaviorConsent(newId, resolvedName, meta)
                 errorMessageFlow.value = null
                 successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_added, resolvedName), outcome)
             } catch (e: Exception) {
@@ -360,7 +455,7 @@ class ProfilesViewModel(
                         .takeIf { it > 0 } ?: profile.updateIntervalHours
                 )
                 profileDao.updateProfile(updated)
-                applyBehaviorHeaders(updated.id, download.meta)
+                requestBehaviorConsent(updated.id, updated.name, download.meta)
                 errorMessageFlow.value = null
                 successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_updated), outcome)
             } catch (e: CancellationException) {
@@ -373,37 +468,78 @@ class ProfilesViewModel(
     }
 
     /**
-     * Applies the Happ/Incy behavior headers ("панель дистанционно настраивает
-     * клиент") after a successful profile save. Headers the panel did not send
-     * leave the corresponding user settings untouched:
+     * Computes the behavior changes the Happ/Incy headers ("панель дистанционно
+     * настраивает клиент") request after a successful profile save and parks them
+     * in [behaviorConsentFlow] for the one-time consent dialog (audit P0 §1.1).
+     *
+     * NOTHING is applied here — not the profile selection, not per-app routing,
+     * and in particular NOT the root/VPN mode switch (`tun-mode` →
+     * [SettingsRepository.updateRootMode]), which only ever runs from
+     * [applyBehaviorConsent] after the user explicitly accepted. Headers the
+     * panel did not send leave the corresponding user settings untouched:
      * - `subscription-autoconnect` makes the profile the selected (active) one;
      * - `per-app-proxy-mode` + `per-app-proxy-list` switch per-app routing to the
-     *   panel-provided package set (applied only for a valid whitelist/blacklist
+     *   panel-provided package set (proposed only for a valid whitelist/blacklist
      *   hint together with a non-empty, resolvable package list);
      * - `tun-mode` explicit `true` maps to the non-root VPN service (TUN) and
      *   explicit `false` to the root TProxy mode.
      */
-    private suspend fun applyBehaviorHeaders(profileId: Long, meta: SubscriptionMeta) {
-        if (meta.autoConnect) {
-            profileDao.selectProfile(profileId)
-        }
-
+    private suspend fun requestBehaviorConsent(profileId: Long, profileName: String, meta: SubscriptionMeta) {
         val modeHint = meta.perAppModeHint?.trim()?.lowercase(Locale.ROOT)
+        var perAppWhitelist: Boolean? = null
+        var uids: Set<Int> = emptySet()
         if ((modeHint == "whitelist" || modeHint == "blacklist") && meta.perAppPackages.isNotEmpty()) {
-            val packageManager = context.packageManager
-            val uids = meta.perAppPackages.mapNotNull { pkg ->
-                // Packages that are not installed cannot resolve to a UID — skip them.
-                runCatching { packageManager.getPackageUid(pkg, 0) }.getOrNull()
-            }.toSet()
-            if (uids.isNotEmpty()) {
-                settingsRepository.updatePerAppMode(
-                    if (modeHint == "whitelist") PerAppMode.WHITELIST else PerAppMode.BLACKLIST
-                )
-                settingsRepository.updateSelectedAppUids(uids)
+            val resolved = withContext(Dispatchers.Default) {
+                meta.perAppPackages.mapNotNull { pkg ->
+                    // Packages that are not installed cannot resolve to a UID — skip them.
+                    runCatching { context.packageManager.getPackageUid(pkg, 0) }.getOrNull()
+                }.toSet()
+            }
+            if (resolved.isNotEmpty()) {
+                perAppWhitelist = modeHint == "whitelist"
+                uids = resolved
             }
         }
 
-        meta.tunModeHint?.let { settingsRepository.updateRootMode(!it) }
+        val consent = BehaviorConsent(
+            profileId = profileId,
+            profileName = profileName,
+            autoConnect = meta.autoConnect,
+            perAppWhitelist = perAppWhitelist,
+            perAppUids = uids,
+            tunModeHint = meta.tunModeHint
+        )
+        if (consent.hasChanges) {
+            behaviorConsentFlow.value = consent
+        }
+    }
+
+    /**
+     * Applies exactly the changes the user accepted in the consent dialog.
+     * This is the ONLY path that may run [SettingsRepository.updateRootMode] on
+     * behalf of a panel hint.
+     */
+    fun applyBehaviorConsent() {
+        val consent = behaviorConsentFlow.value ?: return
+        behaviorConsentFlow.value = null
+        viewModelScope.launch {
+            if (consent.autoConnect) {
+                profileDao.selectProfile(consent.profileId)
+            }
+            val whitelist = consent.perAppWhitelist
+            if (whitelist != null && consent.perAppUids.isNotEmpty()) {
+                settingsRepository.updatePerAppMode(
+                    if (whitelist) PerAppMode.WHITELIST else PerAppMode.BLACKLIST
+                )
+                settingsRepository.updateSelectedAppUids(consent.perAppUids)
+            }
+            consent.tunModeHint?.let { settingsRepository.updateRootMode(!it) }
+        }
+    }
+
+    /** User declined the panel's behavior suggestions — nothing is changed. */
+    fun declineBehaviorConsent() {
+        behaviorConsentFlow.value = null
     }
 
     private fun appendWarnings(message: String, outcome: ConversionOutcome): String {
