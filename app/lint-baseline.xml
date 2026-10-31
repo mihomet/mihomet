@@ -1,0 +1,1188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.13.2" type="baseline" client="gradle" dependencies="false" name="AGP (8.13.2)" variant="all" version="8.13.2">
+
+    <issue
+        id="MissingPermission"
+        message="Missing permissions required by Vibrator.vibrate: android.permission.VIBRATE"
+        errorLine1="                vibrator.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_TOUCH))"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/theme/AppHaptics.kt"
+            line="54"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Missing permissions required by Vibrator.vibrate: android.permission.VIBRATE"
+        errorLine1="                vibrator.vibrate("
+        errorLine2="                ^">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/theme/AppHaptics.kt"
+            line="57"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 29 (current min is 26): `android.os.VibrationEffect#EFFECT_CLICK`"
+        errorLine1="                HapticType.CLICK -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)"
+        errorLine2="                                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/theme/AppHaptics.kt"
+            line="43"
+            column="70"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 29 (current min is 26): `android.os.VibrationEffect#EFFECT_TICK`"
+        errorLine1="                HapticType.TICK -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)"
+        errorLine2="                                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/theme/AppHaptics.kt"
+            line="44"
+            column="69"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 29 (current min is 26): `android.os.VibrationEffect#EFFECT_HEAVY_CLICK`"
+        errorLine1="                HapticType.HEAVY -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)"
+        errorLine2="                                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/theme/AppHaptics.kt"
+            line="50"
+            column="70"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 26): `android.os.VibrationEffect#createPredefined`"
+        errorLine1="                HapticType.CLICK -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)"
+        errorLine2="                                                    ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/theme/AppHaptics.kt"
+            line="43"
+            column="53"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 26): `android.os.VibrationEffect#createPredefined`"
+        errorLine1="                HapticType.TICK -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)"
+        errorLine2="                                                   ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/theme/AppHaptics.kt"
+            line="44"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 26): `android.os.VibrationEffect#createPredefined`"
+        errorLine1="                HapticType.HEAVY -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)"
+        errorLine2="                                                    ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/theme/AppHaptics.kt"
+            line="50"
+            column="53"/>
+    </issue>
+
+    <issue
+        id="OldTargetApi"
+        message="Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the `android.os.Build.VERSION_CODES` javadoc for details."
+        errorLine1="        targetSdk = 36"
+        errorLine2="        ~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="116"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UnusedAttribute"
+        message="Attribute `localeConfig` is only used in API level 33 and higher (current min is 26)"
+        errorLine1="        android:localeConfig=&quot;@xml/locales_config&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="30"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="BatteryLife"
+        message="Use of `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` violates the Play Store Content Policy regarding acceptable use cases, as described in https://developer.android.com/training/monitoring-device-state/doze-standby.html"
+        errorLine1="        val direct = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)"
+        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/core/BatteryHelper.kt"
+            line="39"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="ForegroundServicePermission"
+        message="foregroundServiceType:systemExempted requires permission:[android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED] AND any permission in list:[android.permission.SCHEDULE_EXACT_ALARM, android.permission.USE_EXACT_ALARM]"
+        errorLine1="        &lt;service"
+        errorLine2="        ^">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="110"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="IntentFilterUniqueDataAttributes"
+        message="Consider splitting data tag into multiple tags with individual attributes to avoid confusion"
+        errorLine1="                &lt;data android:scheme=&quot;clash&quot; android:host=&quot;install-config&quot; />"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="53"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="IntentFilterUniqueDataAttributes"
+        message="Consider splitting data tag into multiple tags with individual attributes to avoid confusion"
+        errorLine1="                &lt;data android:scheme=&quot;clashmeta&quot; android:host=&quot;install-config&quot; />"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="54"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="IntentFilterUniqueDataAttributes"
+        message="Consider splitting data tag into multiple tags with individual attributes to avoid confusion"
+        errorLine1="                &lt;data android:scheme=&quot;flclash&quot; android:host=&quot;install-config&quot; />"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="55"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="QueryPermissionsNeeded"
+        message="As of Android 11, this method no longer returns information about all apps; see https://g.co/dev/packagevisibility for details"
+        errorLine1="                    val rawApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)"
+        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/routing/RoutingViewModel.kt"
+            line="57"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="VectorRaster"
+        message="Limit vector icons sizes to 200×200 to keep icon drawing fast; see https://developer.android.com/studio/write/vector-asset-studio#when for more"
+        errorLine1="    android:width=&quot;240dp&quot;"
+        errorLine2="                   ~~~~~">
+        <location
+            file="src/main/res/drawable/ic_splash_logo.xml"
+            line="3"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="AndroidGradlePluginVersion"
+        message="A newer version of Gradle than 8.13 is available: 8.14.6"
+        errorLine1="distributionUrl=https\://services.gradle.org/distributions/gradle-8.13-bin.zip"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../gradle/wrapper/gradle-wrapper.properties"
+            line="3"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="AndroidGradlePluginVersion"
+        message="A newer version of com.android.application than 8.13.2 is available: 9.5.0"
+        errorLine1="agp = &quot;8.13.2&quot;"
+        errorLine2="      ~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="2"
+            column="7"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of org.jetbrains.kotlin.plugin.serialization than 2.1.0 is available: 2.4.21"
+        errorLine1="kotlin = &quot;2.1.0&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="3"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of com.google.devtools.ksp than 2.1.0-1.0.29 is available: 2.3.13"
+        errorLine1="ksp = &quot;2.1.0-1.0.29&quot;"
+        errorLine2="      ~~~~~~~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="4"
+            column="7"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.core:core-ktx than 1.18.0 is available: 1.19.1"
+        errorLine1="coreKtx = &quot;1.18.0&quot;"
+        errorLine2="          ~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="5"
+            column="11"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.10.0 is available: 2.11.0"
+        errorLine1="lifecycleRuntimeKtx = &quot;2.10.0&quot;"
+        errorLine2="                      ~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="7"
+            column="23"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.lifecycle:lifecycle-viewmodel-compose than 2.10.0 is available: 2.11.0"
+        errorLine1="lifecycleRuntimeKtx = &quot;2.10.0&quot;"
+        errorLine2="                      ~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="7"
+            column="23"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.compose:compose-bom than 2026.06.01 is available: 2026.09.00"
+        errorLine1="composeBom = &quot;2026.06.01&quot;"
+        errorLine2="             ~~~~~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="9"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.navigation:navigation-compose than 2.9.8 is available: 2.10.2"
+        errorLine1="navigationCompose = &quot;2.9.8&quot;"
+        errorLine2="                    ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="10"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of com.github.topjohnwu.libsu:core than 5.2.2 is available: 6.0.0"
+        errorLine1="libsu = &quot;5.2.2&quot;"
+        errorLine2="        ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="18"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of com.github.topjohnwu.libsu:service than 5.2.2 is available: 6.0.0"
+        errorLine1="libsu = &quot;5.2.2&quot;"
+        errorLine2="        ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="18"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.test.ext:junit than 1.2.1 is available: 1.3.0"
+        errorLine1="extJunit = &quot;1.2.1&quot;"
+        errorLine2="           ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="24"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.test.espresso:espresso-core than 3.6.1 is available: 3.7.0"
+        errorLine1="espresso = &quot;3.6.1&quot;"
+        errorLine2="           ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="25"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlin.android than 2.1.0 is available: 2.4.21"
+        errorLine1="kotlin = &quot;2.1.0&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="3"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlin.plugin.compose than 2.1.0 is available: 2.4.21"
+        errorLine1="kotlin = &quot;2.1.0&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="3"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.insert-koin:koin-android than 4.1.1 is available: 4.2.2"
+        errorLine1="koin = &quot;4.1.1&quot;"
+        errorLine2="       ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="11"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.insert-koin:koin-androidx-compose than 4.1.1 is available: 4.2.2"
+        errorLine1="koin = &quot;4.1.1&quot;"
+        errorLine2="       ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="11"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.ktor:ktor-client-content-negotiation than 2.3.12 is available: 3.6.1"
+        errorLine1="ktor = &quot;2.3.12&quot;"
+        errorLine2="       ~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="12"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.ktor:ktor-client-core than 2.3.12 is available: 3.6.1"
+        errorLine1="ktor = &quot;2.3.12&quot;"
+        errorLine2="       ~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="12"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.ktor:ktor-client-okhttp than 2.3.12 is available: 3.6.1"
+        errorLine1="ktor = &quot;2.3.12&quot;"
+        errorLine2="       ~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="12"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.ktor:ktor-client-websockets than 2.3.12 is available: 3.6.1"
+        errorLine1="ktor = &quot;2.3.12&quot;"
+        errorLine2="       ~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="12"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.ktor:ktor-serialization-kotlinx-json than 2.3.12 is available: 3.6.1"
+        errorLine1="ktor = &quot;2.3.12&quot;"
+        errorLine2="       ~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="12"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-android than 1.9.0 is available: 1.11.0"
+        errorLine1="coroutines = &quot;1.9.0&quot;"
+        errorLine2="             ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="13"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-test than 1.9.0 is available: 1.11.0"
+        errorLine1="coroutines = &quot;1.9.0&quot;"
+        errorLine2="             ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="13"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlinx:kotlinx-serialization-json than 1.8.1 is available: 1.12.0"
+        errorLine1="serialization = &quot;1.8.1&quot;"
+        errorLine2="                ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="14"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.yaml:snakeyaml than 2.2 is available: 2.7"
+        errorLine1="snakeyaml = &quot;2.2&quot;"
+        errorLine2="            ~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="19"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of com.google.zxing:core than 3.5.3 is available: 3.5.4"
+        errorLine1="zxing = &quot;3.5.3&quot;"
+        errorLine2="        ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="21"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of com.squareup.okhttp3:mockwebserver than 4.12.0 is available: 5.5.1"
+        errorLine1="mockWebServer = &quot;4.12.0&quot;"
+        errorLine2="                ~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="22"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="ComposableNaming"
+        message="Composable functions with a return type should start with a lowercase letter"
+        errorLine1="fun DnsPresetDisplayName(uri: String): String {"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/settings/SettingsScreen.kt"
+            line="1914"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="LocalContextGetResourceValueCall"
+        message="Querying resource values using LocalContext.current"
+        errorLine1="                snackbarHostState.showSnackbar(context.getString(R.string.logs_share_empty))"
+        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/logs/LogsScreen.kt"
+            line="67"
+            column="48"/>
+    </issue>
+
+    <issue
+        id="LocalContextGetResourceValueCall"
+        message="Querying resource values using LocalContext.current"
+        errorLine1="                        Intent.createChooser(sendIntent, context.getString(R.string.logs_share))"
+        errorLine2="                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/logs/LogsScreen.kt"
+            line="87"
+            column="58"/>
+    </issue>
+
+    <issue
+        id="LocalContextGetResourceValueCall"
+        message="Querying resource values using LocalContext.current"
+        errorLine1="                                    scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.clipboard_empty)) }"
+        errorLine2="                                                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/profiles/ProfilesScreen.kt"
+            line="134"
+            column="83"/>
+    </issue>
+
+    <issue
+        id="LocalContextGetResourceValueCall"
+        message="Querying resource values using LocalContext.current"
+        errorLine1="                                    scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.clipboard_empty)) }"
+        errorLine2="                                                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/profiles/ProfilesScreen.kt"
+            line="232"
+            column="83"/>
+    </issue>
+
+    <issue
+        id="LocalContextGetResourceValueCall"
+        message="Querying resource values using LocalContext.current"
+        errorLine1="                                            name = context.getString(R.string.profile_auto_name, host)"
+        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/profiles/ProfilesScreen.kt"
+            line="1063"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="LocalContextGetResourceValueCall"
+        message="Querying resource values using LocalContext.current"
+        errorLine1="                context.getString(resId, *state.statusMessageArgs.toTypedArray())"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/proxies/ProxiesScreen.kt"
+            line="101"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="LocalContextGetResourceValueCall"
+        message="Querying resource values using LocalContext.current"
+        errorLine1="            snackbarHostState.showSnackbar(context.getString(R.string.proxies_error_load, it), withDismissAction = true)"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/proxies/ProxiesScreen.kt"
+            line="108"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="LocalContextGetResourceValueCall"
+        message="Querying resource values using LocalContext.current"
+        errorLine1="                Toast.makeText(context, context.getString(R.string.config_copied), Toast.LENGTH_SHORT).show()"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/proxies/ProxiesScreen.kt"
+            line="349"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="LocalContextGetResourceValueCall"
+        message="Querying resource values using LocalContext.current"
+        errorLine1="                context.getString(event.messageRes),"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/settings/SettingsScreen.kt"
+            line="79"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="LocalContextGetResourceValueCall"
+        message="Querying resource values using LocalContext.current"
+        errorLine1="                        context.getString(R.string.yaml_syntax_error, it.message ?: &quot;&quot;)"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/profiles/YamlEditorScreen.kt"
+            line="66"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="LocalContextGetResourceValueCall"
+        message="Querying resource values using LocalContext.current"
+        errorLine1="                                        snackbarHostState.showSnackbar(context.getString(R.string.yaml_saved))"
+        errorLine2="                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/profiles/YamlEditorScreen.kt"
+            line="115"
+            column="72"/>
+    </issue>
+
+    <issue
+        id="LocalContextGetResourceValueCall"
+        message="Querying resource values using LocalContext.current"
+        errorLine1="                                        snackbarHostState.showSnackbar(context.getString(R.string.yaml_syntax_error, it.message ?: &quot;&quot;))"
+        errorLine2="                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/profiles/YamlEditorScreen.kt"
+            line="118"
+            column="72"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Optional Modifier parameter should have a default value of `Modifier`"
+        errorLine1="    modifier: Modifier = Modifier"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/dashboard/TrafficGraph.kt"
+            line="34"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="PluralsCandidate"
+        message="Formatting %d followed by words (&quot;sec&quot;): This should probably be a plural rather than a string"
+        errorLine1="    &lt;string name=&quot;settings_latency_summary&quot;>URL: %1$s • Timeout: %2$d sec.&lt;/string>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="226"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="HardwareIds"
+        message="Using `getString` to get device identifiers is not recommended"
+        errorLine1="        val androidId = Settings.Secure.getString("
+        errorLine2="                        ^">
+        <location
+            file="src/main/kotlin/org/mihomet/app/core/HwidProvider.kt"
+            line="42"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="InsecureBaseConfiguration"
+        message="Insecure Base Configuration"
+        errorLine1="    &lt;base-config cleartextTrafficPermitted=&quot;true&quot; />"
+        errorLine2="                                            ~~~~">
+        <location
+            file="src/debug/res/xml/network_security_config_debug.xml"
+            line="9"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="DataExtractionRules"
+        message="The attribute `android:allowBackup` is deprecated from Android 12 and higher and may be removed in future versions. Consider adding the attribute `android:dataExtractionRules` specifying an `@xml` resource which configures cloud backups and device transfers on Android 12 and higher."
+        errorLine1="        android:allowBackup=&quot;false&quot;"
+        errorLine2="                             ~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="28"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 24"
+        errorLine1="@RequiresApi(Build.VERSION_CODES.N)"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/service/MihometTileService.kt"
+            line="27"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 26"
+        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/core/vpn/MihometVpnService.kt"
+            line="85"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 26"
+        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/core/vpn/MihometVpnService.kt"
+            line="792"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 26"
+        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/core/vpn/MihometVpnService.kt"
+            line="814"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 26"
+        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/core/vpn/MihometVpnService.kt"
+            line="867"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 26"
+        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/core/root/RootTProxyService.kt"
+            line="79"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 26"
+        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/core/root/RootTProxyService.kt"
+            line="558"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="This folder configuration (`v26`) is unnecessary; `minSdkVersion` is 26. Merge all the resources in this folder into `mipmap-anydpi`.">
+        <location
+            file="src/main/res/mipmap-anydpi-v26"/>
+    </issue>
+
+    <issue
+        id="StaticFieldLeak"
+        message="This field leaks a context object"
+        errorLine1="    private val context: Context"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/dashboard/DashboardViewModel.kt"
+            line="48"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="StaticFieldLeak"
+        message="This field leaks a context object"
+        errorLine1="    private val context: Context,"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/profiles/ProfilesViewModel.kt"
+            line="73"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="StaticFieldLeak"
+        message="This field leaks a context object"
+        errorLine1="    private val context: Context"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/proxies/ProxiesViewModel.kt"
+            line="77"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="StaticFieldLeak"
+        message="This field leaks a context object"
+        errorLine1="    private val context: Context,"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/routing/RoutingViewModel.kt"
+            line="35"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
+        errorLine1="    var selectedTab by remember { mutableStateOf(0) } // 0 = JSON, 1 = YAML"
+        errorLine2="                                  ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/proxies/ProxiesScreen.kt"
+            line="716"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.vpn_service_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;vpn_service_title&quot;>Mihomet Proxy Service&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="4"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.root_service_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;root_service_title&quot;>Mihomet Root TProxy&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="5"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.profiles_unrecognized` appears to be unused"
+        errorLine1="    &lt;string name=&quot;profiles_unrecognized&quot;>Could not recognize node format in the clipboard&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="152"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_dns_adguard` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_dns_adguard&quot;>AdGuard DNS (Ad blocking)&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="229"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_dns_cloudflare` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_dns_cloudflare&quot;>Cloudflare DoH (1.1.1.1)&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="230"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_dns_google` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_dns_google&quot;>Google DoH (8.8.8.8)&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="231"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_dns_yandex` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_dns_yandex&quot;>Yandex DNS DoH&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="232"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_dns_comss` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_dns_comss&quot;>Comss.one DoH&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="233"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_dns_quad9` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_dns_quad9&quot;>Quad9 DoH&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="234"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.batt_xiaomi_hint` appears to be unused"
+        errorLine1="    &lt;string name=&quot;batt_xiaomi_hint&quot;>MIUI detected: also enable Autostart for Mihomet in Settings → Apps → Permissions → Autostart, otherwise the service may not survive a reboot.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="418"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;dashboard_status_connecting&quot;>ПОДКЛЮЧЕНИЕ...&lt;/string>"
+        errorLine2="                                               ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-ru/strings.xml"
+            line="63"
+            column="48"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;dashboard_status_connecting&quot;>CONNECTING...&lt;/string>"
+        errorLine2="                                               ~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="63"
+            column="48"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;dashboard_status_disconnecting&quot;>ОТКЛЮЧЕНИЕ...&lt;/string>"
+        errorLine2="                                                  ~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-ru/strings.xml"
+            line="64"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;dashboard_status_disconnecting&quot;>DISCONNECTING...&lt;/string>"
+        errorLine2="                                                  ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="64"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;proxies_pinging&quot;>Пинг...&lt;/string>"
+        errorLine2="                                   ~~~~~~~">
+        <location
+            file="src/main/res/values-ru/strings.xml"
+            line="84"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;proxies_pinging&quot;>Pinging...&lt;/string>"
+        errorLine2="                                   ~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="84"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;proxies_search_hint&quot;>Поиск сервера по имени или IP...&lt;/string>"
+        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-ru/strings.xml"
+            line="87"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;proxies_search_hint&quot;>Search server by name or IP...&lt;/string>"
+        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="87"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;settings_dns_dialog_desc&quot;>Sets the primary DNS server used by the Mihomo core to resolve domains. Supports DoH (https://...), DoT (tls://...), UDP/TCP IP addresses.&lt;/string>"
+        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="303"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;settings_dns_dialog_desc&quot;>Задает первичный DNS-сервер для разрешения доменов через ядро Mihomo. Поддерживаются DoH (https://...), DoT (tls://...), UDP/TCP IP-адреса.&lt;/string>"
+        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-ru/strings.xml"
+            line="305"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;settings_downloading&quot;>Downloading and installing...&lt;/string>"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="324"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;settings_downloading&quot;>Загрузка и установка...&lt;/string>"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-ru/strings.xml"
+            line="326"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;routing_search_hint&quot;>Search by name or package...&lt;/string>"
+        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="336"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;routing_search_hint&quot;>Поиск по названию или пакету...&lt;/string>"
+        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-ru/strings.xml"
+            line="338"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;connections_search_hint&quot;>Search by host, IP or app...&lt;/string>"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="348"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;connections_search_hint&quot;>Поиск по хосту, IP или приложению...&lt;/string>"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-ru/strings.xml"
+            line="350"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;vpn_notification_starting&quot;>Starting VPN...&lt;/string>"
+        errorLine2="                                             ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="386"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;vpn_notification_starting&quot;>Запуск VPN...&lt;/string>"
+        errorLine2="                                             ~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-ru/strings.xml"
+            line="388"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;root_notification_starting&quot;>Starting Root TProxy...&lt;/string>"
+        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="398"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;root_notification_starting&quot;>Запуск Root TProxy...&lt;/string>"
+        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-ru/strings.xml"
+            line="400"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            .setData(Uri.parse(&quot;package:${context.packageName}&quot;))"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/core/BatteryHelper.kt"
+            line="40"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX function `createBitmap` instead?"
+        errorLine1="        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/mihomet/app/ui/screens/profiles/SubscriptionQr.kt"
+            line="58"
+            column="22"/>
+    </issue>
+
+</issues>

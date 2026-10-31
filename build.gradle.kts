@@ -7,4 +7,7 @@ plugins {
     // reports outdated versions; a scheduled CI job runs it weekly (see
     // .github/workflows/deps-updates.yml). Applied at the root so it aggregates :app.
     alias(libs.plugins.ben.manes.versions)
+    // Audit P2.7: static analysis. Config in config/detekt.yml, pre-existing
+    // violations frozen in config/detekt-baseline.xml — only new violations fail.
+    alias(libs.plugins.detekt)
 }

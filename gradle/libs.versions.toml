@@ -90,3 +90,4 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 ben-manes-versions = { id = "com.github.ben-manes.versions", version = "0.67.0" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version = "1.23.8" }

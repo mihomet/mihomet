@@ -42,6 +42,14 @@ jobs:
       - name: Unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
 
+      # Audit P2.7: static analysis. Both fail on NEW issues only — existing
+      # debt is frozen in app/lint-baseline.xml and config/detekt-baseline.xml.
+      - name: Android Lint
+        run: ./gradlew :app:lintDebug --stacktrace
+
+      - name: Detekt
+        run: ./gradlew :app:detekt --stacktrace
+
       - name: Assemble debug APK
         run: ./gradlew assembleDebug --stacktrace
 
@@ -85,3 +93,14 @@ jobs:
         with:
           name: test-reports
           path: app/build/reports/tests/
+
+      - name: Upload static analysis reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-analysis-reports
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-debug.txt
+            app/build/reports/detekt/detekt.html
+            app/build/reports/detekt/detekt.xml

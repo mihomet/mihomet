@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.detekt)
 }
 
 // Mihomo core is kept out of git and downloaded at build time.
@@ -178,6 +179,14 @@ android {
         unitTests.isReturnDefaultValues = true
     }
 
+    // Audit P2.7: lint runs in CI and FAILS on new issues only — every issue
+    // present at adoption time is frozen in lint-baseline.xml (18 errors /
+    // 89 warnings at adoption, see the file for the breakdown). Regenerate
+    // with `./gradlew :app:updateLintBaseline` when debt is actually fixed.
+    lint {
+        baseline = file("lint-baseline.xml")
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -190,6 +199,15 @@ android {
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+// Audit P2.7: minimal detekt config (sizes, unused imports, exceptions).
+// Pre-existing violations are frozen in the baseline; only new ones fail.
+detekt {
+    config.setFrom(files("$rootDir/config/detekt.yml"))
+    baseline = file("$rootDir/config/detekt-baseline.xml")
+    buildUponDefaultConfig = true
+    parallel = true
 }
 
 dependencies {
