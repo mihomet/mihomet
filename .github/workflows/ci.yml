@@ -51,7 +51,7 @@ jobs:
           # Hard check: the libmihomo.so packed into the debug APK must match the
           # checksum pinned in gradle/mihomo-core.properties (arm64-v8a).
           EXPECTED_SHA="$(sed -n 's/^checksum\.arm64-v8a=//p' gradle/mihomo-core.properties)"
-          ACTUAL_SHA="$(unzip -p app/build/outputs/apk/debug/app-debug.apk lib/arm64-v8a/libmihomo.so | sha256sum | cut -d' ' -f1)"
+          ACTUAL_SHA="$(unzip -p app/build/outputs/apk/debug/app-arm64-v8a-debug.apk lib/arm64-v8a/libmihomo.so | sha256sum | cut -d' ' -f1)"
           echo "core sha256 (mihomo-core.properties): $EXPECTED_SHA"
           echo "core sha256 (lib/arm64-v8a in APK):  $ACTUAL_SHA"
           if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
@@ -77,7 +77,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Mihomet-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-*.apk
 
       - name: Upload test reports
         if: failure()

@@ -118,9 +118,9 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
-        }
+        // ABIs are governed by splits.abi below (ndk.abiFilters is illegal
+        // alongside it). The three ABIs must stay in sync with
+        // downloadMihomoCore, which fetches a libmihomo.so per ABI.
     }
 
     buildTypes {
@@ -156,6 +156,20 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    // Audit P2.10: one APK per ABI instead of a ~72 MB fat APK — the bundled
+    // mihomo core is tens of MB per ABI, so a universal APK pays that cost
+    // three times. downloadMihomoCore still installs all three .so into
+    // jniLibs at preBuild; the split only changes packaging. Version codes get
+    // the default per-ABI offset (versionCode * 1000 + abi index) from AGP.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = false
+        }
     }
 
     // JVM unit tests hit android.util.Log on the SecretsCipher decrypt-error
