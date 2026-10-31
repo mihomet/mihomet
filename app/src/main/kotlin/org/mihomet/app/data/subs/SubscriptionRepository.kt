@@ -9,9 +9,8 @@ import io.ktor.client.statement.bodyAsChannel
 import io.ktor.utils.io.ByteReadChannel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import org.mihomet.app.R
 import org.mihomet.app.core.HappCrypto
 import org.mihomet.app.core.HwidProvider
@@ -118,40 +117,25 @@ class SubscriptionRepository(
      * Downloads [url] with [headersJson] custom headers, decodes Base64 payloads
      * and converts the content to mihomo YAML. Throws when every attempt failed
      * or the payload came back empty; the full UA fallback chain is exhausted first.
+     *
+     * Header merge (every download path funnels through here — add/import,
+     * manual refresh and the background worker): the profile's custom headers
+     * win over the global identity settings (Settings → Subscriptions), which
+     * win over the built-in defaults — see [SubscriptionRequestPlan.build].
+     * Stored values are sanitized before they touch the wire
+     * ([SubscriptionHeaders.sanitizeForRequest]), so a legacy row can never
+     * smuggle an injected header line.
      */
     suspend fun downloadAndConvert(url: String, headersJson: String = "{}"): SubscriptionDownload =
         withContext(Dispatchers.IO) {
-            val parsedHeaders = runCatching {
-                Json.decodeFromString<Map<String, String>>(headersJson)
-            }.getOrElse {
-                headersJson.lines()
-                    .map { it.trim() }
-                    .filter { it.contains(":") || it.contains("=") }
-                    .associate { line ->
-                        val delimiter = if (line.contains(":")) ":" else "="
-                        val parts = line.split(delimiter, limit = 2)
-                        parts[0].trim() to parts.getOrElse(1) { "" }.trim()
-                    }
-            }
-
-            val customUa = parsedHeaders.entries
-                .firstOrNull { it.key.equals("User-Agent", ignoreCase = true) }?.value
-            // Honest UA first: strict SRR panels (Remnawave) serve content by UA tier, so
-            // "Mihomet" must land in the Mihomo tier — no fake Happ priority. The other
-            // well-known clients stay as fallbacks for panels that gate on them.
-            val userAgentsToTry = if (!customUa.isNullOrBlank()) {
-                listOf(customUa)
-            } else {
-                listOf(
-                    APP_USER_AGENT,
-                    "Happ/3.6.0 (Android; Xray)",
-                    "sing-box/1.10.0 (Android)",
-                    "ClashMeta/1.18.0",
-                    "v2rayNG/1.8.19"
-                )
-            }
-
-            val hasCustomHwid = parsedHeaders.keys.any { it.equals(HwidProvider.HWID_HEADER, ignoreCase = true) }
+            val profileHeaders = SubscriptionHeaders.sanitizeForRequest(
+                runCatching { SubscriptionHeaders.parseLenient(headersJson) }.getOrElse { emptyMap() }
+            )
+            // Global subscription identity (UA / x-hwid toggle / custom hwid).
+            val identity = SubscriptionIdentitySettings.of(settingsRepository.settingsFlow.first())
+            val plan = SubscriptionRequestPlan.build(profileHeaders, identity, hwid)
+            val userAgentsToTry = plan.userAgentsToTry
+            val hwidHeader = plan.hwidHeader
 
             var responseText = ""
             var userinfo: SubscriptionUserinfo? = null
@@ -168,11 +152,11 @@ class SubscriptionRepository(
                     // downloaded response (external audit F05).
                     val attempt = httpClient.prepareGet(url) {
                         header("User-Agent", ua)
-                        // x-hwid accompanies every attempt (user-provided header wins)
-                        if (!hasCustomHwid) {
-                            header(HwidProvider.HWID_HEADER, hwid)
-                        }
-                        parsedHeaders.forEach { (k, v) ->
+                        // x-hwid accompanies every attempt unless the merge
+                        // resolved it to null (profile override / toggle off /
+                        // custom override — see SubscriptionRequestPlan).
+                        plan.hwidHeader?.let { header(HwidProvider.HWID_HEADER, it) }
+                        plan.extraHeaders.forEach { (k, v) ->
                             if (!k.equals("User-Agent", ignoreCase = true)) {
                                 header(k, v)
                             }
@@ -451,6 +435,9 @@ class SubscriptionRepository(
         /**
          * Accepts either a JSON object string or a `Key: Value` / `Key=Value`
          * lines block and returns a JSON object string for [downloadAndConvert].
+         * Pure format normalization — content guards live in
+         * [SubscriptionHeaders.parse] (strict, UI entry points) and
+         * [SubscriptionHeaders.sanitizeForRequest] (wire path).
          */
         fun normalizeHeadersJson(raw: String): String {
             val trimmed = raw.trim()
@@ -458,20 +445,26 @@ class SubscriptionRepository(
             if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
                 return trimmed
             }
-            val map = trimmed.lines()
-                .map { it.trim() }
-                .filter { it.contains(":") || it.contains("=") }
-                .associate { line ->
-                    val delimiter = if (line.contains(":")) ":" else "="
-                    val parts = line.split(delimiter, limit = 2)
-                    parts[0].trim() to parts.getOrElse(1) { "" }.trim()
-                }
-            return Json.encodeToString(map)
+            return SubscriptionHeaders.toJson(SubscriptionHeaders.parseLenient(raw))
         }
 
         // TODO: derive from BuildConfig.VERSION_NAME once buildFeatures { buildConfig = true }
         //  is enabled in app/build.gradle.kts (it is currently off, so the version is inlined).
         const val APP_VERSION = "1.0"
         const val APP_USER_AGENT = "Mihomet/$APP_VERSION (Android; Mihomo)"
+
+        /**
+         * UA fallback chain used when neither the profile's custom headers nor
+         * the global setting provide a User-Agent. Honest UA first (strict SRR
+         * panels such as Remnawave serve content by UA tier), the other
+         * well-known clients as fallbacks for panels that gate on them.
+         */
+        val UA_FALLBACK_CHAIN = listOf(
+            APP_USER_AGENT,
+            "Happ/3.6.0 (Android; Xray)",
+            "sing-box/1.10.0 (Android)",
+            "ClashMeta/1.18.0",
+            "v2rayNG/1.8.19"
+        )
     }
 }

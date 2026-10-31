@@ -58,9 +58,6 @@ object TunOptions {
     const val MIN_MTU = 1280
     const val MAX_MTU = 65535
 
-    /** Values offered by the Settings screen tap-cycle (gvisor-friendly presets). */
-    val MTU_CHOICES = listOf(1500, 8500, 9000)
-
     fun isValidStack(stack: String): Boolean = stack in STACKS
 
     /** Unknown/garbage stacks fall back to [DEFAULT_STACK]. */
@@ -129,5 +126,17 @@ data class AppSettings(
     // Battery-optimization prompt (FlClash BatteryPlugin pattern): shown at most
     // ONCE per install. Set the moment the one-time dialog is displayed, so an
     // interrupted prompt never nags again.
-    val battPromptShown: Boolean = false
+    val battPromptShown: Boolean = false,
+    // Global subscription identity (Settings → Subscriptions; merge precedence
+    // profile custom headers > these > built-in defaults — see
+    // SubscriptionRequestPlan):
+    // Custom User-Agent for subscription downloads; blank = the built-in
+    // honest default chain (SubscriptionRepository.UA_FALLBACK_CHAIN).
+    val subscriptionUserAgent: String = "",
+    // Whether the `x-hwid` device header is sent with subscription downloads
+    // (Happ/Incy panel device binding). Default on — legacy behavior.
+    val sendHwid: Boolean = true,
+    // User override of the `x-hwid` value; blank = the device-derived id
+    // (HwidProvider). Only consulted while [sendHwid] is on.
+    val customHwid: String = ""
 )

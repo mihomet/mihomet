@@ -257,6 +257,27 @@ class SettingsViewModel(
         }
     }
 
+    /** Persists the global subscription User-Agent (blank = built-in default). */
+    fun updateSubscriptionUserAgent(ua: String) {
+        viewModelScope.launch {
+            settingsRepository.updateSubscriptionUserAgent(ua)
+        }
+    }
+
+    /** Toggles sending the `x-hwid` device header with subscription downloads. */
+    fun updateSendHwid(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateSendHwid(enabled)
+        }
+    }
+
+    /** Persists the custom `x-hwid` override (blank = device-derived id). */
+    fun updateCustomHwid(hwid: String) {
+        viewModelScope.launch {
+            settingsRepository.updateCustomHwid(hwid)
+        }
+    }
+
     /** Monotonic id source for [KeyringEvent]s (every event must be distinct). */
     private val keyringEventIds = AtomicLong(0L)
 
