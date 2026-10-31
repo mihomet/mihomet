@@ -45,6 +45,34 @@ jobs:
       - name: Assemble debug APK
         run: ./gradlew assembleDebug --stacktrace
 
+      - name: Verify bundled core hash & release version
+        run: |
+          set -euo pipefail
+          # Hard check: the libmihomo.so packed into the debug APK must match the
+          # checksum pinned in gradle/mihomo-core.properties (arm64-v8a).
+          EXPECTED_SHA="$(sed -n 's/^checksum\.arm64-v8a=//p' gradle/mihomo-core.properties)"
+          ACTUAL_SHA="$(unzip -p app/build/outputs/apk/debug/app-debug.apk lib/arm64-v8a/libmihomo.so | sha256sum | cut -d' ' -f1)"
+          echo "core sha256 (mihomo-core.properties): $EXPECTED_SHA"
+          echo "core sha256 (lib/arm64-v8a in APK):  $ACTUAL_SHA"
+          if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
+            echo "::error::libmihomo.so inside the APK does not match gradle/mihomo-core.properties"
+            exit 1
+          fi
+          # versionName: hard-checked against the git tag on release builds
+          # (refs/tags/vX.Y.Z); on main/PR runs both values are just logged.
+          VERSION_NAME="$(sed -n 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' app/build.gradle.kts | head -1)"
+          echo "versionName (app/build.gradle.kts): $VERSION_NAME"
+          if [[ "${GITHUB_REF:-}" == refs/tags/v* ]]; then
+            EXPECTED_VERSION="${GITHUB_REF#refs/tags/v}"
+            echo "versionName expected from tag:      $EXPECTED_VERSION"
+            if [ "$VERSION_NAME" != "$EXPECTED_VERSION" ]; then
+              echo "::error::versionName ($VERSION_NAME) does not match the release tag v$EXPECTED_VERSION"
+              exit 1
+            fi
+          else
+            echo "Not a tag build (ref: ${GITHUB_REF:-unknown}) — versionName not enforced."
+          fi
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:

@@ -147,6 +147,12 @@ class MihomoApiClient(
         }
     }
 
+    suspend fun getConfigs(): Result<ConfigsState> = runCatching {
+        httpClient.get("$baseUrl/configs") {
+            applyAuth()
+        }.body()
+    }
+
     suspend fun updateMode(mode: String): Result<Unit> = runCatching {
         httpClient.patch("$baseUrl/configs") {
             applyAuth()

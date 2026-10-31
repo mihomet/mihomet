@@ -29,7 +29,9 @@ set -euo pipefail
 
 UPSTREAM_REPO="https://github.com/MetaCubeX/mihomo.git"
 UPSTREAM_VERSION="v1.19.33"                # upstream tag to build from
-CORE_VERSION="v1.19.33-mihomet.1"          # stamped into constant.Version
+# Version stamp baked into constant.Version; overridable via env. The stamp
+# must match the GitHub release tag the built artifacts are published under.
+CORE_VERSION="${CORE_VERSION:-v1.19.33-mihomet.3}"
 GO_IMAGE="golang:1.23"
 ANDROID_API="${ANDROID_API:-26}"           # minSdk of the app: binaries must run on Android 8+
 NDK_HOST_TAG="linux-x86_64"

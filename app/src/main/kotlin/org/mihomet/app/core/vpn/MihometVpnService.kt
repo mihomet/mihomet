@@ -605,8 +605,14 @@ class MihometVpnService : VpnService(), KoinComponent {
         while (!isStopping && mihomoProcess === proc && proc.isAlive) {
             val answered = runCatching {
                 withTimeout(CORE_READINESS_PROBE_TIMEOUT_MS) {
-                    apiClientProvider.current().getVersion()
-                }.isSuccess
+                    val api = apiClientProvider.current()
+                    // /version alone proves the process — a live core with a dead TUN
+                    // (audit §5/F04) must not report connected: verify the tunnel too
+                    // VPN path: the core must have actually attached the TUN fd —
+                    // a live API with a dead TUN must not report connected (audit F04)
+                    val configs = api.getConfigs().getOrNull()
+                    configs != null && configs.tunEnabled
+                }
             }.getOrDefault(false)
             if (answered) return true
             if (System.currentTimeMillis() >= deadline) break

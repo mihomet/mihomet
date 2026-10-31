@@ -17,6 +17,7 @@ import org.mihomet.app.data.db.ProfileType
 import org.mihomet.app.data.crypto.SecretsCipher
 import org.mihomet.app.data.preferences.PerAppMode
 import org.mihomet.app.data.preferences.SettingsRepository
+import org.mihomet.app.data.subs.ProfileValidation
 import org.mihomet.app.data.subs.SubscriptionRepository
 import org.yaml.snakeyaml.Yaml
 import java.io.File
@@ -282,14 +283,16 @@ class ProfilesViewModel(
         viewModelScope.launch {
             try {
                 val download = subscriptionRepository.downloadAndConvert(url, headers)
-                // Fail-closed: never overwrite the profile file with a conversion result
-                // without proxies, proxy-providers or rules — keep the last good version
-                // on disk so the running service can continue to use it.
+                // Fail-closed: never overwrite the profile file with a semantically
+                // invalid conversion result (no non-empty proxies / proxy-providers /
+                // rules — see ProfileValidation). Returns before any write, so the
+                // last good file and the stored lastUpdated / quota stay untouched.
                 if (!isValidGeneratedConfig(download.outcome.yaml)) {
                     errorMessageFlow.value = context.getString(R.string.profiles_invalid_result)
                     return@launch
                 }
-                File(profile.filePath).writeText(download.outcome.yaml)
+                // Same crash-safe write path as the repository's background refresh.
+                SubscriptionRepository.atomicWriteText(File(profile.filePath), download.outcome.yaml)
                 // If the server sent no Subscription-Userinfo this time, keep the previous quota.
                 val quota = download.userinfo
                 // Panel-initiated subscription relocation (New-Url / Fallback-Url): auto-migrate.
@@ -455,26 +458,12 @@ class ProfilesViewModel(
          * Fail-closed validation of a converted profile before it is persisted
          * (subscription update, remote add, clipboard/deep-link import).
          *
-         * A conversion result is valid when it is non-blank, parses as a YAML mapping
-         * and declares at least one source of routing truth: `proxies:` (inline nodes),
-         * `proxy-providers:` (nodes fetched by the core at runtime) or `rules:`.
-         *
-         * Deliberately valid without inline proxies:
-         *  - `proxy-providers`-only configs (nodes are downloaded by the core itself);
-         *  - `rules`-only configs — the happ://routing deep-link import produces exactly
-         *    such routing profiles (GLOBAL/DIRECT/REJECT targets with a MATCH rule).
-         *
-         * Invalid: blank content, non-mapping documents (scalar/list), and mappings
-         * without any of the three keys (e.g. an empty shell left by a failed
-         * conversion) — such a profile would make the core route everything to DIRECT.
+         * Delegates to [ProfileValidation.isValid] — the single semantic
+         * validator shared with [SubscriptionRepository]'s background refresh,
+         * where the full contract (non-empty `proxies` / `proxy-providers` /
+         * `rules`, rejection of `proxies: []` + `rules: []` broken-subscription
+         * payloads) is documented.
          */
-        fun isValidGeneratedConfig(yaml: String): Boolean {
-            if (yaml.isBlank()) return false
-            val parsed = runCatching { Yaml().load<Any>(yaml) }.getOrNull() ?: return false
-            if (parsed !is Map<*, *>) return false
-            return parsed.containsKey("proxies") ||
-                parsed.containsKey("proxy-providers") ||
-                parsed.containsKey("rules")
-        }
+        fun isValidGeneratedConfig(yaml: String): Boolean = ProfileValidation.isValid(yaml)
     }
 }

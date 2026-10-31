@@ -62,6 +62,12 @@ data class ProfileRefreshResult(
 private const val SUBSCRIPTION_UNDECRYPTABLE_MESSAGE =
     "Не удалось расшифровать данные подписки — ключ шифрования недоступен или был заменён. Добавьте подписку заново."
 
+// Surfaced through Result.failure when a refresh produced a semantically invalid
+// config (see ProfileValidation): the last good profile file and its metadata are
+// kept untouched, the refresh is rejected. Russian like the other data-layer errors.
+private const val REFRESH_REJECTED_INVALID_CONFIG_MESSAGE =
+    "Обновление отклонено: сервер вернул невалидную конфигурацию"
+
 /**
  * The subscription payload exceeds [SubscriptionRepository.MAX_SUBSCRIPTION_BYTES] —
  * whether the size was declared in `Content-Length` or discovered while streaming
@@ -293,7 +299,15 @@ class SubscriptionRepository(
             throw IllegalStateException(SUBSCRIPTION_UNDECRYPTABLE_MESSAGE, e)
         }
         val download = downloadAndConvert(url, headers)
-        File(profile.filePath).writeText(download.outcome.yaml)
+        // Fail-closed: a refresh (including the background worker) must never
+        // clobber a working profile with a degenerate payload (e.g. `proxies: []`
+        // + `rules: []` from a broken panel) — the core would route everything
+        // to DIRECT while the UI shows "connected". On rejection the profile
+        // file and all metadata below are left untouched.
+        if (!ProfileValidation.isValid(download.outcome.yaml)) {
+            throw IllegalStateException(REFRESH_REJECTED_INVALID_CONFIG_MESSAGE)
+        }
+        atomicWriteText(File(profile.filePath), download.outcome.yaml)
         // If the server sent no Subscription-Userinfo this time, keep the previous quota.
         val quota = download.userinfo
         // Panel-initiated subscription relocation (New-Url / Fallback-Url): auto-migrate.
@@ -316,6 +330,27 @@ class SubscriptionRepository(
 
     companion object {
         const val MAX_SUBSCRIPTION_BYTES = 20L * 1024 * 1024
+
+        /**
+         * Crash-safe profile persistence (single owner of profile file writes):
+         * writes [content] to a sibling temp file (`.tmp-<name>`) and renames it
+         * over [target], so a crash / OOM mid-write can never leave a torn
+         * (half-written) profile file behind. `renameTo` can fail on some
+         * filesystems (foreign mount points, exotic FUSE daemons) — in that case
+         * the write degrades to a direct rewrite of [target] and the temp file
+         * is removed.
+         */
+        internal fun atomicWriteText(target: File, content: String) {
+            val tmp = File(target.parentFile, ".tmp-${target.name}")
+            try {
+                tmp.writeText(content)
+                if (!tmp.renameTo(target)) {
+                    target.writeText(content)
+                }
+            } finally {
+                if (tmp.exists()) tmp.delete()
+            }
+        }
 
         /** Streaming read granularity for [readBodyWithLimit]. */
         private const val STREAM_CHUNK_BYTES = 64 * 1024
