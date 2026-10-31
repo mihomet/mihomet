@@ -311,8 +311,8 @@ class FirewallCommandsStrictTest {
         val joined = cmds.joinToString("\n")
 
         assertTrue(
-            "setup must purge stale fwmark rules with a while-loop",
-            Regex("while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done").containsMatchIn(joined)
+            "setup must purge stale fwmark rules with a while-loop (F10: filtered by our fwmark — foreign pref-100 rules survive)",
+            Regex("while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} fwmark ${CoreConstants.CORE_ROUTING_MARK} 2>/dev/null; do true; done").containsMatchIn(joined)
         )
         val purgeIndex = cmds.indexOfFirst { it.startsWith("while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN}") }
         val addIndex = cmds.indexOfFirst { it.startsWith("ip rule add fwmark ${CoreConstants.CORE_ROUTING_MARK}") }
@@ -320,8 +320,8 @@ class FirewallCommandsStrictTest {
 
         // IPv6 purge must be symmetric, otherwise a stale v6 rule blackholes core DNS over IPv6
         assertTrue(
-            "setup must purge stale IPv6 fwmark rules with a while-loop",
-            Regex("while ip -6 rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done").containsMatchIn(joined)
+            "setup must purge stale IPv6 fwmark rules with a while-loop (F10: filtered by our fwmark)",
+            Regex("while ip -6 rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} fwmark ${CoreConstants.CORE_ROUTING_MARK} 2>/dev/null; do true; done").containsMatchIn(joined)
         )
         val purge6Index = cmds.indexOfFirst { it.startsWith("while ip -6 rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN}") }
         val add6Index = cmds.indexOfFirst { it.startsWith("ip -6 rule add fwmark ${CoreConstants.CORE_ROUTING_MARK}") }
@@ -663,8 +663,8 @@ class FirewallCommandsStrictTest {
         val routing = NftablesEngine.buildRoutingCommands(ipv6Enabled = true, defaultTable = "wlan0")
 
         assertTrue(
-            "routing batch must purge stale fwmark rules with a while-loop",
-            Regex("while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} 2>/dev/null; do true; done").containsMatchIn(routing)
+            "routing batch must purge stale fwmark rules with a while-loop (F10: filtered by our fwmark)",
+            Regex("while ip rule del pref ${CoreConstants.POLICY_RULE_PREF_MAIN} fwmark ${CoreConstants.CORE_ROUTING_MARK} 2>/dev/null; do true; done").containsMatchIn(routing)
         )
         assertTrue(routing.contains("ip rule add fwmark ${CoreConstants.CORE_ROUTING_MARK} lookup wlan0 pref ${CoreConstants.POLICY_RULE_PREF_MAIN}"))
         assertTrue(routing.contains("ip rule add fwmark ${CoreConstants.TPROXY_MARK_IPV4} table ${CoreConstants.POLICY_ROUTING_TABLE} pref ${CoreConstants.POLICY_RULE_PREF_LOCAL}"))
@@ -874,10 +874,13 @@ class FirewallCommandsStrictTest {
 
         // Regression: a broad pattern kill would murder unrelated processes
         assertFalse("stopDaemon must never use 'pkill -9 -f'", joined.contains("pkill -9 -f"))
-        assertFalse(joined.contains("pkill"))
-        // targeted cleanup of leftover core processes stays
-        assertTrue(joined.contains("killall mihomo"))
-        assertTrue(joined.contains("killall libmihomo.so"))
+        // F10: leftover core processes are matched by our FULL binary path only —
+        // name-based killall (or any other pattern) can hit a foreign same-named process
+        assertTrue(
+            "stopDaemon must kill leftover cores by our full binary path",
+            joined.contains("pkill -f '${CoreConstants.ROOT_BIN_PATH}'")
+        )
+        assertFalse("name-based killall can hit a foreign same-named process", joined.contains("killall"))
 
         // 4 / 6 are the per-family suffixes of the OEM chain save files
         // (.oplus_v4.rules / .oplus_v6.rules) restored in the trailing block

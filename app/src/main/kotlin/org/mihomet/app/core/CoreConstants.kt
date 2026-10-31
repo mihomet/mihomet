@@ -109,6 +109,14 @@ object CoreConstants {
     const val ROOT_OPLUS_RULES_V4_FILE = "$ROOT_RUN_DIR/.oplus_v4.rules"
     const val ROOT_OPLUS_RULES_V6_FILE = "$ROOT_RUN_DIR/.oplus_v6.rules"
 
+    // F10: snapshot of the sysctls the firewall engines mutate (net/ipv4/ip_forward,
+    // conf/all/rp_filter, conf/default/rp_filter — one value per line, in that order).
+    // Written before the FIRST sysctl change of a root session; the engines' teardown
+    // restores the values and removes the file. A leftover file from a crashed session
+    // is therefore never overwritten with already-modified values (the backup is gated
+    // on the file's absence) and the restore is a no-op when nothing was changed.
+    const val ROOT_SYSCTL_BACKUP_FILE = "$ROOT_RUN_DIR/.sysctl.bak"
+
     private val secureRandom = SecureRandom()
 
     /**
