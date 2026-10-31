@@ -1,6 +1,7 @@
 package org.mihomet.app
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -241,5 +242,32 @@ class CoreUpdateVerifierStrictTest {
         val raw = sign(manifest)
         assertEquals(256, raw.size) // 2048-bit key → 256-byte raw signature
         assertTrue(CoreUpdateVerifier.verifySignature(manifest, raw, testPublicKeyBase64).isSuccess)
+    }
+
+    // ---------------------------------------------------------------------
+    // Download URL pinning (defense in depth)
+    // ---------------------------------------------------------------------
+
+    @Test
+    fun `only mihomet core GitHub URLs are trusted for downloads`() {
+        assertTrue(
+            CoreUpdateVerifier.isTrustedCoreUrl(
+                "https://github.com/mihomet/core/releases/download/core-v1.19.33-mihomet.4/libmihomo-arm64-v8a.so"
+            )
+        )
+        assertTrue(
+            CoreUpdateVerifier.isTrustedCoreUrl(
+                "https://api.github.com/repos/mihomet/core/releases/latest"
+            )
+        )
+        // A tampered API response must not redirect the fetch elsewhere
+        assertFalse(CoreUpdateVerifier.isTrustedCoreUrl("https://evil.example/libmihomo.so"))
+        assertFalse(CoreUpdateVerifier.isTrustedCoreUrl("http://github.com/mihomet/core/releases/download/x/y"))
+        assertFalse(
+            CoreUpdateVerifier.isTrustedCoreUrl(
+                "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.33/mihomo-android-arm64-v8a.gz"
+            )
+        )
+        assertFalse(CoreUpdateVerifier.isTrustedCoreUrl(""))
     }
 }

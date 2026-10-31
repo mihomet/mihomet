@@ -148,4 +148,14 @@ object CoreUpdateVerifier {
             "Manifest version '${manifest.version}' does not match release tag '$releaseTag'"
         }
     }
+
+    /**
+     * Defense in depth: asset URLs taken from the GitHub API response are only
+     * followed when they point into the mihomet/core releases space. A tampered
+     * API answer cannot redirect the download elsewhere (the signature+sha256
+     * chain would still catch wrong bytes, but the fetch itself stays pinned).
+     */
+    fun isTrustedCoreUrl(url: String): Boolean =
+        url.startsWith("${org.mihomet.app.core.CoreConstants.CORE_RELEASES_DOWNLOAD_BASE}/") ||
+                url.startsWith("https://api.github.com/repos/mihomet/core/releases/")
 }

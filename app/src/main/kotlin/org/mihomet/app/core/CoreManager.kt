@@ -212,20 +212,14 @@ class CoreManager(private val context: Context) {
         }
     }
 
-    private fun releaseAssetUrl(release: GitHubRelease, assetName: String): String {
-        val tag = release.tag_name.trim()
-        require(tag.isNotEmpty()) { "Release tag is empty" }
-        // Tag names go into a URL path — allow only characters GitHub tags use.
-        require(tag.all { it.isLetterOrDigit() || it == '.' || it == '-' || it == '_' || it == '+' }) {
-            "Release tag contains unexpected characters: $tag"
+    private suspend fun downloadBytes(url: String): ByteArray {
+        check(CoreUpdateVerifier.isTrustedCoreUrl(url)) {
+            "Core update refused: untrusted download URL $url"
         }
-        return "${CoreConstants.CORE_RELEASES_DOWNLOAD_BASE}/$tag/$assetName"
-    }
-
-    private suspend fun downloadBytes(url: String): ByteArray =
-        httpClient.get(url) {
+        return httpClient.get(url) {
             header("User-Agent", "Mihomet-Android/1.0")
         }.body()
+    }
 
     /**
      * Downloads, verifies and atomically installs the latest core release.
