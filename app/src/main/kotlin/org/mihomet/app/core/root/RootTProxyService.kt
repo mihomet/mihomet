@@ -132,6 +132,7 @@ class RootTProxyService : Service(), KoinComponent {
             // 0. Recover Private DNS if the previous root session crashed before
             // stopDaemon() could restore it (.prev_dns exists while daemon is dead)
             RootShellManager.maybeRestorePrivateDns()
+            RootShellManager.maybeRestoreOplusChains()
 
             // 1. Bootstrap root binary if missing
             coreManager.bootstrapRootBinary().getOrThrow()

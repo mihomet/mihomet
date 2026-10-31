@@ -100,6 +100,15 @@ object CoreConstants {
     // user-updated core to the bundled binary on the next start.
     const val ROOT_CORE_VERSION_FILE = "$ROOT_RUN_DIR/installed_core_version"
 
+    // OEM (OnePlus / Realme / ColorOS) custom DNS reject chain in the filter
+    // table. startDaemon snapshots its rules to the save files below BEFORE
+    // flushing the chain for the daemon lifetime; stopDaemon (and the crash
+    // recovery path) replays the saved rules and removes the files, so the
+    // OEM DNS logic survives a mihomet root session.
+    const val OPLUS_DNS_CHAIN = "fw_OUTPUT_oplus_dns"
+    const val ROOT_OPLUS_RULES_V4_FILE = "$ROOT_RUN_DIR/.oplus_v4.rules"
+    const val ROOT_OPLUS_RULES_V6_FILE = "$ROOT_RUN_DIR/.oplus_v6.rules"
+
     private val secureRandom = SecureRandom()
 
     /**

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -29,6 +30,7 @@ import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import org.mihomet.app.R
 import org.mihomet.app.core.BatteryHelper
+import org.mihomet.app.core.OemHints
 import org.mihomet.app.data.preferences.SettingsRepository
 import org.mihomet.app.ui.components.ExpressiveNavigationBar
 import org.mihomet.app.ui.navigation.AppNavGraph
@@ -193,17 +195,20 @@ class MainActivity : ComponentActivity() {
                 }
             }
             if (showBatteryPrompt) {
-                val isXiaomi = BatteryHelper.isXiaomi()
+                val oemBrand = remember { OemHints.detect() }
+                val oemLaunch = remember(oemBrand) {
+                    OemHints.resolveLaunchable(this@MainActivity, oemBrand)
+                }
                 AlertDialog(
                     onDismissRequest = { showBatteryPrompt = false },
                     title = { Text(stringResource(R.string.batt_dialog_title)) },
                     text = {
                         Column {
                             Text(stringResource(R.string.batt_dialog_text))
-                            if (isXiaomi) {
+                            oemBrand.notesRes?.let { noteRes ->
                                 Spacer(Modifier.height(8.dp))
                                 Text(
-                                    stringResource(R.string.batt_xiaomi_hint),
+                                    stringResource(noteRes),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -211,15 +216,28 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                     confirmButton = {
-                        TextButton(
-                            onClick = {
-                                showBatteryPrompt = false
-                                runCatching {
-                                    BatteryHelper.buildRequestIgnoreIntent(this@MainActivity)
-                                        ?.let { startActivity(it) }
-                                }
+                        Column(horizontalAlignment = Alignment.End) {
+                            // Brand-specific deep link (MIUI Autostart, ColorOS Startup
+                            // manager, …) — only offered when the vendor activity
+                            // actually resolves on this device.
+                            if (oemLaunch != null) {
+                                TextButton(
+                                    onClick = {
+                                        showBatteryPrompt = false
+                                        runCatching { startActivity(oemLaunch) }
+                                    }
+                                ) { Text(stringResource(R.string.batt_oem_button)) }
                             }
-                        ) { Text(stringResource(R.string.batt_open_settings)) }
+                            TextButton(
+                                onClick = {
+                                    showBatteryPrompt = false
+                                    runCatching {
+                                        BatteryHelper.buildRequestIgnoreIntent(this@MainActivity)
+                                            ?.let { startActivity(it) }
+                                    }
+                                }
+                            ) { Text(stringResource(R.string.batt_open_settings)) }
+                        }
                     },
                     dismissButton = {
                         TextButton(onClick = { showBatteryPrompt = false }) {

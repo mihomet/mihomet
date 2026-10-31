@@ -356,6 +356,17 @@
     <string name="batt_open_settings">Open settings</string>
     <string name="batt_later">Later</string>
 
+    <!-- OEM setup hints (brand-specific power-manager deep links, don't-kill-my-app.com) -->
+    <string name="batt_oem_button">Brand settings</string>
+    <string name="oem_xiaomi_note">MIUI/HyperOS detected: enable Autostart for Mihomet (Security → Permissions → Autostart) and lift battery restrictions (Security → Battery), otherwise the background service may be killed.</string>
+    <string name="oem_coloros_note">ColorOS/Realme UI detected: allow Mihomet in the Startup Manager (Settings → Battery → Startup manager) and set its battery usage to unrestricted.</string>
+    <string name="oem_samsung_note">One UI detected: also add Mihomet to the Never sleeping apps list (Settings → Battery → Background usage limits).</string>
+    <string name="oem_huawei_note">EMUI/HarmonyOS detected: enable Automatic startup for Mihomet (Phone Manager → Startup manager) and lock it in the Recent apps screen.</string>
+    <string name="oem_vivo_note">Funtouch OS detected: allow Mihomet background startup (i Manager → App manager → Autostart manager) and remove battery restrictions.</string>
+    <string name="oem_diag_title">Manufacturer diagnostics</string>
+    <string name="oem_diag_desc">The power manager on %1$s devices may kill background VPN services — whitelist Mihomet in the brand settings.</string>
+    <string name="oem_diag_open">Open brand settings</string>
+
     <!-- Advanced VPN toggles (allowBypass / setHttpProxy) -->
     <string name="vpn_bypass_title">Allow app bypass</string>
     <string name="vpn_bypass_desc">Apps with the bypass option may route around the VPN (VpnService allowBypass)</string>

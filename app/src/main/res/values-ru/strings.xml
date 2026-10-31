@@ -358,6 +358,17 @@
     <string name="batt_open_settings">Открыть настройки</string>
     <string name="batt_later">Позже</string>
 
+    <!-- OEM setup hints (brand-specific power-manager deep links, don't-kill-my-app.com) -->
+    <string name="batt_oem_button">Настройки производителя</string>
+    <string name="oem_xiaomi_note">Обнаружен MIUI/HyperOS: включите Автозапуск для Mihomet (Безопасность → Разрешения → Автозапуск) и снимите ограничения батареи (Безопасность → Питание), иначе фоновый сервис может быть убит.</string>
+    <string name="oem_coloros_note">Обнаружен ColorOS/Realme UI: разрешите Mihomet в менеджере автозапуска (Настройки → Батарея → Автозапуск) и установите неограниченный расход батареи.</string>
+    <string name="oem_samsung_note">Обнаружена One UI: добавьте Mihomet в список «Не спящие приложения» (Настройки → Батарея → Лимиты фоновой активности).</string>
+    <string name="oem_huawei_note">Обнаружен EMUI/HarmonyOS: включите автозапуск для Mihomet (Диспетчер телефона → Запуск приложений) и закрепите его в списке недавних приложений.</string>
+    <string name="oem_vivo_note">Обнаружен Funtouch OS: разрешите фоновый запуск Mihomet (i Менеджер → Приложения → Автозапуск) и снимите ограничения батареи.</string>
+    <string name="oem_diag_title">Диагностика производителя</string>
+    <string name="oem_diag_desc">Менеджер питания на устройствах %1$s может убивать фоновый VPN-сервис — добавьте Mihomet в исключения в настройках производителя.</string>
+    <string name="oem_diag_open">Открыть настройки производителя</string>
+
     <!-- Advanced VPN toggles (allowBypass / setHttpProxy) -->
     <string name="vpn_bypass_title">Разрешить обход приложениями</string>
     <string name="vpn_bypass_desc">Приложения с опцией bypass могут обходить VPN (VpnService allowBypass)</string>

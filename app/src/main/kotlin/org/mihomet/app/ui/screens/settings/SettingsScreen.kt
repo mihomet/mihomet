@@ -1,5 +1,6 @@
 package org.mihomet.app.ui.screens.settings
 
+import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -26,9 +27,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.util.Locale
 import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.R
 import org.mihomet.app.core.HappCrypto
+import org.mihomet.app.core.OemHints
 import org.mihomet.app.core.dns.DnsCategory
 import org.mihomet.app.core.dns.DnsPresets
 import org.mihomet.app.data.preferences.ProfileOverrides
@@ -53,6 +56,12 @@ fun SettingsScreen(
     var showLatencyDialog by remember { mutableStateOf(false) }
     var showDnsDialog by remember { mutableStateOf(false) }
     var isAdvancedExpanded by remember { mutableStateOf(false) }
+
+    // Manufacturer diagnostics — only on devices from vendors whose power
+    // managers are known to kill background VPN services (MIUI, ColorOS, …).
+    val oemBrand = remember { OemHints.detect() }
+    val oemLaunch = remember(oemBrand) { OemHints.resolveLaunchableOrGeneric(context, oemBrand) }
+    val oemLabel = remember { Build.MANUFACTURER.replaceFirstChar { it.uppercase(Locale.ROOT) } }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -848,7 +857,71 @@ fun SettingsScreen(
                 }
             }
 
-            // 6. About App Card
+            // 6. Manufacturer diagnostics card (known OEM ROMs only)
+            if (oemBrand != OemHints.OemBrand.STOCK) {
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = ExpressiveShapes.Large,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                    ) {
+                        Column(modifier = Modifier.padding(18.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Surface(
+                                    shape = ExpressiveShapes.Small,
+                                    color = AccentOrangeContainer,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.Default.BatteryAlert,
+                                            contentDescription = null,
+                                            tint = AccentOrange,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+
+                                Column {
+                                    Text(
+                                        stringResource(R.string.oem_diag_title),
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 15.sp
+                                    )
+                                    Text(
+                                        stringResource(R.string.oem_diag_desc, oemLabel),
+                                        fontSize = 12.sp,
+                                        lineHeight = 17.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            if (oemLaunch != null) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                OutlinedButton(
+                                    onClick = {
+                                        AppHaptics.perform(context, HapticType.CLICK, view)
+                                        runCatching { context.startActivity(oemLaunch) }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = ExpressiveShapes.Medium
+                                ) {
+                                    Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(stringResource(R.string.oem_diag_open), fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 7. About App Card
             item {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
