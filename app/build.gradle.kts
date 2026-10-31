@@ -107,7 +107,7 @@ tasks.named("preBuild") { dependsOn(downloadMihomoCore) }
 
 android {
     namespace = "org.mihomet.app"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "org.mihomet.app"
