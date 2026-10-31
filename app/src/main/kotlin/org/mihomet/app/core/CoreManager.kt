@@ -15,11 +15,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.mihomet.app.core.config.ConfigGenerator
+import org.mihomet.app.core.update.CoreUpdateVerifier
 import org.mihomet.app.data.api.MihomoApiClient
 import org.mihomet.app.data.preferences.AppSettings
 import java.io.File
-import java.io.FileOutputStream
-import java.util.zip.GZIPInputStream
 
 @Serializable
 data class GitHubRelease(
@@ -198,82 +197,186 @@ class CoreManager(private val context: Context) {
         }
     }
 
+    /**
+     * Latest core release. ONLY our own patched-core repository is queried
+     * (audit P0 §1.2): the bundled core is mihomo v1.19.33 patched for non-root
+     * TUN and built by mihomet/core — stock MetaCubeX builds lack the patch and
+     * are not validated against this app, so they are never offered or installed.
+     */
     suspend fun checkLatestRelease(): Result<GitHubRelease> = withContext(Dispatchers.IO) {
         runCatching {
-            httpClient.get("https://api.github.com/repos/MetaCubeX/mihomo/releases/latest") {
+            httpClient.get(CoreConstants.CORE_RELEASES_API_LATEST) {
                 header("User-Agent", "Mihomet-Android/1.0")
                 header("Accept", "application/vnd.github.v3+json")
             }.body()
         }
     }
 
+    private suspend fun downloadBytes(url: String): ByteArray {
+        check(CoreUpdateVerifier.isTrustedCoreUrl(url)) {
+            "Core update refused: untrusted download URL $url"
+        }
+        return httpClient.get(url) {
+            header("User-Agent", "Mihomet-Android/1.0")
+        }.body()
+    }
+
+    /**
+     * Downloads, verifies and atomically installs the latest core release.
+     *
+     * Fail-closed verification chain (audit P0 §1.2), ALL steps must pass:
+     *  1. manifest.json + manifest.json.sig must exist in the release;
+     *  2. the manifest signature must verify against the embedded RSA-4096 public key;
+     *  3. the manifest version must match the release tag; the device ABI must be listed;
+     *  4. the downloaded .so must match the manifest sha256 AND exact byte size;
+     *  5. the NEW binary must execute under the root shell (`mihomo -v` from
+     *     run/mihomo.new) BEFORE the installed binary is touched;
+     *  6. install is an atomic rename with the previous binary kept as
+     *     bin/mihomo.bak and restored on any failure.
+     */
     suspend fun downloadAndUpdateCore(release: GitHubRelease, onProgress: (Float) -> Unit = {}): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
-            val primaryAbi = Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64-v8a"
-            val targetArchKeyword = when {
-                primaryAbi.contains("arm64") -> "arm64-v8"
-                primaryAbi.contains("armeabi") || primaryAbi.contains("v7a") -> "armv7"
-                primaryAbi.contains("x86_64") -> "amd64"
-                else -> "arm64-v8"
+            val tag = release.tag_name.trim()
+            val abi = CoreUpdateVerifier.deviceArtifactKey(Build.SUPPORTED_ABIS.firstOrNull())
+                ?: throw IllegalStateException("Unsupported device ABI: ${Build.SUPPORTED_ABIS.firstOrNull()}")
+
+            // --- 1. manifest + signature assets must exist ---
+            val manifestAsset = release.assets.find { it.name == CoreConstants.CORE_MANIFEST_ASSET }
+                ?: throw IllegalStateException(
+                    "Core update refused: ${CoreConstants.CORE_MANIFEST_ASSET} is missing from release $tag"
+                )
+            val signatureAsset = release.assets.find { it.name == CoreConstants.CORE_MANIFEST_SIGNATURE_ASSET }
+                ?: throw IllegalStateException(
+                    "Core update refused: ${CoreConstants.CORE_MANIFEST_SIGNATURE_ASSET} is missing from release $tag"
+                )
+
+            onProgress(0.1f)
+            val manifestBytes = downloadBytes(manifestAsset.browser_download_url)
+            val signatureBytes = downloadBytes(signatureAsset.browser_download_url)
+
+            // --- 2. signature over the exact manifest bytes (embedded public key) ---
+            CoreUpdateVerifier.verifySignature(
+                manifestBytes, signatureBytes, CoreConstants.CORE_UPDATE_PUBLIC_KEY_B64
+            ).getOrElse {
+                android.util.Log.w("CoreManager", "Core update refused: signature verification failed for $tag")
+                throw IllegalStateException("Core update refused: manifest signature verification failed")
             }
 
-            val asset = release.assets.find {
-                it.name.contains("android", ignoreCase = true) &&
-                        it.name.contains(targetArchKeyword, ignoreCase = true) &&
-                        it.name.endsWith(".gz", ignoreCase = true)
-            } ?: throw IllegalStateException("No compatible asset found for ABI $primaryAbi")
-
-            val tempGzFile = File(context.cacheDir, "mihomo_update.gz")
-            val tempBinFile = File(context.cacheDir, "mihomo_update")
-
-            // Download asset
-            val responseBytes: ByteArray = httpClient.get(asset.browser_download_url) {
-                header("User-Agent", "Mihomet-Android/1.0")
-            }.body()
-            tempGzFile.writeBytes(responseBytes)
-
-            // Decompress gzip
-            GZIPInputStream(tempGzFile.inputStream()).use { input ->
-                FileOutputStream(tempBinFile).use { output ->
-                    input.copyTo(output)
-                }
+            // --- 3. manifest sanity: schema, tag match, ABI artifact ---
+            val manifest = CoreUpdateVerifier.parseManifest(manifestBytes).getOrElse {
+                throw IllegalStateException("Core update refused: invalid ${CoreConstants.CORE_MANIFEST_ASSET} (${it.message})")
             }
-            tempBinFile.setExecutable(true)
-
-            // Install into /data/adb/mihomet/bin/mihomo via root shell
-            val cmds = listOf(
-                "mkdir -p ${CoreConstants.ROOT_BIN_DIR}",
-                "cp \"${tempBinFile.absolutePath}\" ${CoreConstants.ROOT_BIN_PATH}",
-                "chmod 755 ${CoreConstants.ROOT_BIN_PATH}",
-                "chcon u:object_r:system_file:s0 ${CoreConstants.ROOT_BIN_PATH} 2>/dev/null || true"
-            )
-            val result = Shell.cmd(*cmds.toTypedArray()).exec()
-
-            tempGzFile.delete()
-            tempBinFile.delete()
-
-            if (!result.isSuccess) {
-                throw RuntimeException("Root install failed: ${result.err.joinToString("\n")}")
+            CoreUpdateVerifier.checkManifestVersion(manifest, tag).getOrElse {
+                throw IllegalStateException("Core update refused: ${it.message}")
+            }
+            val artifact = CoreUpdateVerifier.selectArtifact(manifest, abi).getOrElse {
+                throw IllegalStateException("Core update refused: ${it.message}")
             }
 
-            // Record the installed core version (audit P2 §8) so bootstrapRootBinary
-            // can tell a user-updated core apart from a stale copy of the bundled one
-            // and does not roll the update back on the next start.
-            // Sanitize the tag before interpolating it into a root shell command.
-            val installedVersion = release.tag_name.trim().filter {
-                it.isLetterOrDigit() || it == '.' || it == '-' || it == '_' || it == '+'
+            val binaryAsset = release.assets.find { it.name == artifact.file }
+                ?: throw IllegalStateException(
+                    "Core update refused: ${artifact.file} is missing from release $tag"
+                )
+
+            onProgress(0.3f)
+            val binaryBytes = downloadBytes(binaryAsset.browser_download_url)
+            onProgress(0.6f)
+
+            // --- 4. integrity: exact size + sha256 from the signed manifest ---
+            CoreUpdateVerifier.verifyBinary(manifest, abi, binaryBytes).getOrElse {
+                android.util.Log.w("CoreManager", "Core update refused: integrity check failed for $tag")
+                throw IllegalStateException("Core update refused: downloaded core failed integrity verification")
             }
-            if (installedVersion.isNotEmpty()) {
-                Shell.cmd(
-                    "mkdir -p ${CoreConstants.ROOT_RUN_DIR}",
-                    "echo '$installedVersion' > ${CoreConstants.ROOT_CORE_VERSION_FILE}"
+
+            // Stage the verified binary in the app cache (never executed from here —
+            // app data is noexec; the root shell runs it from run/mihomo.new below).
+            val tempBinFile = File(context.cacheDir, "mihomo_update.so")
+            try {
+                tempBinFile.writeBytes(binaryBytes)
+
+                val upload = Shell.cmd(
+                    "mkdir -p ${CoreConstants.ROOT_BIN_DIR} ${CoreConstants.ROOT_RUN_DIR}",
+                    "rm -f ${CoreConstants.ROOT_RUN_NEW_BIN}",
+                    "cp \"${tempBinFile.absolutePath}\" ${CoreConstants.ROOT_RUN_NEW_BIN}",
+                    "chmod 755 ${CoreConstants.ROOT_RUN_NEW_BIN}"
                 ).exec()
-            }
+                if (!upload.isSuccess) {
+                    throw RuntimeException(
+                        "Core update failed: could not stage the new binary (${upload.err.joinToString("\n")})"
+                    )
+                }
 
-            // If root daemon is currently running, restart it with updated binary
-            if (org.mihomet.app.core.root.RootShellManager.isDaemonRunning()) {
-                org.mihomet.app.core.root.RootTProxyService.restart(context)
+                // --- 5. validate the NEW binary BEFORE touching the installed one ---
+                val probe = Shell.cmd("\"${CoreConstants.ROOT_RUN_NEW_BIN}\" -v").exec()
+                val probeOutput = (probe.out + probe.err).joinToString("\n")
+                val expectedVersionToken = manifest.version.removePrefix("core-")
+                if (!probe.isSuccess || !probeOutput.contains(expectedVersionToken)) {
+                    throw IllegalStateException(
+                        "Core update refused: new binary failed 'mihomo -v' validation for $expectedVersionToken"
+                    )
+                }
+
+                // --- 6. atomic replace with backup + rollback on failure ---
+                installVerifiedBinary()
+
+                // Record the installed core version so bootstrapRootBinary does not
+                // roll the update back on the next start (sanitized for the shell).
+                val installedVersion = tag.filter {
+                    it.isLetterOrDigit() || it == '.' || it == '-' || it == '_' || it == '+'
+                }
+                if (installedVersion.isNotEmpty()) {
+                    Shell.cmd(
+                        "mkdir -p ${CoreConstants.ROOT_RUN_DIR}",
+                        "echo '$installedVersion' > ${CoreConstants.ROOT_CORE_VERSION_FILE}"
+                    ).exec()
+                }
+
+                onProgress(1.0f)
+                // If root daemon is currently running, restart it with updated binary
+                if (org.mihomet.app.core.root.RootShellManager.isDaemonRunning()) {
+                    org.mihomet.app.core.root.RootTProxyService.restart(context)
+                }
+            } finally {
+                tempBinFile.delete()
+                // The staged copy was consumed by the atomic rename; remove any
+                // leftover from a failed attempt so run/ never keeps stale binaries.
+                Shell.cmd("rm -f ${CoreConstants.ROOT_RUN_NEW_BIN}").exec()
             }
+        }
+    }
+
+    /**
+     * Atomic replace of [CoreConstants.ROOT_BIN_PATH] with the already-validated
+     * [CoreConstants.ROOT_RUN_NEW_BIN]: the previous binary is backed up first,
+     * the new one moves into place via rename(2) (same filesystem → atomic, never
+     * a truncated file), and any failure restores the backup.
+     */
+    private fun installVerifiedBinary() {
+        fun shellOk(vararg cmds: String): Boolean =
+            Shell.cmd(*cmds).exec().isSuccess
+
+        val backupCmds = arrayOf(
+            "if [ -s ${CoreConstants.ROOT_BIN_PATH} ]; then cp -f ${CoreConstants.ROOT_BIN_PATH} ${CoreConstants.ROOT_BIN_BACKUP_PATH}; fi"
+        )
+        if (!shellOk(*backupCmds)) {
+            throw RuntimeException("Core update failed: could not back up the previous binary")
+        }
+
+        val installCmds = arrayOf(
+            "mv -f ${CoreConstants.ROOT_RUN_NEW_BIN} ${CoreConstants.ROOT_BIN_PATH}",
+            "chmod 755 ${CoreConstants.ROOT_BIN_PATH}",
+            "chcon u:object_r:system_file:s0 ${CoreConstants.ROOT_BIN_PATH} 2>/dev/null || true"
+        )
+        if (!shellOk(*installCmds)) {
+            android.util.Log.w("CoreManager", "Install failed — restoring the previous binary")
+            val restored = shellOk(
+                "if [ -s ${CoreConstants.ROOT_BIN_BACKUP_PATH} ]; then cp -f ${CoreConstants.ROOT_BIN_BACKUP_PATH} ${CoreConstants.ROOT_BIN_PATH}; fi",
+                "chmod 755 ${CoreConstants.ROOT_BIN_PATH}"
+            )
+            if (!restored) {
+                android.util.Log.e("CoreManager", "Rollback failed — restore manually from ${CoreConstants.ROOT_BIN_BACKUP_PATH}")
+            }
+            throw RuntimeException("Core update failed: install step failed, previous binary restored")
         }
     }
 
@@ -288,8 +391,12 @@ class CoreManager(private val context: Context) {
                 mkdirs()
             }
 
-            val probePort = CoreConstants.PROBE_PORT
-            val probeSecret = CoreConstants.PROBE_SECRET
+            // Audit P1 §2.2: per-run random secret + ephemeral free port. The probe
+            // core is a fully functional mihomo instance — a static secret baked into
+            // the APK (or a fixed port) would let any local app reach its controller
+            // API and would race with other listeners.
+            val probePort = CoreConstants.findFreePort()
+            val probeSecret = CoreConstants.generateRandomHexSecret()
             val probeConfig = ConfigGenerator.generateRuntimeConfig(
                 profileYamlContent = rawYaml,
                 settings = AppSettings(
@@ -339,8 +446,30 @@ class CoreManager(private val context: Context) {
                 block(probeApiClient)
             } finally {
                 process.destroy()
+                // Release the probe client's Ktor engine (short-lived client, single
+                // probe run) — see closeProbeClient for the access rationale.
+                closeProbeClient(probeApiClient)
                 runCatching { probeDir.deleteRecursively() }
             }
+        }
+    }
+
+    /**
+     * Best-effort release of the probe client's underlying Ktor [HttpClient].
+     *
+     * [MihomoApiClient] keeps its client private (single shared API surface), so the
+     * engine of this short-lived probe client is released reflectively. A narrow
+     * ProGuard keep rule (proguard-rules.pro) pins the field name for release builds.
+     * Fail-open: if access ever fails, the worst case is the pre-existing leak —
+     * never a crash.
+     */
+    private fun closeProbeClient(client: MihomoApiClient) {
+        runCatching {
+            val field = MihomoApiClient::class.java.getDeclaredField("httpClient")
+            field.isAccessible = true
+            (field.get(client) as? io.ktor.client.HttpClient)?.close()
+        }.onFailure {
+            android.util.Log.w("CoreManager", "Probe HttpClient close skipped: ${it.message}")
         }
     }
 }

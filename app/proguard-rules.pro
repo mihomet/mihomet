@@ -35,3 +35,10 @@
 -keepclasseswithmembers class * extends android.app.Service {
     public <init>();
 }
+
+# --- Probe client engine release (CoreManager.closeProbeClient) ---
+# The short-lived core-probe MihomoApiClient releases its private Ktor HttpClient
+# reflectively in a finally block; pin the field name for R8 release builds.
+-keepclassmembers class org.mihomet.app.data.api.MihomoApiClient {
+    private io.ktor.client.HttpClient httpClient;
+}

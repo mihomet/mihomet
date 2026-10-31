@@ -1,6 +1,7 @@
 package org.mihomet.app
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -30,15 +31,32 @@ class CoreConstantsConsistencyStrictTest {
             "redir" to CoreConstants.DEFAULT_REDIR_PORT,
             "dns" to CoreConstants.DEFAULT_DNS_PORT,
             "controller" to CoreConstants.DEFAULT_CONTROLLER_PORT,
-            // The temporary probe instance binds its own external controller — it must not
-            // collide with any permanent listener either.
-            "probe-controller" to CoreConstants.PROBE_PORT,
         )
         assertEquals(
             "listener ports must be pairwise distinct, got: $ports",
             ports.size,
             ports.values.toSet().size
         )
+    }
+
+    @Test
+    fun `test no static probe port or probe secret remains in constants`() {
+        // Audit P1 §2.2: the temporary probe core must use a per-run random secret and
+        // a free ephemeral port — neither may exist as a compile-time constant again.
+        val fields = CoreConstants::class.java.declaredFields.filter { it.type == String::class.java || it.type == Int::class.java }
+        val names = fields.map { it.name }
+        assertFalse("PROBE_SECRET constant must not exist", "PROBE_SECRET" in names)
+        assertFalse("PROBE_PORT constant must not exist", "PROBE_PORT" in names)
+    }
+
+    @Test
+    fun `test findFreePort returns bindable distinct ports`() {
+        val first = CoreConstants.findFreePort()
+        val second = CoreConstants.findFreePort()
+        assertTrue("port must be in the ephemeral range", first in 1024..65535)
+        assertTrue("port must be in the ephemeral range", second in 1024..65535)
+        // The released socket must be bindable again (the contract the probe relies on).
+        java.net.ServerSocket(first).use { /* bind succeeds */ }
     }
 
     @Test

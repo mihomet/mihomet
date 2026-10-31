@@ -28,6 +28,10 @@ object WarningLocalizer {
     private const val PREFIX_SINGBOX_ERROR = "Ошибка конвертации Sing-Box JSON: "
     private const val PREFIX_YAML_ERROR = "Ошибка YAML: "
 
+    // Profile-key whitelist drops (ConfigGenerator, audit P1 §2.1):
+    // "Из профиля удалён ключ вне белого списка: <key>"
+    const val PREFIX_PROFILE_KEY_DROPPED = "Из профиля удалён ключ вне белого списка: "
+
     private val NO_NODES_WARNINGS = mapOf(
         "В подписке не найдено ни одного поддерживаемого узла" to R.string.conv_warning_no_nodes,
         "В Xray-конфиге не найдено ни одного поддерживаемого узла" to R.string.conv_warning_no_nodes_xray,
@@ -87,6 +91,11 @@ object WarningLocalizer {
 
             warning.startsWith(PREFIX_YAML_ERROR) ->
                 R.string.conv_error_yaml to listOf(warning.removePrefix(PREFIX_YAML_ERROR))
+
+            warning.startsWith(PREFIX_PROFILE_KEY_DROPPED) ->
+                R.string.conv_warning_profile_key_dropped to listOf(
+                    warning.removePrefix(PREFIX_PROFILE_KEY_DROPPED)
+                )
 
             else -> UNSUPPORTED_OUTBOUND.find(warning)?.let { m ->
                 R.string.conv_warning_unsupported_outbound to listOf(m.groupValues[1], m.groupValues[2])

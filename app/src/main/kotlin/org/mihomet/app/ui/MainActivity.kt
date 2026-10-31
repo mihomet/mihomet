@@ -52,53 +52,90 @@ class MainActivity : ComponentActivity() {
 
     /**
      * Accepts one-tap import links (happ://, clash://, v2rayng://, sing-box://, incy:// …)
-     * and plain shared text, queues the payload for the Profiles screen.
-     * incy://connect|disconnect|toggle control the VPN directly (CMFA ExternalControl parity).
+     * and plain shared text, queues the payload (with its best-effort source) for the
+     * Profiles screen, where a confirmation dialog gates the actual import — nothing
+     * is imported silently (audit P0 §1.1).
+     *
+     * Control links (incy://connect|disconnect|toggle, mihomet://start|stop|toggle,
+     * CMFA ExternalControl parity) are gated by [DeepLinkPolicy]: only intents that
+     * originate from this app's own PendingIntents may toggle the tunnel — browser
+     * links and third-party apps are always rejected.
      */
     private fun handleImportIntent(intent: android.content.Intent?) {
+        val origin = intentOrigin(intent)
         when (intent?.action) {
             android.content.Intent.ACTION_VIEW -> {
-                intent.data?.toString()?.let { raw ->
-                    handleControlLink(raw) ?: org.mihomet.app.core.DeepLinkParser.parse(raw)
-                        ?.let { org.mihomet.app.core.DeepLinkBus.post(it) }
-                }
+                intent.data?.toString()?.let { raw -> handleControlLink(raw, origin) }
             }
             android.content.Intent.ACTION_SEND -> {
                 intent.getStringExtra(android.content.Intent.EXTRA_TEXT)?.let { text ->
-                    org.mihomet.app.core.DeepLinkParser.parse(text)?.let { org.mihomet.app.core.DeepLinkBus.post(it) }
+                    org.mihomet.app.core.DeepLinkParser.parse(text)?.let {
+                        org.mihomet.app.core.DeepLinkBus.post(it, describeSource())
+                    }
                 }
             }
         }
     }
 
-    private fun handleControlLink(raw: String): Boolean {
+    /**
+     * Best-effort origin classification of the incoming intent (see
+     * [org.mihomet.app.core.DeepLinkPolicy]). Doubt resolves to a non-SELF origin.
+     */
+    private fun intentOrigin(intent: android.content.Intent?): org.mihomet.app.core.DeepLinkPolicy.IntentOrigin {
+        if (intent == null) return org.mihomet.app.core.DeepLinkPolicy.IntentOrigin.EXTERNAL_APP
+        val browsable = intent.categories?.contains(android.content.Intent.CATEGORY_BROWSABLE) == true
+        return org.mihomet.app.core.DeepLinkPolicy.resolveOrigin(
+            browsable = browsable,
+            selfPackage = packageName,
+            referrer = referrer?.toString(),
+            callingPackage = callingPackage
+        )
+    }
+
+    /** Raw source description carried with import payloads into the confirm dialog. */
+    private fun describeSource(): String? = referrer?.toString()
+
+    private fun handleControlLink(raw: String, origin: org.mihomet.app.core.DeepLinkPolicy.IntentOrigin) {
         val scheme = raw.substringBefore("://").lowercase()
-        if (scheme != "incy" && scheme != "mihomet") return false
+        if (scheme != "incy" && scheme != "mihomet") {
+            org.mihomet.app.core.DeepLinkParser.parse(raw)?.let {
+                org.mihomet.app.core.DeepLinkBus.post(it, describeSource())
+            }
+            return
+        }
         val action = raw.substringAfter("://").substringBefore('?').substringBefore('/').lowercase()
-        return when (action) {
-            "connect", "start", "open" -> {
-                lifecycleScope.launch { startPreferredMode() }; true
-            }
-            "disconnect", "stop", "close" -> {
-                lifecycleScope.launch { stopActiveService() }; true
-            }
-            "toggle" -> {
-                lifecycleScope.launch {
-                    if (org.mihomet.app.core.ServiceState.isRunning.value) stopActiveService() else startPreferredMode()
-                }; true
-            }
-            "status" -> true // handled silently: the caller reads state from the UI/notification
-            "onadd", "autorouting", "autoroutingadd" -> {
-                // Import the URL that follows the action; autorouting implies a refresh
-                // schedule which mihomet derives from the panel's profile-update-interval
+        when {
+            // Import verbs on the incy/mihomet URI space still go through the
+            // pending-confirmation state — never a silent import.
+            action == "onadd" || action == "autorouting" || action == "autoroutingadd" -> {
                 val payload = raw.substringAfter('/', "")
                     .takeIf { it.startsWith("http") || it.isNotBlank() }
                 if (!payload.isNullOrBlank()) {
-                    org.mihomet.app.core.DeepLinkBus.post(payload)
+                    org.mihomet.app.core.DeepLinkBus.post(payload, describeSource())
                 }
-                true
             }
-            else -> false
+            org.mihomet.app.core.DeepLinkPolicy.isControlVerb(action) -> {
+                when (org.mihomet.app.core.DeepLinkPolicy.decideControl(origin)) {
+                    org.mihomet.app.core.DeepLinkPolicy.ControlDecision.ALLOW -> when (action) {
+                        "connect", "start", "open" -> lifecycleScope.launch { startPreferredMode() }
+                        "disconnect", "stop", "close" -> lifecycleScope.launch { stopActiveService() }
+                        "toggle" -> lifecycleScope.launch {
+                            if (org.mihomet.app.core.ServiceState.isRunning.value) stopActiveService() else startPreferredMode()
+                        }
+                        // Read-only no-op: the caller reads state from the UI/notification.
+                        "status" -> {}
+                    }
+                    org.mihomet.app.core.DeepLinkPolicy.ControlDecision.REJECT ->
+                        android.util.Log.w(
+                            "MainActivity",
+                            "Control link '$action' rejected: intent origin $origin is not SELF"
+                        )
+                }
+            }
+            // Unknown action — fall back to import parsing (confirmed before use).
+            else -> org.mihomet.app.core.DeepLinkParser.parse(raw)?.let {
+                org.mihomet.app.core.DeepLinkBus.post(it, describeSource())
+            }
         }
     }
 

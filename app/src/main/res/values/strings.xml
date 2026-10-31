@@ -169,6 +169,24 @@
     <string name="conv_warning_no_nodes_singbox">No supported nodes found in the Sing-Box config</string>
     <string name="conv_warning_unknown_format">Could not determine the configuration format</string>
     <string name="conv_warning_unsupported_outbound">Outbound type \'%1$s\' (\'%2$s\') is not supported by the converter</string>
+    <string name="conv_warning_profile_key_dropped">Profile key removed (not on the safe list): %1$s</string>
+
+    <!-- Deep-link import confirmation (audit P0.1): external imports are never silent -->
+    <string name="deeplink_import_title">Add subscription from external link?</string>
+    <string name="deeplink_import_payload">Payload</string>
+    <string name="deeplink_import_source">Source: %1$s</string>
+    <string name="deeplink_import_source_unknown">Source: unknown (external intent)</string>
+    <string name="deeplink_import_name">Will be added as: %1$s</string>
+
+    <!-- Panel behavior-header consent (audit P0.1): opt-in only, incl. root/VPN switch -->
+    <string name="consent_title">The panel suggests changes</string>
+    <string name="consent_description">The subscription panel requested the following settings changes. Nothing is applied without your confirmation.</string>
+    <string name="consent_autoconnect">Make “%1$s” the active profile</string>
+    <string name="consent_perapp_whitelist">Per-app routing: allow only the selected apps (%1$d)</string>
+    <string name="consent_perapp_blacklist">Per-app routing: exclude the selected apps (%1$d)</string>
+    <string name="consent_tun_vpn">Switch the connection mode to No Root (VPN)</string>
+    <string name="consent_tun_root">Switch the connection mode to Root (TProxy)</string>
+    <string name="consent_apply">Apply</string>
 
     <!-- Settings -->
     <string name="settings_connection_mode">Connection mode</string>

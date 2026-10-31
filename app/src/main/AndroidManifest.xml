@@ -5,7 +5,6 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
@@ -13,6 +12,16 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- One-time battery-optimization whitelist prompt (FlClash BatteryPlugin pattern) -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!-- Per-app proxy list (audit P3.6): replaces QUERY_ALL_PACKAGES. Only launchable
+         apps are visible to the package manager — which is exactly what the routing
+         screen lists (QUERY_ALL_PACKAGES was broader than the feature needs). -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
 
     <application
         android:name=".MihometApplication"
@@ -52,14 +61,14 @@
                 <data android:scheme="happ" />
                 <data android:scheme="incy" />
             </intent-filter>
-            <!-- v2rayNG / sing-box / mihomet: ?url= based import -->
+            <!-- v2rayNG / sing-box: ?url= based import (BROWSABLE: browser links are
+                 import-only — control actions must never be reachable from a browser) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="v2rayng" />
                 <data android:scheme="sing-box" />
-                <data android:scheme="mihomet" />
             </intent-filter>
             <!-- "Share → Mihomet" from browsers and messenger apps -->
             <intent-filter>
@@ -68,6 +77,23 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
+
+        <!-- Control links (mihomet://start|stop|toggle) live on a separate entry
+             point WITHOUT the BROWSABLE category (audit P0 §1.1): browsers can
+             only dispatch BROWSABLE intents, so a web page can never toggle the
+             tunnel. Runtime enforcement is layered in DeepLinkPolicy — only
+             intents originating from this app's own PendingIntents pass. -->
+        <activity-alias
+            android:name=".ui.ControlLinkEntry"
+            android:targetActivity=".ui.MainActivity"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="mihomet" />
+            </intent-filter>
+        </activity-alias>
 
         <!-- Root TProxy Mode Foreground Service -->
         <service

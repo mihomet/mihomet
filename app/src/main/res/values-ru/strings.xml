@@ -171,6 +171,24 @@
     <string name="conv_warning_no_nodes_singbox">В Sing-Box конфиге не найдено ни одного поддерживаемого узла</string>
     <string name="conv_warning_unknown_format">Не удалось определить формат конфигурации</string>
     <string name="conv_warning_unsupported_outbound">Тип outbound \'%1$s\' (\'%2$s\') не поддерживается конвертером</string>
+    <string name="conv_warning_profile_key_dropped">Ключ профиля удалён (вне белого списка): %1$s</string>
+
+    <!-- Подтверждение импорта по внешней ссылке (аудит P0.1): импорт никогда не выполняется молча -->
+    <string name="deeplink_import_title">Добавить подписку из внешней ссылки?</string>
+    <string name="deeplink_import_payload">Данные</string>
+    <string name="deeplink_import_source">Источник: %1$s</string>
+    <string name="deeplink_import_source_unknown">Источник: неизвестен (внешний интент)</string>
+    <string name="deeplink_import_name">Будет добавлен как: %1$s</string>
+
+    <!-- Согласие на behavior-заголовки панели (аудит P0.1): только явное согласие, включая смену root/VPN -->
+    <string name="consent_title">Панель предлагает изменения</string>
+    <string name="consent_description">Панель подписки запросила следующие изменения настроек. Ничего не применяется без вашего подтверждения.</string>
+    <string name="consent_autoconnect">Сделать профиль «%1$s» активным</string>
+    <string name="consent_perapp_whitelist">Per-app маршрутизация: разрешить только выбранные приложения (%1$d)</string>
+    <string name="consent_perapp_blacklist">Per-app маршрутизация: исключить выбранные приложения (%1$d)</string>
+    <string name="consent_tun_vpn">Переключить режим подключения на «Без Root (VPN)»</string>
+    <string name="consent_tun_root">Переключить режим подключения на «Root (TProxy)»</string>
+    <string name="consent_apply">Применить</string>
 
     <!-- Settings -->
     <string name="settings_connection_mode">Режим подключения</string>

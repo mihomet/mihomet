@@ -83,8 +83,37 @@ object CoreConstants {
     )
 
     // Temporary core probe (offline node delay testing)
-    const val PROBE_PORT = 9095
-    const val PROBE_SECRET = "mihomet_probe_token"
+    // Audit P1 §2.2: NO static probe port and NO static probe secret. Every probe run
+    // generates a random per-run secret (generateRandomHexSecret) and binds the
+    // controller to a free ephemeral port (findFreePort) — a fixed port is a race
+    // (another listener wins it → probe never comes up) and a static secret in the APK
+    // would let any on-device app talk to the probe's controller API.
+
+    private val secureRandom = SecureRandom()
+
+    /**
+     * Generates a random hex secret. With the default [charCount] of 32 this
+     * consumes 16 random bytes and renders them as 32 hexadecimal characters.
+     */
+    fun generateRandomHexSecret(charCount: Int = 32): String {
+        val byteCount = charCount / 2
+        val bytes = ByteArray(byteCount)
+        secureRandom.nextBytes(bytes)
+        return bytes.joinToString("") { "%02x".format(it) }
+    }
+
+    /**
+     * Picks a currently free ephemeral TCP port by binding an ephemeral
+     * ServerSocket and releasing it. Small TOCTOU window remains (the port can
+     * be taken between the release and the core binding it), but it eliminates
+     * the guaranteed collision of a fixed probe port.
+     */
+    fun findFreePort(): Int {
+        java.net.ServerSocket(0).use { socket ->
+            socket.reuseAddress = true
+            return socket.localPort
+        }
+    }
 
     // Root-mode filesystem layout
     const val ROOT_BASE_DIR = "/data/adb/mihomet"
@@ -99,6 +128,37 @@ object CoreConstants {
     // core it installed). bootstrapRootBinary uses it to avoid rolling back a
     // user-updated core to the bundled binary on the next start.
     const val ROOT_CORE_VERSION_FILE = "$ROOT_RUN_DIR/installed_core_version"
+
+    // Runtime core updater (audit P0 §1.2). The ONLY permitted source is our own
+    // patched-core repository — the same artifacts the build-time downloadMihomoCore
+    // task pins (gradle/mihomo-core.properties). Never MetaCubeX: the bundled core
+    // is mihomo v1.19.33 patched for non-root TUN, stock upstream builds lack the
+    // patch and are not validated against the app.
+    const val CORE_RELEASES_API_LATEST = "https://api.github.com/repos/mihomet/core/releases/latest"
+    const val CORE_RELEASES_DOWNLOAD_BASE = "https://github.com/mihomet/core/releases/download"
+
+    // Asset names inside a mihomet/core release (see scripts/sign-core-manifest.sh
+    // for the manifest schema + signing command).
+    const val CORE_MANIFEST_ASSET = "manifest.json"
+    const val CORE_MANIFEST_SIGNATURE_ASSET = "manifest.json.sig"
+
+    /**
+     * Public key (RSA-4096, X.509 SubjectPublicKeyInfo, Base64 DER) verifying the
+     * detached `manifest.json.sig` of core update releases. The private key is a
+     * repo-external release secret (scripts/sign-core-manifest.sh). Fail-closed:
+     * a release whose manifest/signature does not verify against this key is never
+     * installed.
+     */
+    const val CORE_UPDATE_PUBLIC_KEY_B64 =
+        "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEArSeIeB3iARaOLRavfWdrYUOf5+UugXKu73fbVptyRCL6hRkmwoyy+0bJi0aWccxmuWY2ecuEa/vaDVAY7pyW9zGAlLTtQlJMinvFVMZL8U78IINpeSZKYc9uT8es139ZSAceChV7ChgWQG7gJ3mpQO7EcJnanMkpTtffF/ijHSQten1Yx7wnXa9aXsVhaA801GT5J3z5WxCcXLvyC/Ijwe0FVGRiad+FXzKWjAC/EfuHisBYqgD4hjA2ssMavKfjxRfTQKesGqfvRnoYlj5GhuVmL26IZkCnjvt3jUkJGsLCdsA6qoLyv6jwqWrBOlE+gK0alw7KMvbKhzzktP1dJsB2mnESQ5/zNiCCEbylAE8rUb7/3y7pKtV8bABvYlLQoE2zi8/OiU1HBx/0GlPuywfaHjg+I/pOkOm2H8cDa0sX7Vr7ikJRfdfVOjH/uhCYZtwicy0oOGF8saLKlj4qYzAB/hbI5qVrAaAbVaYt8rs9Ax1Fjc0vUAxHPnacDJ5qjw3LIDh9r9o/ZTC/7zQjEeAlTkAwlPC2sYl/bY4ix+gxRzBwP3eIoXfQHIbf1vou3vHbkoVm9qnAHTkdWe8Ztx2nlbYHDgECJJOTebkUSRiD+BI/L9hHlo1Dax2MdOYGHrJGQ3CKZTvLiUaUt/tVmdim6ag0J/4XtpZoOppaUykCAwEAAQ=="
+
+    // Staging/backup layout for the atomic root install: the verified binary is
+    // uploaded to run/mihomo.new, `mihomo -v` is executed FROM THERE before the
+    // installed binary is touched, the previous binary is kept as bin/mihomo.bak
+    // and restored on any failure. A truncated/failed download can therefore never
+    // land at ROOT_BIN_PATH.
+    const val ROOT_RUN_NEW_BIN = "$ROOT_RUN_DIR/mihomo.new"
+    const val ROOT_BIN_BACKUP_PATH = "$ROOT_BIN_DIR/mihomo.bak"
 
     // OEM (OnePlus / Realme / ColorOS) custom DNS reject chain in the filter
     // table. startDaemon snapshots its rules to the save files below BEFORE
@@ -124,16 +184,4 @@ object CoreConstants {
     // on the file's absence) and the restore is a no-op when nothing was changed.
     const val ROOT_SYSCTL_BACKUP_FILE = "$ROOT_RUN_DIR/.sysctl.bak"
 
-    private val secureRandom = SecureRandom()
-
-    /**
-     * Generates a random hex secret. With the default [charCount] of 32 this
-     * consumes 16 random bytes and renders them as 32 hexadecimal characters.
-     */
-    fun generateRandomHexSecret(charCount: Int = 32): String {
-        val byteCount = charCount / 2
-        val bytes = ByteArray(byteCount)
-        secureRandom.nextBytes(bytes)
-        return bytes.joinToString("") { "%02x".format(it) }
-    }
 }
