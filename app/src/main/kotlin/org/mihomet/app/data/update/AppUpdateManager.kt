@@ -21,6 +21,9 @@ import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
+// Ktor 3: readAvailable(ByteArray) moved from the ByteReadChannel interface to
+// an extension in ByteReadChannelOperationsKt — explicit import required.
+import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
