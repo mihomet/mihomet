@@ -359,6 +359,9 @@ class AppUpdateManager(private val context: Context) {
         context.packageManager.canRequestPackageInstalls()
     }.getOrDefault(false)
 
+    // Broad catch inside is intentional: any commit failure (security, IO, session
+    // state) must abandon the session and unregister the receiver before rethrow.
+    @Suppress("TooGenericExceptionCaught")
     private fun commitInstall(apkFile: File, expectedSize: Long) {
         // Re-verify the staged APK immediately before the session (cache tampering guard).
         AppUpdateVerifier.verifyApkSize(expectedSize, apkFile.length()).getOrThrow()
