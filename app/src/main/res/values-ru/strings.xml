@@ -287,7 +287,7 @@
     <string name="settings_update_core_to">Обновить ядро до %1$s</string>
     <string name="settings_reinstall_core">Переустановить ядро (%1$s)</string>
     <string name="settings_open_logs">Открыть системный журнал (Logs)</string>
-    <string name="settings_about_title">Mihomet v1.0</string>
+    <string name="settings_about_title">Mihomet</string>
     <string name="settings_about_edition">Material 3 Expressive Edition</string>
     <string name="settings_about_desc">Высокоскоростной прокси-клиент на базе ядра Mihomo с поддержкой Root TProxy, Non-Root VPN Service, VLESS Reality и Hysteria 2.</string>
     <string name="settings_port_error_number">Введите число</string>

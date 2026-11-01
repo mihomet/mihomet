@@ -285,7 +285,7 @@
     <string name="settings_update_core_to">Update core to %1$s</string>
     <string name="settings_reinstall_core">Reinstall core (%1$s)</string>
     <string name="settings_open_logs">Open system log (Logs)</string>
-    <string name="settings_about_title">Mihomet v1.0</string>
+    <string name="settings_about_title">Mihomet</string>
     <string name="settings_about_edition">Material 3 Expressive Edition</string>
     <string name="settings_about_desc">High-speed proxy client based on the Mihomo core with Root TProxy, Non-Root VPN Service, VLESS Reality and Hysteria 2 support.</string>
     <string name="settings_port_error_number">Enter a number</string>
