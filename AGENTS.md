@@ -9,9 +9,9 @@
 - **Dual execution modes**:
   1. **Non-Root VPN**: Android `VpnService` (TUN interface + gVisor stack).
   2. **Root TProxy**: `su` root shell with `iptables` / `nftables` transparent proxying.
-- **OS range**: minSdk **26** (Android 8.0) → targetSdk 35.
-- **Language**: Kotlin 2.1, Coroutines/Flow, kotlinx.serialization.
-- **UI**: Jetpack Compose (BOM 2024.12.01), **Material 3 Expressive**.
+- **OS range**: minSdk **26** (Android 8.0) → targetSdk 36 (compileSdk 37).
+- **Language**: Kotlin 2.1, Coroutines/Flow, kotlinx.serialization, Ktor 3.3 client.
+- **UI**: Jetpack Compose (BOM 2026.06), **Material 3 Expressive**.
 - **Localization**: strings live in resources — `values/strings.xml` (**EN**, default) and `values-ru/` (Russian).
   New UI text **must** go through `stringResource`, never hardcoded, and must be added to **both** locales.
   Converter warnings are localized at display time by `core/config/WarningLocalizer.kt` (RU/EN pattern list).
@@ -22,10 +22,13 @@
 ```text
 app/src/main/kotlin/org/mihomet/app/
 ├── core/                        # Core engine & OS interop
-│   ├── CoreConstants.kt         # SINGLE source of truth: ports, fwmarks, TUN, root paths
+│   ├── CoreConstants.kt         # SINGLE source of truth: ports, fwmarks, TUN, root paths, AUTO balancer
 │   ├── CoreManager.kt           # libmihomo.so lifecycle, updates, temporary probe instance
 │   ├── ServiceState.kt          # Global reactive state (isRunning, runningService: VPN | ROOT)
 │   ├── DeepLinkParser.kt        # happ://, incy://, clash://, v2rayng://, sing-box://, share-target
+│   ├── DeepLinkPolicy.kt        # fail-closed accept/reject decisions for external links (tested)
+│   ├── AppError.kt              # typed AppErrorCode/AppException — no UI-language strings in core
+│   ├── update/CoreUpdateVerifier.kt  # RSA-signed manifest → sha256 → size chain for core updates
 │   ├── HappCrypto.kt            # Happ AES-128-GCM encrypted subscriptions
 │   ├── HwidProvider.kt          # x-hwid device header for panel compatibility
 │   ├── OemHints.kt              # OEM-specific firewall hints (MIUI battery killers etc.)
@@ -36,10 +39,14 @@ app/src/main/kotlin/org/mihomet/app/
 │   ├── firewall/                # FirewallManager + IptablesEngine / NftablesEngine
 │   ├── network/NodePingTester   # Direct TCP/TLS/HTTP/ICMP latency (capped by Semaphore(8))
 │   ├── root/                    # RootShellManager (pid-file daemon), RootTProxyService
-│   └── vpn/MihometVpnService    # VpnService, TUN fd, notification (+optional live speed)
+│   └── vpn/                     # MihometVpnService (thin orchestrator) + TunBuilder,
+│                                #   CoreProcessLauncher, CoreReadinessProbe, CoreWatchdog,
+│                                #   VpnNotificationController, UnderlyingNetworkTracker
 ├── data/
-│   ├── api/                     # MihomoApiClient (REST+WS, auto-reconnect), MihomoApiClientProvider
+│   ├── api/                     # MihomoApiClient (REST+WS, Closeable, Ktor 3), MihomoApiClientProvider
 │   │                            #   (provider rebuilds the client when port/secret change)
+│   ├── update/                  # In-app self-update: semver check, fail-closed verifier
+│                                #   (version-info.json + signing-cert equality), PackageInstaller
 │   ├── crypto/SecretsCipher.kt  # Keystore-backed encryption of sensitive settings + keyring
 │   ├── db/                      # Room: AppDatabase, ProfileDao, ProfileEntity
 │   ├── preferences/             # DataStore: SettingsRepository (generates random controller secret)
@@ -88,7 +95,11 @@ fixtures), `SECURITY.md`, `CONTRIBUTING.md`.
 9. **Localization**: strings live in `res/values/strings.xml` (English, default) and `res/values-ru/strings.xml`
    (Russian). All UI text must go through `stringResource` (or `getString` in services/ViewModels) — never
    hardcode user-facing text, and every new string **must be added to both locales**.
-10. **Subscription handling is defensive by design**: downloads are streamed with a hard byte cap
+10. **Releases are cut only from GitHub-verified SIGNED tags** (`git tag -s -a vX.Y.Z`;
+   release.yml fails without a verified signature — the git identity email must be the one
+   registered on the GitHub account). Every release ships `version-info.json`
+   ({versionName, versionCode}) — the next release's versionCode must be strictly greater.
+11. **Subscription handling is defensive by design**: downloads are streamed with a hard byte cap
    (works without `Content-Length`), profile writes are semantically validated + atomic
    (`data/subs/`). Encrypted subscriptions (Happ `encrypt-tag`, AES-128-GCM) keep keys in the
    client-side keyring; keyring values are Keystore-encrypted (`SecretsCipher`). New panel quirks /
@@ -110,7 +121,7 @@ Always run these before finishing a task:
 
 ```bash
 ./gradlew compileDebugKotlin      # 1. compile check
-./gradlew testDebugUnitTest       # 2. unit tests (39 classes / 350+ @Test, incl. strict suites)
+./gradlew testDebugUnitTest       # 2. unit tests (51 classes / 500+ @Test, incl. strict suites)
 ./gradlew assembleDebug           # 3. debug APK → app/build/outputs/apk/debug/
 ./gradlew assembleRelease         # 4. release APK (unsigned without KEYSTORE_* env vars)
 adb install -r app/build/outputs/apk/debug/app-debug.apk
