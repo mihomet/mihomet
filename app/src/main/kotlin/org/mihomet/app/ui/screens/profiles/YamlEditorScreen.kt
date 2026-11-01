@@ -226,8 +226,14 @@ private fun highlightYaml(
 
     val builder = androidx.compose.ui.text.AnnotatedString.Builder(text.length)
     var offset = 0
-    text.lineSequence().forEach { line ->
-        val lineEnd = offset + line.length
+    // Mirror the original text EXACTLY, char for char (including the trailing
+    // newline): the field uses OffsetMapping.Identity, so the transformed string
+    // must have the same length as the original — anything else crashes Compose
+    // with "originalToTransformed returned invalid mapping".
+    while (offset < text.length) {
+        val newline = text.indexOf('\n', offset)
+        val lineEnd = if (newline == -1) text.length else newline
+        val line = text.substring(offset, lineEnd)
         val commentStart = YAML_COMMENT_REGEX.find(line)?.range?.first
         val codeEnd = commentStart ?: line.length
 
@@ -262,8 +268,13 @@ private fun highlightYaml(
                 lineEnd
             )
         }
-        builder.append("\n")
-        offset = lineEnd + 1
+        builder.append(line)
+        if (newline == -1) {
+            offset = text.length
+        } else {
+            builder.append("\n")
+            offset = newline + 1
+        }
     }
     return builder.toAnnotatedString()
 }
