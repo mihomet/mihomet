@@ -42,6 +42,14 @@ jobs:
       - name: Unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
 
+      # Audit P2.7: static analysis. Both fail on NEW issues only — existing
+      # debt is frozen in app/lint-baseline.xml and config/detekt-baseline.xml.
+      - name: Android Lint
+        run: ./gradlew :app:lintDebug --stacktrace
+
+      - name: Detekt
+        run: ./gradlew :app:detekt --stacktrace
+
       - name: Assemble debug APK
         run: ./gradlew assembleDebug --stacktrace
 
@@ -51,7 +59,7 @@ jobs:
           # Hard check: the libmihomo.so packed into the debug APK must match the
           # checksum pinned in gradle/mihomo-core.properties (arm64-v8a).
           EXPECTED_SHA="$(sed -n 's/^checksum\.arm64-v8a=//p' gradle/mihomo-core.properties)"
-          ACTUAL_SHA="$(unzip -p app/build/outputs/apk/debug/app-debug.apk lib/arm64-v8a/libmihomo.so | sha256sum | cut -d' ' -f1)"
+          ACTUAL_SHA="$(unzip -p app/build/outputs/apk/debug/app-arm64-v8a-debug.apk lib/arm64-v8a/libmihomo.so | sha256sum | cut -d' ' -f1)"
           echo "core sha256 (mihomo-core.properties): $EXPECTED_SHA"
           echo "core sha256 (lib/arm64-v8a in APK):  $ACTUAL_SHA"
           if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
@@ -77,7 +85,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Mihomet-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-*.apk
 
       - name: Upload test reports
         if: failure()
@@ -85,3 +93,75 @@ jobs:
         with:
           name: test-reports
           path: app/build/reports/tests/
+
+      - name: Upload static analysis reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-analysis-reports
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-debug.txt
+            app/build/reports/detekt/detekt.html
+            app/build/reports/detekt/detekt.xml
+
+  # Audit P1.3: on-device suites (Room migrations incl. the Keystore-backed
+  # encryption path, manifest/deep-link contract, ConfigGenerator runtime
+  # whitelist). The VpnService connect flow is deliberately NOT automated.
+  connected:
+    name: Instrumented tests (API ${{ matrix.api-level }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [29, 35]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # GitHub runners ship /dev/kvm; make it world-accessible for the emulator.
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Cache Mihomo core
+        uses: actions/cache@v4
+        with:
+          path: .mihomo-core-cache
+          key: mihomo-core-${{ hashFiles('gradle/mihomo-core.properties') }}
+          restore-keys: mihomo-core-
+
+      - name: Run instrumented tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: google_apis
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: ./gradlew connectedDebugAndroidTest --stacktrace
+
+      - name: Upload instrumented test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: instrumented-test-reports-api-${{ matrix.api-level }}
+          path: app/build/reports/androidTests/

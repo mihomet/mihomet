@@ -116,10 +116,18 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease --stacktrace
 
-      - name: Rename APK
+      - name: Rename APKs (per-ABI splits)
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          mv app/build/outputs/apk/release/app-release.apk "Mihomet-v${VERSION}.apk"
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            SRC="app/build/outputs/apk/release/app-${abi}-release.apk"
+            if [ -f "$SRC" ]; then
+              mv "$SRC" "Mihomet-v${VERSION}-${abi}.apk"
+            fi
+          done
+          # Fail loudly if no per-ABI APK was produced (splits config drift).
+          ls Mihomet-*.apk
+          [ -n "$(ls Mihomet-*.apk 2>/dev/null)" ]
 
       # Machine-readable version metadata published with every release; the
       # versionCode-monotonicity check of the NEXT release reads it back.

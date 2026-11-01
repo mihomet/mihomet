@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.mihomet.app.R
+import org.mihomet.app.core.network.NodePingTester
 import org.mihomet.app.ui.theme.*
 
 /**
@@ -149,12 +150,16 @@ fun ExpressiveLatencyBadge(
         delayMs > 0 && delayMs < 120 -> AccentGreen to greenText
         delayMs in 120..280 -> AccentOrange to orangeText
         delayMs > 280 -> AccentRed to redText
+        // ICMP capability gap (no ping binary / OS refusal) — not a node failure.
+        delayMs == NodePingTester.ICMP_UNAVAILABLE ->
+            Color.Gray to MaterialTheme.colorScheme.onSurfaceVariant
         delayMs < 0 -> AccentRed to redText
         else -> Color.Gray to MaterialTheme.colorScheme.onSurfaceVariant
     }
     val text = when {
         isTesting -> "..."
         delayMs > 0 -> stringResource(R.string.latency_ms, delayMs)
+        delayMs == NodePingTester.ICMP_UNAVAILABLE -> stringResource(R.string.latency_icmp_unavailable)
         delayMs < 0 -> stringResource(R.string.latency_timeout)
         else -> "—"
     }

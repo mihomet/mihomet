@@ -437,4 +437,6 @@
     <string name="vpn_bypass_desc">Приложения с опцией bypass могут обходить VPN (VpnService allowBypass)</string>
     <string name="vpn_httpproxy_title">HTTP-прокси через VPN</string>
     <string name="vpn_httpproxy_desc">Публикует локальный HTTP-прокси приложениям внутри VPN (mixed-port)</string>
+    <!-- ICMP-задержка: устройство не умеет ICMP (нет бинарника ping / отказ ОС), а не недоступность узла (аудит P2.8) -->
+    <string name="latency_icmp_unavailable">ICMP недоступен</string>
 </resources>

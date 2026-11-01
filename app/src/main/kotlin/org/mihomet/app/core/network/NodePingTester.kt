@@ -7,8 +7,8 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.yaml.snakeyaml.Yaml
+import java.io.File
 import java.net.HttpURLConnection
-import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.URL
@@ -36,6 +36,71 @@ data class ConnectionTestResult(
 )
 
 object NodePingTester {
+
+    /**
+     * Sentinel latency returned by [testIcmpPing] when ICMP as such is not
+     * usable on this device (no `ping` binary or the OS refuses the exec) —
+     * distinct from the ordinary `-1` "node did not answer" failure.
+     */
+    const val ICMP_UNAVAILABLE: Long = -2L
+
+    /** Outcome of one `/system/bin/ping` probe (audit P2.8: honest ICMP). */
+    sealed interface IcmpResult {
+        /** Host answered; [latencyMs] is the parsed avg RTT. */
+        data class Success(val latencyMs: Long, val minMs: Long, val maxMs: Long) : IcmpResult
+
+        /** The binary ran but the host did not answer (down, filtered, unknown name). */
+        data object Unreachable : IcmpResult
+
+        /** ICMP is unavailable on this device — missing binary or permission failure. */
+        data object Unavailable : IcmpResult
+    }
+
+    /** Candidate locations of the platform `ping` binary, probed in order. */
+    private val PING_BINARY_CANDIDATES = listOf("/system/bin/ping", "/system/xbin/ping")
+
+    /** Feature detection: ICMP mode is only offered/run when a `ping` binary exists. */
+    fun icmpBinaryPath(): String? =
+        PING_BINARY_CANDIDATES.firstOrNull { runCatching { File(it).canExecute() }.getOrDefault(false) }
+
+    /**
+     * Pure parser of `ping` output, JVM-unit-testable. Handles the toybox
+     * (`rtt min/avg/max/mdev = a/b/c/d ms`), iputils (`rtt min/avg/max/mdev`)
+     * and busybox (`round-trip min/avg/max = ...`) summary formats.
+     */
+    fun parseIcmpPingOutput(exitCode: Int, output: String): IcmpResult {
+        val lower = output.lowercase()
+        // Permission failures mean the device forbids ICMP — a capability gap,
+        // not the node being down.
+        if ("operation not permitted" in lower || "permission denied" in lower) return IcmpResult.Unavailable
+        if ("unknown host" in lower || "name or service not known" in lower) return IcmpResult.Unreachable
+
+        val received = Regex("(\\d+)\\s+packets?\\s+received", RegexOption.IGNORE_CASE).find(output)
+            ?.groupValues?.get(1)?.toIntOrNull()
+            // busybox prints "1 received" without the word "packets"
+            ?: Regex("(\\d+)\\s+received", RegexOption.IGNORE_CASE).find(output)
+                ?.groupValues?.get(1)?.toIntOrNull()
+
+        val rttMatch = Regex(
+            "(?:rtt|round-trip)\\s*(?:min/avg/max(?:/(?:mdev|stddev))?)?\\s*=\\s*" +
+                "([0-9.]+)/([0-9.]+)/([0-9.]+)",
+            RegexOption.IGNORE_CASE
+        ).find(output)
+
+        if (exitCode == 0 && rttMatch != null) {
+            val (min, avg, max) = rttMatch.destructured
+            val minMs = (min.toDoubleOrNull() ?: return IcmpResult.Unreachable).toLong()
+            val avgMs = (avg.toDoubleOrNull() ?: return IcmpResult.Unreachable).toLong()
+            val maxMs = (max.toDoubleOrNull() ?: return IcmpResult.Unreachable).toLong()
+            return IcmpResult.Success(avgMs.coerceAtLeast(1), minMs, maxMs)
+        }
+        if (received == 0) return IcmpResult.Unreachable
+        if (exitCode == 0 && received != null && received > 0) {
+            // 1 received but no rtt summary line: fall back to a minimal honest success.
+            return IcmpResult.Success(latencyMs = 1, minMs = 1, maxMs = 1)
+        }
+        return IcmpResult.Unreachable
+    }
 
     @Suppress("UNCHECKED_CAST")
     fun parseNodesFromYaml(yamlContent: String): List<ProxyNodeInfo> {
@@ -75,15 +140,56 @@ object NodePingTester {
         }
     }
 
-    suspend fun testIcmpPing(server: String, timeoutMs: Int = 1500): Long = withContext(Dispatchers.IO) {
-        val start = System.currentTimeMillis()
-        try {
-            val reachable = InetAddress.getByName(server).isReachable(timeoutMs)
-            if (reachable) System.currentTimeMillis() - start else -1L
-        } catch (e: Exception) {
-            -1L
+    /**
+     * ICMP probe via the platform `ping` binary (audit P2.8). The previous
+     * `InetAddress.isReachable` implementation silently degraded to a TCP:7
+     * connect on Android (no raw-socket privileges), so "ICMP" results were
+     * really TCP results. Returns [ICMP_UNAVAILABLE] when the device cannot do
+     * ICMP at all, -1 when the node did not answer, else the avg RTT in ms.
+     */
+    suspend fun testIcmpPing(server: String, timeoutMs: Int = 1500): Long =
+        when (val result = testIcmpDetailed(server, timeoutMs)) {
+            is IcmpResult.Success -> result.latencyMs
+            IcmpResult.Unavailable -> ICMP_UNAVAILABLE
+            IcmpResult.Unreachable -> -1L
         }
-    }
+
+    suspend fun testIcmpDetailed(server: String, timeoutMs: Int = 1500): IcmpResult =
+        withContext(Dispatchers.IO) {
+            val binary = icmpBinaryPath() ?: return@withContext IcmpResult.Unavailable
+            // toybox/iputils -W takes whole seconds; clamp so short timeouts still get one second.
+            val waitSeconds = ((timeoutMs + 999) / 1000).coerceAtLeast(1)
+            val sanitized = server.trim().take(253)
+            if (sanitized.isEmpty() || sanitized.any { it.isWhitespace() || it == ';' || it == '&' || it == '|' }) {
+                return@withContext IcmpResult.Unreachable
+            }
+            val process = try {
+                ProcessBuilder(binary, "-c", "1", "-W", waitSeconds.toString(), sanitized)
+                    .redirectErrorStream(true)
+                    .start()
+            } catch (_: Exception) {
+                // exec refused (SELinux/OEM) — capability gap, not node state.
+                return@withContext IcmpResult.Unavailable
+            }
+            try {
+                val finished = process.waitFor((timeoutMs + 1500).toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
+                val output = runCatching { process.inputStream.bufferedReader().use { it.readText() } }.getOrDefault("")
+                if (!finished) {
+                    return@withContext IcmpResult.Unreachable
+                }
+                when (val parsed = parseIcmpPingOutput(process.exitValue(), output)) {
+                    is IcmpResult.Success -> parsed.copy(
+                        latencyMs = parsed.latencyMs.coerceAtLeast(1)
+                    )
+                    else -> parsed
+                }
+            } catch (_: InterruptedException) {
+                IcmpResult.Unreachable
+            } finally {
+                // No-op for an already-exited process; reaps a hung one.
+                process.destroyForcibly()
+            }
+        }
 
     suspend fun testHttpPing(server: String, port: Int, method: String = "GET", timeoutMs: Int = 2000): Long = withContext(Dispatchers.IO) {
         val start = System.currentTimeMillis()

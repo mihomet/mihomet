@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.detekt)
 }
 
 // Mihomo core is kept out of git and downloaded at build time.
@@ -107,20 +108,20 @@ tasks.named("preBuild") { dependsOn(downloadMihomoCore) }
 
 android {
     namespace = "org.mihomet.app"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "org.mihomet.app"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 5
         versionName = "1.2.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
-        }
+        // ABIs are governed by splits.abi below (ndk.abiFilters is illegal
+        // alongside it). The three ABIs must stay in sync with
+        // downloadMihomoCore, which fetches a libmihomo.so per ABI.
     }
 
     buildTypes {
@@ -158,10 +159,32 @@ android {
         compose = true
     }
 
+    // Audit P2.10: one APK per ABI instead of a ~72 MB fat APK — the bundled
+    // mihomo core is tens of MB per ABI, so a universal APK pays that cost
+    // three times. downloadMihomoCore still installs all three .so into
+    // jniLibs at preBuild; the split only changes packaging. Version codes get
+    // the default per-ABI offset (versionCode * 1000 + abi index) from AGP.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = false
+        }
+    }
+
     // JVM unit tests hit android.util.Log on the SecretsCipher decrypt-error
     // path; unmocked framework methods return defaults instead of throwing.
     testOptions {
         unitTests.isReturnDefaultValues = true
+    }
+
+    // Audit P2.7: lint runs in CI and FAILS on new issues only — every issue
+    // present at adoption time is frozen in lint-baseline.xml (18 errors /
+    // 89 warnings at adoption, see the file for the breakdown). Regenerate
+    // with `./gradlew :app:updateLintBaseline` when debt is actually fixed.
+    lint {
+        baseline = file("lint-baseline.xml")
     }
 
     packaging {
@@ -172,10 +195,27 @@ android {
             useLegacyPackaging = true
         }
     }
+
+    // Room migration tests (audit P1.3) run with MigrationTestHelper over the
+    // exported schemas — expose app/schemas as androidTest assets.
+    sourceSets {
+        getByName("androidTest") {
+            assets.srcDir("$projectDir/schemas")
+        }
+    }
 }
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+// Audit P2.7: minimal detekt config (sizes, unused imports, exceptions).
+// Pre-existing violations are frozen in the baseline; only new ones fail.
+detekt {
+    config.setFrom(files("$rootDir/config/detekt.yml"))
+    baseline = file("$rootDir/config/detekt-baseline.xml")
+    buildUponDefaultConfig = true
+    parallel = true
 }
 
 dependencies {
@@ -237,5 +277,9 @@ dependencies {
     testImplementation(libs.mockwebserver)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.room.testing)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
     debugImplementation(libs.androidx.ui.tooling)
 }

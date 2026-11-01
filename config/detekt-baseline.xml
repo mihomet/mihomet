@@ -1,0 +1,76 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>PrintStackTrace:MihometVpnService.kt$MihometVpnService$e</ID>
+    <ID>PrintStackTrace:RootTProxyService.kt$RootTProxyService$e</ID>
+    <ID>SwallowedException:ConfigGenerator.kt$ConfigGenerator$e: Exception</ID>
+    <ID>SwallowedException:MihomoApiClient.kt$MihomoApiClient$e: ClosedReceiveChannelException</ID>
+    <ID>SwallowedException:MihomoApiClient.kt$MihomoApiClient$e: Exception</ID>
+    <ID>SwallowedException:NodePingTester.kt$NodePingTester$e: Exception</ID>
+    <ID>SwallowedException:ProfilesViewModel.kt$ProfilesViewModel$e: SecretsCipher.SecretDecryptException</ID>
+    <ID>SwallowedException:ProfilesViewModel.kt$ProfilesViewModel$e: SecretsCipher.SecretEncryptException</ID>
+    <ID>SwallowedException:ProfilesViewModel.kt$ProfilesViewModel$e: org.mihomet.app.data.crypto.SecretsCipher.SecretDecryptException</ID>
+    <ID>SwallowedException:ProxiesViewModel.kt$ProxiesViewModel$e: Exception</ID>
+    <ID>SwallowedException:RoutingViewModel.kt$RoutingViewModel$e: Exception</ID>
+    <ID>SwallowedException:SettingsRepository.kt$SettingsRepository$e: SecretsCipher.SecretDecryptException</ID>
+    <ID>SwallowedException:SettingsRepository.kt$SettingsRepository.Companion$e: SecretsCipher.SecretDecryptException</ID>
+    <ID>SwallowedException:SubscriptionRepository.kt$SubscriptionRepository$e: Exception</ID>
+    <ID>SwallowedException:SubscriptionUserinfo.kt$SubscriptionMetaParser$e: IllegalArgumentException</ID>
+    <ID>SwallowedException:UniversalConfigConverter.kt$UniversalConfigConverter$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ConfigGenerator.kt$ConfigGenerator$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MihometVpnService.kt$MihometVpnService$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MihometVpnService.kt$MihometVpnService$regenError: Exception</ID>
+    <ID>TooGenericExceptionCaught:MihometWidgetProvider.kt$MihometWidgetProvider$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MihometWidgetProvider.kt$MihometWidgetProvider.Companion$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MihomoApiClient.kt$MihomoApiClient$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:NodePingTester.kt$NodePingTester$e2: Exception</ID>
+    <ID>TooGenericExceptionCaught:NodePingTester.kt$NodePingTester$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ProfilesViewModel.kt$ProfilesViewModel$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ProxiesViewModel.kt$ProxiesViewModel$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:RootTProxyService.kt$RootTProxyService$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:RootTProxyService.kt$RootTProxyService$regenError: Exception</ID>
+    <ID>TooGenericExceptionCaught:RoutingViewModel.kt$RoutingViewModel$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SecretsCipher.kt$SecretsCipher$error: Exception</ID>
+    <ID>TooGenericExceptionCaught:SettingsRepository.kt$SettingsRepository$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SubscriptionRefreshWorker.kt$SubscriptionRefreshWorker$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SubscriptionRepository.kt$SubscriptionRepository$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:UniversalConfigConverter.kt$UniversalConfigConverter$e: Exception</ID>
+    <ID>TooGenericExceptionThrown:CoreManager.kt$CoreManager$throw RuntimeException( "Core update failed: could not stage the new binary (${upload.err.joinToString("\n")})" )</ID>
+    <ID>TooGenericExceptionThrown:CoreManager.kt$CoreManager$throw RuntimeException("Core update failed: could not back up the previous binary")</ID>
+    <ID>TooGenericExceptionThrown:CoreManager.kt$CoreManager$throw RuntimeException("Core update failed: install step failed, previous binary restored")</ID>
+    <ID>TooGenericExceptionThrown:CoreManager.kt$CoreManager$throw RuntimeException("Failed to bootstrap root binary: ${res.err.joinToString("\n")}")</ID>
+    <ID>TooGenericExceptionThrown:IptablesEngine.kt$IptablesEngine$throw RuntimeException("Failed to apply iptables: ${batchResult.err.joinToString("\n")}")</ID>
+    <ID>TooGenericExceptionThrown:IptablesEngine.kt$IptablesEngine$throw RuntimeException("Failed: ${spec.cmd} (${result.errorTail()})")</ID>
+    <ID>TooGenericExceptionThrown:IptablesEngine.kt$IptablesEngine.Companion$throw RuntimeException( "TPROXY rules not applied: $tool -t mangle -S MIHOMET_PREROUTING has no --tproxy-mark rule " + "(the kernel TPROXY target is missing or the chain is empty) ${result.errorTail()}" )</ID>
+    <ID>TooGenericExceptionThrown:MihometVpnService.kt$MihometVpnService$throw RuntimeException("Failed to establish VpnService")</ID>
+    <ID>TooGenericExceptionThrown:NftablesEngine.kt$NftablesEngine$throw RuntimeException("Failed to apply nftables routing: ${batchResult.err.joinToString("\n")}")</ID>
+    <ID>TooGenericExceptionThrown:NftablesEngine.kt$NftablesEngine$throw RuntimeException("Failed to apply nftables script: ${result.err.joinToString("\n")}")</ID>
+    <ID>TooGenericExceptionThrown:NftablesEngine.kt$NftablesEngine$throw RuntimeException("Failed: ${spec.cmd} (${result.errorTail()})")</ID>
+    <ID>TooGenericExceptionThrown:NftablesEngine.kt$NftablesEngine.Companion$throw RuntimeException( "TPROXY rules not applied: nft lists $count tproxy rule(s) in table inet mihomet, " + "expected &gt;= $expected (the kernel TPROXY support is missing or the apply failed) ${listing.errorTail()}" )</ID>
+    <ID>TooGenericExceptionThrown:RootShellManager.kt$RootShellManager$throw RuntimeException("Could not retrieve daemon PID")</ID>
+    <ID>TooGenericExceptionThrown:RootShellManager.kt$RootShellManager$throw RuntimeException("Failed to start Mihomo daemon: ${res.err.joinToString("\n")}")</ID>
+    <ID>UnusedImports:CoreUpdateVerifierStrictTest.kt$import org.junit.Assert.assertNotNull</ID>
+    <ID>UnusedImports:CoreUpdateVerifierStrictTest.kt$import org.junit.Assert.fail</ID>
+    <ID>UnusedImports:DashboardScreen.kt$import androidx.compose.animation.AnimatedVisibility</ID>
+    <ID>UnusedImports:DashboardScreen.kt$import androidx.compose.animation.fadeIn</ID>
+    <ID>UnusedImports:DashboardScreen.kt$import androidx.compose.animation.fadeOut</ID>
+    <ID>UnusedImports:DashboardScreen.kt$import androidx.compose.ui.draw.shadow</ID>
+    <ID>UnusedImports:DashboardScreen.kt$import androidx.compose.ui.graphics.Brush</ID>
+    <ID>UnusedImports:DashboardViewModel.kt$import java.io.File</ID>
+    <ID>UnusedImports:DashboardViewModel.kt$import org.mihomet.app.core.network.NodePingTester</ID>
+    <ID>UnusedImports:DashboardViewModel.kt$import org.yaml.snakeyaml.Yaml</ID>
+    <ID>UnusedImports:DnsPresetsTest.kt$import org.junit.Assert.assertFalse</ID>
+    <ID>UnusedImports:ExpressiveCards.kt$import androidx.compose.animation.animateColorAsState</ID>
+    <ID>UnusedImports:ExpressiveNavigationBar.kt$import androidx.compose.foundation.shape.RoundedCornerShape</ID>
+    <ID>UnusedImports:LogsScreen.kt$import androidx.compose.ui.graphics.Color</ID>
+    <ID>UnusedImports:MihomoApiClient.kt$import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession</ID>
+    <ID>UnusedImports:NavGraph.kt$import androidx.navigation.NavBackStackEntry</ID>
+    <ID>UnusedImports:ProfilesScreen.kt$import androidx.compose.animation.AnimatedVisibility</ID>
+    <ID>UnusedImports:ProfilesScreen.kt$import androidx.compose.animation.animateColorAsState</ID>
+    <ID>UnusedImports:ProxiesViewModel.kt$import org.mihomet.app.core.config.ConfigGenerator</ID>
+    <ID>UnusedImports:SearchPill.kt$import androidx.compose.foundation.layout.fillMaxWidth</ID>
+    <ID>UnusedImports:TrafficGraph.kt$import androidx.compose.ui.graphics.Color</ID>
+    <ID>UnusedImports:TrafficGraph.kt$import org.mihomet.app.ui.theme.AccentGreenLight</ID>
+  </CurrentIssues>
+</SmellBaseline>

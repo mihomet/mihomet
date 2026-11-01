@@ -435,4 +435,6 @@
     <string name="vpn_bypass_desc">Apps with the bypass option may route around the VPN (VpnService allowBypass)</string>
     <string name="vpn_httpproxy_title">HTTP proxy via VPN</string>
     <string name="vpn_httpproxy_desc">Expose a local HTTP proxy to apps inside the VPN (mixed-port)</string>
+    <!-- ICMP latency: capability gap on this device (no ping binary / OS refusal), not a node failure (audit P2.8) -->
+    <string name="latency_icmp_unavailable">ICMP unavailable</string>
 </resources>
