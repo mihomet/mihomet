@@ -103,26 +103,37 @@
 - [x] Free MTU (1280–65535 numeric input + presets) and TUN stack choice instead of hardcodes.
 - [x] App language picker (per-app locales, API 33+) + `localeConfig`.
 
-### Wave 3 — remaining (audit long tail)
-- [ ] **P1.3** Instrumented tests: `connectedAndroidTest` on API 29/35 emulators in CI (VpnService smoke,
-  deep-link import, Room migrations); JaCoCo coverage gate.
-- [ ] **P1.4** In-app update check (GitHub releases; signature-checked APK install — see Tropa Updater.kt).
-- [ ] **P2.1** Split god files: `MihometVpnService.startVpnInternal` (~500 lines) → TunBuilder /
-  CoreProcessLauncher / NotificationController; `UniversalConfigConverter` (1.7k) → per-format
-  converters; `SettingsScreen` (1.7k) → per-section files.
-- [ ] **P2.4** Dependency ladder: AndroidX + Compose BOM → Room 2.8 → Koin 4 → AGP 9/Kotlin 2.3 →
-  Ktor 3; add `ben-manes/gradle-versions` job.
-- [ ] **P2.5** `compileSdk 37`, `targetSdk 36` after emulator matrix run.
-- [ ] **P2.7** Static analysis in CI: Android Lint (`abortOnError`/baseline), detekt with file/function
-  size limits.
-- [ ] **P2.8** ICMP honestly via `/system/bin/ping` (feature-detect) or drop "ICMP" from UI.
-- [ ] **P2.9** Typed `ConversionWarning` instead of RU-prefix string matching in `WarningLocalizer`.
-- [ ] **P2.10** ABI splits (or runtime core download → APK <10MB).
-- [ ] **P2.11** Trim shotgun R8 keeps (`io.ktor.**`, `org.yaml.snakeyaml.**`, `org.koin.**`) after
-  release-build smoke test.
-- [ ] **P3 (rest)** Signed tags/GPG for releases; doc drift sweep (TODO `exportSchema` note — schemas
-  2..5 exported; `docs/compatibility-research.md` keyring note); versionCode still manual (5) — bump
-  on next release.
+### Wave 3 — build-stack & refactors (closed this milestone)
+- [x] **P2.1** God files split: `MihometVpnService` 961→467 (+TunBuilder/CoreProcessLauncher/
+  CoreReadinessProbe/CoreWatchdog/VpnNotificationController/UnderlyingNetworkTracker),
+  `SettingsScreen` 2232→239 (+12 per-section files), `UniversalConfigConverter` 1714→67 facade
+  (+per-format converters). Public APIs preserved, all fixture tests unmodified.
+- [x] **P2.9** Typed `ConversionWarning` sealed hierarchy end-to-end; Russian-prefix matching in
+  `WarningLocalizer` deleted; Russian literals removed from converters. (Exception path messages
+  still Russian — tracked below.)
+- [x] **P2.4** Dependency ladder (safe tiers): core-ktx 1.18, activity-compose 1.13, lifecycle 2.10,
+  navigation 2.9.8, WorkManager 2.12, DataStore 1.3, Compose BOM 2026.06, Room 2.8.5 (KSP2),
+  kotlinx-serialization 1.8.1, Koin 4.1.1, splashscreen 1.2.0, AGP 8.13.2 + Gradle 8.13;
+  ben-manes versions plugin + weekly `dependencyUpdates` CI job. Deliberately on majors:
+  Kotlin 2.1.0 (Ktor 3 migration in progress — see wave 2), Kotlin 2.3/AGP 9 deferred.
+- [x] **P2.5** compileSdk 37, targetSdk 36.
+- [x] **P2.7** CI: Android Lint (baseline 109 pre-existing) + detekt (baseline 70 IDs, file/function
+  size limits) — new code must be clean.
+- [x] **P2.8** Honest ICMP: `/system/bin/ping` via ProcessBuilder, feature-detected, distinct
+  "unavailable on this device" state (never fakes a timeout); output parser unit-tested
+  (toybox/iputils/busybox).
+- [x] **P2.10** ABI splits: per-ABI APKs, no universal (arm64 install ≈ half the old fat APK).
+- [x] **P2.11** Shotgun R8 keeps removed; verified by a SIGNED release APK smoke test on the emulator
+  (launch, screens, profile import, real VPN connect, clean stop; 0 stripped-code crashes; no keeps
+  re-added). Bonus find: YAML editor crashed on every profile (highlighter didn't mirror the original
+  text) — fixed in the same milestone.
+- [x] **P1.3** Instrumented tests: 14 tests / 4 classes (Room migrations incl. Keystore round trip,
+  deep-link manifest contract, VpnService manifest contract, ConfigGenerator on-device whitelist
+  smoke) + `connected` CI job on API 29+35 emulator matrix.
+- [ ] **P1.4** In-app update check + signature-verified APK install — in progress (wave 2).
+- [ ] **P3 (rest)** Signed tags/GPG for releases (needs the maintainer's GPG key); typed exceptions
+  for fail-closed error messages (Russian literals on the exception path); versionCode still manual —
+  bump on next release.
 
 ---
 

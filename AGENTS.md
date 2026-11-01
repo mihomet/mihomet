@@ -116,7 +116,9 @@ Always run these before finishing a task:
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Requires **JDK 21** (CI pins it). The `preBuild`-dependent `downloadMihomoCore` task installs the pinned
+Requires **JDK 21** (CI pins it). If the system default JDK is newer (e.g. 27), set
+`JAVA_HOME=/home/misha/.jdks/jdk-21` for every gradle invocation. The `preBuild`-dependent
+`downloadMihomoCore` task installs the pinned
 core `.so` into `app/src/main/jniLibs/` and geo databases into `.mihomo-core-cache/`
 (after the first build, this is offline-friendly except geo refreshes).
 
