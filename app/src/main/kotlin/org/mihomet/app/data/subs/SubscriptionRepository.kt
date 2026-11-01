@@ -14,6 +14,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import org.mihomet.app.BuildConfig
 import org.mihomet.app.R
 import org.mihomet.app.core.AppErrorCode
 import org.mihomet.app.core.AppException
@@ -434,10 +435,8 @@ class SubscriptionRepository(
             return SubscriptionHeaders.toJson(SubscriptionHeaders.parseLenient(raw))
         }
 
-        // TODO: derive from BuildConfig.VERSION_NAME once buildFeatures { buildConfig = true }
-        //  is enabled in app/build.gradle.kts (it is currently off, so the version is inlined).
-        const val APP_VERSION = "1.0"
-        const val APP_USER_AGENT = "Mihomet/$APP_VERSION (Android; Mihomo)"
+        val APP_VERSION: String = BuildConfig.VERSION_NAME
+        val APP_USER_AGENT: String = "Mihomet/$APP_VERSION (Android; Mihomo)"
 
         /**
          * UA fallback chain used when neither the profile's custom headers nor

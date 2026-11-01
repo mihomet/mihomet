@@ -158,6 +158,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     // Audit P2.10: one APK per ABI instead of a ~72 MB fat APK — the bundled

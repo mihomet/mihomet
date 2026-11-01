@@ -77,8 +77,8 @@
 3. ✅ Honest UA `Mihomet/<ver>` + `x-hwid` + profile-title / New-Url
 4. ✅ Builder: `setBlocking(false)`, `setMetered(false)`, `setConfigureIntent`
 5. ✅ `FOREGROUND_SERVICE_IMMEDIATE` + core watchdog (auto-restart ×3) + Always-on (null-intent restart, onRevoke) + root-daemon watchdog (10s monitor, backoff ×3) + автообновление подписок по update-interval (WorkManager)
-6. ⬜ Смена сети → реконнект core-соединений (аналог FlClash `Core.resetNetwork`), screen-on обновление скорости
-7. ⬜ Always-on VPN + `onRevoke` graceful
+6. ✅ Смена сети → реконнект core-соединений (UnderlyingNetworkTracker: setUnderlyingNetworks + closeAllConnections), screen-on обновление скорости (VpnNotificationController screenStateReceiver)
+7. ✅ Always-on VPN + `onRevoke` graceful (MihometVpnService: onStartCommand null-intent restart + onRevoke cleanup)
 7.5 ✅ Реализовано дополнительно (утренняя сессия + волны по повторному аудиту):
    - Исправлено: whitelist-инверсия iptables, IPv6 mark 20/25 по family, fail-closed
      на невалидном профиле + last-known-good, mixed-port убран, Keystore lifecycle,

@@ -41,7 +41,7 @@
       Any new fixture is picked up automatically.
 - [x] **2.2. Base64 resilience**: unpadded/URL-safe/multi-line covered by ConverterCombinationsTest.
 - [x] **2.3. `Subscription-Userinfo` support**: parsed on add/update, quota bar + expiry date (colored by remaining days) in profile cards. Room 1→2 migration written without data loss.
-- [x] **2.4. Header retention**: custom headers (incl. `x-hwid`, custom `User-Agent`) kept in auto-refresh via SubscriptionRepository.
+- [x] **2.4. Header retention**: custom headers (incl. `x-hwid`, custom `User-Agent`) kept in auto-refresh via SubscriptionRepository; `APP_USER_AGENT` dynamically derived from `BuildConfig.VERSION_NAME`.
 - [x] **2.5. Group alignment**: urltest/selector preserved (Sing-Box tests), fallback/load-balance passthrough (CombinationTest), panel fixtures assert groups.
 
 ### Phase 3: Localization RU/EN — ✅ done
