@@ -5,6 +5,7 @@
     <ID>PrintStackTrace:MihometVpnService.kt$MihometVpnService$e</ID>
     <ID>PrintStackTrace:RootTProxyService.kt$RootTProxyService$e</ID>
     <ID>SwallowedException:ConfigGenerator.kt$ConfigGenerator$e: Exception</ID>
+    <ID>SwallowedException:ConverterSupport.kt$ConverterSupport$e: Exception</ID>
     <ID>SwallowedException:MihomoApiClient.kt$MihomoApiClient$e: ClosedReceiveChannelException</ID>
     <ID>SwallowedException:MihomoApiClient.kt$MihomoApiClient$e: Exception</ID>
     <ID>SwallowedException:NodePingTester.kt$NodePingTester$e: Exception</ID>
@@ -17,8 +18,10 @@
     <ID>SwallowedException:SettingsRepository.kt$SettingsRepository.Companion$e: SecretsCipher.SecretDecryptException</ID>
     <ID>SwallowedException:SubscriptionRepository.kt$SubscriptionRepository$e: Exception</ID>
     <ID>SwallowedException:SubscriptionUserinfo.kt$SubscriptionMetaParser$e: IllegalArgumentException</ID>
-    <ID>SwallowedException:UniversalConfigConverter.kt$UniversalConfigConverter$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ClashYamlConverter.kt$ClashYamlConverter$e: Exception</ID>
     <ID>TooGenericExceptionCaught:ConfigGenerator.kt$ConfigGenerator$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ConverterSupport.kt$ConverterSupport$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:CoreWatchdog.kt$CoreWatchdog$e: Exception</ID>
     <ID>TooGenericExceptionCaught:MihometVpnService.kt$MihometVpnService$e: Exception</ID>
     <ID>TooGenericExceptionCaught:MihometVpnService.kt$MihometVpnService$regenError: Exception</ID>
     <ID>TooGenericExceptionCaught:MihometWidgetProvider.kt$MihometWidgetProvider$e: Exception</ID>
@@ -33,9 +36,12 @@
     <ID>TooGenericExceptionCaught:RoutingViewModel.kt$RoutingViewModel$e: Exception</ID>
     <ID>TooGenericExceptionCaught:SecretsCipher.kt$SecretsCipher$error: Exception</ID>
     <ID>TooGenericExceptionCaught:SettingsRepository.kt$SettingsRepository$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SingBoxConverter.kt$SingBoxConverter$e: Exception</ID>
     <ID>TooGenericExceptionCaught:SubscriptionRefreshWorker.kt$SubscriptionRefreshWorker$e: Exception</ID>
     <ID>TooGenericExceptionCaught:SubscriptionRepository.kt$SubscriptionRepository$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:UniversalConfigConverter.kt$UniversalConfigConverter$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:UnderlyingNetworkTracker.kt$UnderlyingNetworkTracker$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:UriListParser.kt$UriListParser$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:XrayJsonConverter.kt$XrayJsonConverter$e: Exception</ID>
     <ID>TooGenericExceptionThrown:CoreManager.kt$CoreManager$throw RuntimeException( "Core update failed: could not stage the new binary (${upload.err.joinToString("\n")})" )</ID>
     <ID>TooGenericExceptionThrown:CoreManager.kt$CoreManager$throw RuntimeException("Core update failed: could not back up the previous binary")</ID>
     <ID>TooGenericExceptionThrown:CoreManager.kt$CoreManager$throw RuntimeException("Core update failed: install step failed, previous binary restored")</ID>

@@ -26,7 +26,6 @@ import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.R
 import org.mihomet.app.core.OemHints
 import org.mihomet.app.ui.components.ExpressiveSnackbarHost
-import org.mihomet.app.ui.theme.ExpressiveShapes
 
 /**
  * Settings entry point: hosts the scaffold/snackbar/topbar, the LazyColumn of

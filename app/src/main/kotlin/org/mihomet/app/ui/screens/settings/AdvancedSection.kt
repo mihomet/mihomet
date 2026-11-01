@@ -63,7 +63,6 @@ import org.mihomet.app.ui.theme.ExpressiveShapes
 import org.mihomet.app.ui.theme.HapticType
 import org.mihomet.app.ui.theme.OnSecondaryContainerDark
 import org.mihomet.app.ui.theme.SecondaryContainerDark
-import org.mihomet.app.ui.theme.SecondaryDark
 
 /**
  * "Advanced" expandable card: ports, latency test, custom DNS, IPv6, TUN
