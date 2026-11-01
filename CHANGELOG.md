@@ -17,6 +17,36 @@
 
 ## 1.2.0 — external audit response (hardening)
 
+## 1.3.0
+
+### Security (external audit wave 1 + 3 — all 24 findings closed)
+- Deep-link import now requires explicit confirmation (payload + source + profile name);
+  panel behavior headers (auto-select / per-app routing / root-mode switch) apply only after
+  an explicit consent dialog; `mihomet://` control links are no longer reachable from browsers
+- Core updater: only `mihomet/core` releases, RSA-4096 signed manifest (signature → sha256 →
+  size → `mihomo -v` from the new binary), atomic install with backup and rollback
+- ConfigGenerator keeps a whitelist of profile keys — `listeners` / `tunnels` / `external-ui`
+  from a hostile profile are dropped with visible warnings
+- Probe core uses a per-run random secret and an ephemeral port; all HTTP clients release
+  their engines (no leaks on settings changes)
+- Typed error codes instead of user-facing Russian literals in core/data layers
+
+### Features
+- Per-subscription custom HTTP headers (encrypted at rest, editor in the profile card)
+- Global subscription identity settings: custom User-Agent, x-hwid on/off + override
+- Free-form MTU (1280–65535) and TUN stack selection (gVisor / system / mixed)
+- In-app language picker (per-app locales, Android 13+)
+
+### Reliability & build
+- Dependencies refreshed (Compose BOM 2026.06, Room 2.8.5, Koin 4.1.1, AGP 8.13.2,
+  compileSdk 37 / targetSdk 36); weekly dependency-update CI job
+- Per-ABI APK splits (~2× smaller install); shotgun R8 keeps removed and verified by a
+  signed-release emulator smoke test (real VPN connect, zero stripped-code crashes)
+- Honest ICMP: system `ping` with a distinct "unavailable on this device" state
+- God files split (VPN service, settings screen, config converter); typed conversion warnings
+- CI: Android Lint + detekt (baselined), emulator matrix (API 29/35) with 14 instrumented tests
+- Fixed: YAML editor crashed on every profile (text highlighter offset mapping)
+
 ### Hardening (external audit response)
 - All P0 findings fixed: Keystore lifecycle, non-root TUN (patched core),
   firewall whitelist semantics, fail-closed profiles, local proxy listener
