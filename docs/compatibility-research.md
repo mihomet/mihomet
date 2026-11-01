@@ -19,6 +19,24 @@
 | `incy://crypt1/<payload>` | base64url(iv‖ct‖tag) | passthrough (warning) |
 | `incy://connect|disconnect|toggle`, `mihomet://start|stop` | управление VPN по ссылке | ✅ (MainActivity.handleControlLink) |
 
+## Cats VPN (sub.meow.ac — Remnawave + Happ HWID gating), 01.11.2026
+
+Панель маршрутизирует содержимое по **двум заголовкам сразу** — воспроизведено curl'ом:
+
+| Условие запроса | Что отдаёт панель |
+|---|---|
+| `User-Agent: Mihomet/*` **без** `x-hwid` | 732 B — подставные узлы-заглушки: `vless://…@0.0.0.0:1#❌ Данное приложение не поддерживается` / `#✅ Включите HWID в настройках Happ` |
+| `Mihomet/*` + валидный `x-hwid` | ~11 KB — **base64 URI-список** (реальные vless-узлы). Групп не бывает по формату → приложение строит запасную группу PROXY |
+| `ClashMetaForAndroid/*` / `clash-verge/*` + `x-hwid` | ~11 KB — **Clash YAML** с единственной группой `→ Remnawave` (select, все узлы) |
+| `Happ/*` + `x-hwid` | ~180 KB — Happ-формат |
+
+Выводы: (1) hwid обязателен — без него любой UA получает заглушки; (2) UA определяет
+**формат** отдачи: неизвестным клиентам — URI-список, Clash-клиентам — YAML;
+(3) url-test/load-balance групп в шаблонах панели сейчас нет вообще («автобалансер»
+исчез на стороне панели, не в клиенте). Рекомендация пользователям таких панелей:
+Настройки → Подписки → User-Agent = `ClashMetaForAndroid/2.11.5.Meta` (или
+пер-подписочный заголовок `User-Agent`), чтобы получать YAML с группой.
+
 ## Заголовки, которые шлют/читают Happ и Incy
 
 - **UA**: Happ шлёт `Happ/<ver>`, Incy — `INCY/<ver>/<platform>`. SRR-панели (Remnawave

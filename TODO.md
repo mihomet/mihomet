@@ -103,6 +103,10 @@
 - [x] Free MTU (1280–65535 numeric input + presets) and TUN stack choice instead of hardcodes.
 - [x] App language picker (per-app locales, API 33+) + `localeConfig`.
 
+### Feature ideas (from real-panel testing)
+- [ ] Local auto-balancer: when a subscription yields nodes but NO groups (URI-list
+  panels), synthesize a `url-test` group ("Авто-выбор") alongside the fallback
+  PROXY select — mimics Happ's auto-routing for panel templates without groups.
 ### Wave 3 — build-stack & refactors (closed this milestone)
 - [x] **P2.1** God files split: `MihometVpnService` 961→467 (+TunBuilder/CoreProcessLauncher/
   CoreReadinessProbe/CoreWatchdog/VpnNotificationController/UnderlyingNetworkTracker),
