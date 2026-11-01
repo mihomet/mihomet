@@ -103,7 +103,7 @@
 - [x] Free MTU (1280–65535 numeric input + presets) and TUN stack choice instead of hardcodes.
 - [x] App language picker (per-app locales, API 33+) + `localeConfig`.
 
-### Feature: built-in auto-balancer "AUTO" (spec for implementing agent — self-contained, do not re-ask)
+### Feature: built-in auto-balancer "AUTO" — ✅ IMPLEMENTED (503 tests green; spec kept as design doc)
 
 **Goal.** URI-list subscriptions (and panels with group-less templates) give nodes but no
 balancing group. When the profile ends up without any balancer, Mihomet synthesizes its own
@@ -136,7 +136,9 @@ proxy-providers with per-provider auth headers — a separate large feature).
    bypass nodes («ОБХОД») balance badly — let the user cut them out.
 5. Integration with groups:
    - If the app synthesizes the fallback `PROXY` select group anyway (panel gave no groups):
-     PROXY proxies = `[AUTO, ...pool]` — AUTO is the default pick, MATCH,PROXY keeps working.
+     PROXY proxies = `[AUTO, ...ALL real nodes]` — AUTO is the default pick, but EXCLUDED nodes
+     stay manually selectable in PROXY (deviation from the draft: excluding a node from the
+     balance pool must not hide it from manual selection).
    - If the panel DID provide groups (but no balancer): AUTO is APPENDED to the proxy list of
      the FIRST `select`-type group (available, NOT the default pick). If the setting
      `autoBalancerPreferDefault` is ON, prepend it instead (AUTO becomes that group's default).
