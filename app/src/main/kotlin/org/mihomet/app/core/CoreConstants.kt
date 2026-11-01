@@ -15,6 +15,13 @@ object CoreConstants {
     const val DEFAULT_DNS_PORT = 1053
     const val DEFAULT_CONTROLLER_PORT = 9090
 
+    // Built-in auto-balancer: synthesized AUTO url-test group for profiles whose
+    // panel provided no balancing group (url-test/load-balance/fallback).
+    const val AUTO_GROUP_NAME = "AUTO"
+    const val AUTO_PROBE_URL = "https://www.gstatic.com/generate_204"
+    const val AUTO_PROBE_INTERVAL_SECONDS = 300
+    const val AUTO_PROBE_TOLERANCE_MS = 50
+
     // Core SO_MARK shared by routing-mark config and firewall fwmark rules
     const val CORE_ROUTING_MARK = 666
 

@@ -462,4 +462,12 @@
     <string name="app_update_grant_permission">Разрешить в настройках</string>
     <string name="app_update_open_release">Открыть страницу релиза</string>
     <string name="app_update_error">Не удалось обновить: %1$s</string>
+    <!-- Built-in auto-balancer (AUTO url-test group for group-less profiles) -->
+    <string name="settings_auto_balancer">Авто-балансировщик</string>
+    <string name="settings_auto_balancer_desc">Добавляет группу AUTO (url-test), если панель не прислала свою группу-балансер</string>
+    <string name="settings_auto_balancer_excludes">Исключаемые узлы</string>
+    <string name="settings_auto_balancer_excludes_empty">Ничего не исключено</string>
+    <string name="settings_auto_balancer_excludes_hint">Подстрока имени узла, по одной в строке — например Мост, Игровой; совпавшие узлы не попадут в пул балансировки</string>
+    <string name="settings_auto_balancer_prefer">Включать Авто по умолчанию</string>
+    <string name="settings_auto_balancer_prefer_desc">AUTO станет выбором по умолчанию в первой select-группе панели</string>
 </resources>

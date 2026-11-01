@@ -209,6 +209,24 @@ class SettingsViewModel(
         }
     }
 
+    fun updateAutoBalancerEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateAutoBalancerEnabled(enabled)
+        }
+    }
+
+    fun updateAutoBalancerExcludes(patterns: String) {
+        viewModelScope.launch {
+            settingsRepository.updateAutoBalancerExcludes(patterns)
+        }
+    }
+
+    fun updateAutoBalancerPreferDefault(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateAutoBalancerPreferDefault(enabled)
+        }
+    }
+
     fun updateOverrideLogLevel(level: String) {
         viewModelScope.launch {
             settingsRepository.updateOverrideLogLevel(level)

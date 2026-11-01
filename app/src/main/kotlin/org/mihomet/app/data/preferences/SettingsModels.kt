@@ -102,6 +102,12 @@ data class AppSettings(
     val overrideTcpConcurrent: Boolean = true,
     val overrideLogLevel: String = ProfileOverrides.DEFAULT_LOG_LEVEL,
     val overrideSnifferEnabled: Boolean = true,
+    // Built-in auto-balancer: synthesize an AUTO url-test group when the profile
+    // has no balancer of its own. Excludes = newline-separated name substrings
+    // (bridges, gaming nodes, …) removed from the balance pool.
+    val autoBalancerEnabled: Boolean = true,
+    val autoBalancerExcludes: String = "",
+    val autoBalancerPreferDefault: Boolean = false,
     // Autostart on boot: the BootReceiver starts the last successfully started
     // service ([lastMode]) when this is enabled. Default off — starting a VPN
     // tunnel without the user watching is opt-in.

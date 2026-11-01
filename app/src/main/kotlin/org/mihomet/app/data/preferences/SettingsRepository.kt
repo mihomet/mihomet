@@ -56,6 +56,9 @@ class SettingsRepository(
         val OVERRIDE_TCP_CONCURRENT = booleanPreferencesKey("override_tcp_concurrent")
         val OVERRIDE_LOG_LEVEL = stringPreferencesKey("override_log_level")
         val OVERRIDE_SNIFFER_ENABLED = booleanPreferencesKey("override_sniffer_enabled")
+        val AUTO_BALANCER_ENABLED = booleanPreferencesKey("auto_balancer_enabled")
+        val AUTO_BALANCER_EXCLUDES = stringPreferencesKey("auto_balancer_excludes")
+        val AUTO_BALANCER_PREFER_DEFAULT = booleanPreferencesKey("auto_balancer_prefer_default")
         val AUTO_START_ON_BOOT = booleanPreferencesKey("auto_start_on_boot")
         val LAST_MODE = stringPreferencesKey("last_mode")
         val TUN_STACK = stringPreferencesKey("tun_stack")
@@ -115,6 +118,10 @@ class SettingsRepository(
                     ?.takeIf { ProfileOverrides.isValidLogLevel(it) }
                     ?: ProfileOverrides.DEFAULT_LOG_LEVEL,
                 overrideSnifferEnabled = preferences[PreferencesKeys.OVERRIDE_SNIFFER_ENABLED] ?: true,
+                autoBalancerEnabled = preferences[PreferencesKeys.AUTO_BALANCER_ENABLED] ?: true,
+                autoBalancerExcludes = (preferences[PreferencesKeys.AUTO_BALANCER_EXCLUDES] ?: "")
+                    .replace(Regex("[\\p{Cntrl}]"), " ").take(2000),
+                autoBalancerPreferDefault = preferences[PreferencesKeys.AUTO_BALANCER_PREFER_DEFAULT] ?: false,
                 autoStartOnBoot = preferences[PreferencesKeys.AUTO_START_ON_BOOT] ?: false,
                 lastMode = preferences[PreferencesKeys.LAST_MODE]
                     ?.takeIf { it == LastRunMode.VPN || it == LastRunMode.ROOT }
@@ -386,6 +393,21 @@ class SettingsRepository(
 
     suspend fun updateOverrideUnifiedDelay(enabled: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.OVERRIDE_UNIFIED_DELAY] = enabled }
+    }
+
+    suspend fun updateAutoBalancerEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.AUTO_BALANCER_ENABLED] = enabled }
+    }
+
+    suspend fun updateAutoBalancerExcludes(patterns: String) {
+        context.dataStore.edit {
+            it[PreferencesKeys.AUTO_BALANCER_EXCLUDES] =
+                patterns.replace(Regex("[\\p{Cntrl}\\r]"), "\n").take(2000)
+        }
+    }
+
+    suspend fun updateAutoBalancerPreferDefault(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.AUTO_BALANCER_PREFER_DEFAULT] = enabled }
     }
 
     suspend fun updateOverrideTcpConcurrent(enabled: Boolean) {

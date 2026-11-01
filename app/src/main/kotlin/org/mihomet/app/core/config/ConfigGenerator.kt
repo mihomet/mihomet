@@ -318,6 +318,58 @@ object ConfigGenerator {
             )
             groupsList.add(mainGroup)
         }
+
+        // Built-in auto-balancer (TODO.md spec): when the profile has no balancing
+        // group of its own, synthesize an AUTO url-test group — mihomo probes the
+        // pool and fails over natively. Panel-provided balancers always win.
+        if (settings.autoBalancerEnabled && realProxyNames.size >= 2) {
+            val panelHasBalancer = groupsList.any { g ->
+                val type = g["type"]?.toString()?.lowercase()
+                type == "url-test" || type == "load-balance" || type == "fallback"
+            }
+            if (!panelHasBalancer) {
+                val excludes = settings.autoBalancerExcludes.lines()
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                val pool = realProxyNames.filter { name -> excludes.none { name.contains(it, ignoreCase = true) } }
+                if (pool.size >= 2) {
+                    val autoGroup = mutableMapOf<String, Any>(
+                        "name" to CoreConstants.AUTO_GROUP_NAME,
+                        "type" to "url-test",
+                        "udp" to true,
+                        "url" to settings.testUrl.ifBlank { CoreConstants.AUTO_PROBE_URL },
+                        "interval" to CoreConstants.AUTO_PROBE_INTERVAL_SECONDS,
+                        "tolerance" to CoreConstants.AUTO_PROBE_TOLERANCE_MS,
+                        "proxies" to pool
+                    )
+                    val fallbackProxy = groupsList.firstOrNull {
+                        it["name"] == "PROXY" && it["type"] == "select"
+                    }
+                    if (fallbackProxy != null) {
+                        // App-generated fallback group: AUTO leads the list (default pick).
+                        val list = (fallbackProxy["proxies"] as? List<*>)?.toMutableList()
+                            ?: mutableListOf()
+                        list.add(0, CoreConstants.AUTO_GROUP_NAME)
+                        fallbackProxy["proxies"] = list
+                    } else {
+                        // Panel-provided select groups: offer AUTO without hijacking
+                        // the default pick unless the user opted in.
+                        groupsList.firstOrNull { it["type"]?.toString()?.lowercase() == "select" }
+                            ?.let { g ->
+                                val list = (g["proxies"] as? List<*>)?.toMutableList()
+                                    ?: mutableListOf()
+                                if (settings.autoBalancerPreferDefault) {
+                                    list.add(0, CoreConstants.AUTO_GROUP_NAME)
+                                } else {
+                                    list.add(CoreConstants.AUTO_GROUP_NAME)
+                                }
+                                g["proxies"] = list
+                            }
+                    }
+                    groupsList.add(autoGroup)
+                }
+            }
+        }
         configMap["proxy-groups"] = groupsList
 
         val rawRules = configMap["rules"] as? List<*>

@@ -460,4 +460,12 @@
     <string name="app_update_grant_permission">Allow in Settings</string>
     <string name="app_update_open_release">Open release page</string>
     <string name="app_update_error">Update failed: %1$s</string>
+    <!-- Built-in auto-balancer (AUTO url-test group for group-less profiles) -->
+    <string name="settings_auto_balancer">Auto-balancer</string>
+    <string name="settings_auto_balancer_desc">Adds an AUTO url-test group when the panel provides no balancing group</string>
+    <string name="settings_auto_balancer_excludes">Excluded nodes</string>
+    <string name="settings_auto_balancer_excludes_empty">Nothing excluded</string>
+    <string name="settings_auto_balancer_excludes_hint">One node-name substring per line, e.g. Мост, Игровой — matching nodes are removed from the balance pool</string>
+    <string name="settings_auto_balancer_prefer">Prefer AUTO by default</string>
+    <string name="settings_auto_balancer_prefer_desc">AUTO becomes the default pick of the panel\'s first select group</string>
 </resources>

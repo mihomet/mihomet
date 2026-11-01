@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.SettingsEthernet
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
@@ -35,6 +36,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -388,6 +390,97 @@ internal fun AdvancedSection(
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
+                    // Built-in auto-balancer: AUTO url-test group for group-less profiles
+                    var showAutoBalancerExcludesDialog by remember { mutableStateOf(false) }
+                    ExpressiveSwitchRow(
+                        icon = Icons.Default.AltRoute,
+                        iconBg = AccentGreenContainer,
+                        iconTint = AccentGreenLight,
+                        title = stringResource(R.string.settings_auto_balancer),
+                        subtitle = stringResource(R.string.settings_auto_balancer_desc),
+                        checked = settings.autoBalancerEnabled,
+                        onCheckedChange = {
+                            AppHaptics.perform(context, HapticType.CLICK, view)
+                            viewModel.updateAutoBalancerEnabled(it)
+                        }
+                    )
+
+                    if (settings.autoBalancerEnabled) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                        androidx.compose.foundation.layout.Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(ExpressiveShapes.Medium)
+                                .clickable {
+                                    AppHaptics.perform(context, HapticType.CLICK, view)
+                                    showAutoBalancerExcludesDialog = true
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = ExpressiveShapes.Small,
+                                color = AccentOrangeContainer,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Default.Edit,
+                                        contentDescription = null,
+                                        tint = AccentOrange
+                                    )
+                                }
+                            }
+                            Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+                                Text(
+                                    text = stringResource(R.string.settings_auto_balancer_excludes),
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = settings.autoBalancerExcludes.lineSequence()
+                                        .filter { it.isNotBlank() }
+                                        .joinToString(", ").ifBlank {
+                                            stringResource(R.string.settings_auto_balancer_excludes_empty)
+                                        },
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                        ExpressiveSwitchRow(
+                            icon = Icons.Default.Bolt,
+                            iconBg = AccentOrangeContainer,
+                            iconTint = AccentOrange,
+                            title = stringResource(R.string.settings_auto_balancer_prefer),
+                            subtitle = stringResource(R.string.settings_auto_balancer_prefer_desc),
+                            checked = settings.autoBalancerPreferDefault,
+                            onCheckedChange = {
+                                AppHaptics.perform(context, HapticType.CLICK, view)
+                                viewModel.updateAutoBalancerPreferDefault(it)
+                            }
+                        )
+                    }
+
+                    if (showAutoBalancerExcludesDialog) {
+                        AutoBalancerExcludesDialog(
+                            current = settings.autoBalancerExcludes,
+                            onDismiss = { showAutoBalancerExcludesDialog = false },
+                            onSave = { patterns ->
+                                viewModel.updateAutoBalancerExcludes(patterns)
+                                showAutoBalancerExcludesDialog = false
+                            }
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
                     // Profile override: domain sniffer
                     ExpressiveSwitchRow(
                         icon = Icons.Default.Search,
@@ -673,4 +766,49 @@ private fun HappCryptoKeysSection(
             Text(stringResource(R.string.settings_happ_key_add), fontWeight = FontWeight.Bold)
         }
     }
+}
+
+
+/** Multiline editor for auto-balancer node-name exclusions (one substring per line). */
+@Composable
+private fun AutoBalancerExcludesDialog(
+    current: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var input by remember { mutableStateOf(current) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_auto_balancer_excludes), fontWeight = FontWeight.Black) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    placeholder = { Text(stringResource(R.string.settings_auto_balancer_excludes_hint)) },
+                    shape = ExpressiveShapes.Small,
+                    minLines = 3,
+                    maxLines = 6,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    text = stringResource(R.string.settings_auto_balancer_excludes_hint),
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onSave(input) }, shape = ExpressiveShapes.Small) {
+                Text(stringResource(R.string.action_save), fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
 }
