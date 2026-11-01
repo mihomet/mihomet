@@ -89,14 +89,15 @@ jobs:
             exit 0
           fi
           PREV_URL="$(printf '%s' "$LATEST_JSON" \
-            | grep -o '"browser_download_url":[[:space:]]*"[^"]*version-info\.json"' \
+            | { grep -o '"browser_download_url":[[:space:]]*"[^"]*version-info\.json"' || true; } \
             | head -1 | sed 's/.*"\(https[^"]*\)"/\1/')"
           if [ -z "$PREV_URL" ]; then
             echo "Latest release has no version-info.json asset — no baseline, check skipped."
             exit 0
           fi
           PREV_CODE="$(curl -sfL --max-time 20 "$PREV_URL" \
-            | grep -o '"versionCode":[[:space:]]*[0-9]*' | grep -o '[0-9]*' | head -1)"
+            | { grep -o '"versionCode":[[:space:]]*[0-9]*' || true; } \
+            | { grep -o '[0-9]*' || true; } | head -1)"
           if [ -z "$PREV_CODE" ]; then
             echo "version-info.json unreadable — versionCode check skipped."
             exit 0
