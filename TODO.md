@@ -141,8 +141,10 @@
   left in core/data layers.
 - [ ] **P3 (rest)** Signed tags/GPG for releases (needs the maintainer's GPG key).
 - [x] **P1.3 (addendum)** JaCoCo unit-test coverage report in CI (artifact, no hard gate).
-- Release readiness: versionCode 6 / versionName 1.3.0 + CHANGELOG prepared; tag `v1.3.0`
-  waits for maintainer go-ahead.
+- [x] **v1.3.0 RELEASED** (tag on d0d2338, CI-signed, cert SHA-256 `b85405a2…` verified;
+  per-ABI APKs ≈30 MB; version-info.json published → the self-updater has its baseline).
+  Release gate bug fixed en route: the versionCode-monotonicity step died via pipefail when
+  the previous release had no version-info.json.
 
 ---
 
