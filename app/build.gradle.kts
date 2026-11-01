@@ -195,6 +195,14 @@ android {
             useLegacyPackaging = true
         }
     }
+
+    // Room migration tests (audit P1.3) run with MigrationTestHelper over the
+    // exported schemas — expose app/schemas as androidTest assets.
+    sourceSets {
+        getByName("androidTest") {
+            assets.srcDir("$projectDir/schemas")
+        }
+    }
 }
 
 ksp {
@@ -269,5 +277,9 @@ dependencies {
     testImplementation(libs.mockwebserver)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.room.testing)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
     debugImplementation(libs.androidx.ui.tooling)
 }
