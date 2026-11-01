@@ -25,7 +25,9 @@ import org.mihomet.app.core.DeepLinkPolicy
 class DeepLinkManifestInstrumentedTest {
 
     private val pm = InstrumentationRegistry.getInstrumentation().context.packageManager
-    private val selfPackage: String = InstrumentationRegistry.getInstrumentation().context.packageName
+    // Package under test = TARGET context (the instrumentation context is the
+    // separate org.mihomet.app.test APK and would never match activity owners).
+    private val selfPackage: String = InstrumentationRegistry.getInstrumentation().targetContext.packageName
 
     private fun browsableResolutions(uri: String): List<String> {
         val intent = Intent(Intent.ACTION_VIEW).apply {
