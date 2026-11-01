@@ -17,6 +17,16 @@
 
 ## 1.2.0 — external audit response (hardening)
 
+## 1.3.1
+
+- Whitelist refinements: keys the app always enforces itself (`allow-lan`,
+  `mixed-port`, `mode`, `log-level`, ports, controller, secret, …) are now
+  dropped **silently** — routine panel configs no longer produce scary
+  "key removed" warnings; genuinely dangerous drops (listeners, tunnels,
+  external-ui, …) still warn
+- Refresh snackbar wording: "(пропущено элементов: N)" → "(предупреждений: N)"
+- (Fix release-gate pipefail bug shipped in 1.3.0 tag reload)
+
 ## 1.3.0
 
 ### Security (external audit wave 1 + 3 — all 24 findings closed)

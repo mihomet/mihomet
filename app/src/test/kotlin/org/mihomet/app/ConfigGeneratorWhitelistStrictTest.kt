@@ -120,7 +120,7 @@ class ConfigGeneratorWhitelistStrictTest {
     }
 
     @Test
-    fun `every dropped key family produces a warning`() {
+    fun `every genuinely dropped key family produces a warning`() {
         val outcome = ConfigGenerator.generateRuntimeConfigWithOutcome(
             profileYamlContent = hostileProfile,
             settings = AppSettings(),
@@ -132,13 +132,19 @@ class ConfigGeneratorWhitelistStrictTest {
             .map { it.key }
             .toSet()
 
+        // Security-relevant keys the app does NOT manage itself must warn.
         for (key in listOf(
             "listeners", "tunnels", "external-ui", "geox-url", "geodata-mode",
-            "geodata-loader", "interface-name", "secret", "allow-lan", "bind-address",
-            "authentication", "skip-auth-prefixes", "lan-allowed-ips", "port", "ports",
-            "mixed-port", "socks-port", "external-controller-cors"
+            "geodata-loader", "interface-name", "authentication", "skip-auth-prefixes",
+            "lan-allowed-ips", "ports", "external-controller-cors"
         )) {
             assertTrue("dropped key '$key' must produce a warning (got $dropped)", key in dropped)
+        }
+        // App-managed keys (the app overwrites them right after the merge) drop
+        // SILENTLY — a routine panel config with allow-lan/mixed-port/mode must not
+        // spam the user with warnings about keys that never take effect anyway.
+        for (key in listOf("secret", "allow-lan", "bind-address", "port", "mixed-port", "socks-port")) {
+            assertFalse("app-managed key '$key' must drop silently", key in dropped)
         }
         // Each warning names exactly one family — no combined lump
         assertTrue(outcome.warnings.all { (it as? org.mihomet.app.core.config.ConversionWarning.ProfileKeyDropped)?.key?.contains(",") != true })

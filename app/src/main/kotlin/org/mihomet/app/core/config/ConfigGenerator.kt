@@ -39,6 +39,20 @@ object ConfigGenerator {
     )
 
     /**
+     * Top-level keys the app ALWAYS enforces itself right after the profile merge
+     * (security defaults, ports, controller, routing mode, log level, …). A profile
+     * carrying them loses nothing — the app overwrites them with its own settings —
+     * so dropping them is expected and SILENT. Only drops outside this set produce
+     * a user-visible warning (listeners, tunnels, external-ui, …).
+     */
+    val APP_MANAGED_DROPPED_KEYS: Set<String> = setOf(
+        "allow-lan", "bind-address",
+        "mixed-port", "port", "socks-port", "tproxy-port", "redir-port", "routing-mark",
+        "external-controller", "secret",
+        "mode", "log-level", "ipv6", "unified-delay", "tcp-concurrent"
+    )
+
+    /**
      * Applies the profile-key whitelist in place: removes every top-level key not in
      * [ALLOWED_PROFILE_KEYS] from [configMap] and returns one typed
      * [ConversionWarning.ProfileKeyDropped] per dropped key (sorted for deterministic
@@ -52,7 +66,9 @@ object ConfigGenerator {
             .distinct()
             .sorted()
         for (key in dropped) configMap.remove(key)
-        return dropped.map { ConversionWarning.ProfileKeyDropped(it) }
+        return dropped
+            .filter { it !in APP_MANAGED_DROPPED_KEYS }
+            .map { ConversionWarning.ProfileKeyDropped(it) }
     }
 
     /**
@@ -69,6 +85,7 @@ object ConfigGenerator {
             map.keys
                 .map { it.toString() }
                 .filter { it !in ALLOWED_PROFILE_KEYS }
+                .filter { it !in APP_MANAGED_DROPPED_KEYS }
                 .distinct()
                 .sorted()
                 .map { ConversionWarning.ProfileKeyDropped(it) }

@@ -156,7 +156,7 @@
     <string name="profiles_import_error">Ошибка импорта: %1$s</string>
     <string name="profiles_updated">Подписка обновлена</string>
     <string name="profiles_update_failed">Не удалось обновить подписку: %1$s</string>
-    <string name="profiles_warnings_suffix">(пропущено элементов: %1$d)</string>
+    <string name="profiles_warnings_suffix">(предупреждений: %1$d)</string>
     <string name="profiles_too_large">Ответ подписки слишком большой (>20 МБ)</string>
     <string name="profiles_unknown_error">неизвестная ошибка</string>
     <string name="profile_quota_used">Использовано %1$s из %2$s (%3$d%%)</string>
