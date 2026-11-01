@@ -55,6 +55,7 @@ class SettingsRepository(
         val OVERRIDE_UNIFIED_DELAY = booleanPreferencesKey("override_unified_delay")
         val OVERRIDE_TCP_CONCURRENT = booleanPreferencesKey("override_tcp_concurrent")
         val OVERRIDE_LOG_LEVEL = stringPreferencesKey("override_log_level")
+        val PERSISTENT_LOGGING = booleanPreferencesKey("persistent_logging")
         val OVERRIDE_SNIFFER_ENABLED = booleanPreferencesKey("override_sniffer_enabled")
         val AUTO_BALANCER_ENABLED = booleanPreferencesKey("auto_balancer_enabled")
         val AUTO_BALANCER_EXCLUDES = stringPreferencesKey("auto_balancer_excludes")
@@ -117,6 +118,7 @@ class SettingsRepository(
                 overrideLogLevel = preferences[PreferencesKeys.OVERRIDE_LOG_LEVEL]
                     ?.takeIf { ProfileOverrides.isValidLogLevel(it) }
                     ?: ProfileOverrides.DEFAULT_LOG_LEVEL,
+                persistentLogging = preferences[PreferencesKeys.PERSISTENT_LOGGING] ?: false,
                 overrideSnifferEnabled = preferences[PreferencesKeys.OVERRIDE_SNIFFER_ENABLED] ?: true,
                 autoBalancerEnabled = preferences[PreferencesKeys.AUTO_BALANCER_ENABLED] ?: true,
                 autoBalancerExcludes = (preferences[PreferencesKeys.AUTO_BALANCER_EXCLUDES] ?: "")
@@ -419,6 +421,10 @@ class SettingsRepository(
             it[PreferencesKeys.OVERRIDE_LOG_LEVEL] =
                 if (ProfileOverrides.isValidLogLevel(level)) level else ProfileOverrides.DEFAULT_LOG_LEVEL
         }
+    }
+
+    suspend fun updatePersistentLogging(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.PERSISTENT_LOGGING] = enabled }
     }
 
     suspend fun updateOverrideSnifferEnabled(enabled: Boolean) {

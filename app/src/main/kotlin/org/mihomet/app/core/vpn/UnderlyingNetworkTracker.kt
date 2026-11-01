@@ -30,29 +30,33 @@ class UnderlyingNetworkTracker(
         try {
             val cm = service.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as ConnectivityManager
             connectivityManager = cm
-            val request = NetworkRequest.Builder()
-                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
-                .build()
 
             val callback = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
-                    android.util.Log.d("MihometVpn", "Network available: $network")
-                    currentActiveNetwork = network
-                    updateUnderlyingNetwork(network)
+                    if (currentActiveNetwork != network) {
+                        android.util.Log.d("MihometVpn", "Default network changed to: $network")
+                        currentActiveNetwork = network
+                        updateUnderlyingNetwork(network)
+                    }
                 }
 
                 override fun onLost(network: Network) {
-                    android.util.Log.d("MihometVpn", "Network lost: $network")
+                    android.util.Log.d("MihometVpn", "Default network lost: $network")
                     if (currentActiveNetwork == network) {
                         currentActiveNetwork = null
                         val fallback = cm.activeNetwork
-                        updateUnderlyingNetwork(fallback)
+                        if (fallback != null) {
+                            currentActiveNetwork = fallback
+                            updateUnderlyingNetwork(fallback)
+                        } else {
+                            updateUnderlyingNetwork(null)
+                        }
                     }
                 }
 
                 override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
-                    if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                    if (currentActiveNetwork != network &&
+                        networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
                         !networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
                     ) {
                         currentActiveNetwork = network
@@ -61,8 +65,9 @@ class UnderlyingNetworkTracker(
                 }
             }
             networkCallback = callback
-            cm.registerNetworkCallback(request, callback)
-            cm.activeNetwork?.let { updateUnderlyingNetwork(it) }
+            cm.registerDefaultNetworkCallback(callback)
+            currentActiveNetwork = cm.activeNetwork
+            updateUnderlyingNetwork(currentActiveNetwork)
         } catch (e: Exception) {
             android.util.Log.w("MihometVpn", "Failed to register network callback: ${e.message}")
         }

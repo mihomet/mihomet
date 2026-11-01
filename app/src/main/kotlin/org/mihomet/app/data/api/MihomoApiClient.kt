@@ -218,6 +218,10 @@ class MihomoApiClient(
         json.decodeFromString<LogEntry>(text)
     }
 
+    fun streamMemory(): Flow<MemoryInfo> = streamWebSocket("/memory") { text ->
+        json.decodeFromString<MemoryInfo>(text)
+    }
+
     /**
      * Releases the HTTP engine (sockets, connection pool, WS scope). Idempotent
      * and safe to call while requests are in flight — Ktor cancels them.

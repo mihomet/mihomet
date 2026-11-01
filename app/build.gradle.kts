@@ -115,8 +115,8 @@ android {
         applicationId = "org.mihomet.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.3.1"
+        versionCode = 8
+        versionName = "1.3.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -143,6 +143,8 @@ android {
                     keyAlias = System.getenv("KEY_ALIAS")
                     keyPassword = System.getenv("KEY_PASSWORD")
                 }
+            } else {
+                signingConfig = signingConfigs.getByName("debug")
             }
         }
     }

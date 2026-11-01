@@ -59,16 +59,20 @@ fun AppNavGraph(
             if (isDetailRoute(targetRoute)) {
                 slideInHorizontally(
                     initialOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(340, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(280))
+                    animationSpec = tween(350, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(250))
             } else {
                 val fromIndex = getNavTabOrder(initialRoute)
                 val toIndex = getNavTabOrder(targetRoute)
-                val direction = if (toIndex >= fromIndex) 1 else -1
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> (fullWidth * 0.22f * direction).toInt() },
-                    animationSpec = tween(320, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing))
+                if (fromIndex == toIndex && fromIndex != -1) {
+                    EnterTransition.None
+                } else {
+                    val forward = toIndex >= fromIndex
+                    slideInHorizontally(
+                        initialOffsetX = { fullWidth -> if (forward) fullWidth / 4 else -fullWidth / 4 },
+                        animationSpec = tween(350, easing = FastOutSlowInEasing)
+                    ) + fadeIn(animationSpec = tween(250))
+                }
             }
         },
         exitTransition = {
@@ -77,16 +81,20 @@ fun AppNavGraph(
             if (isDetailRoute(targetRoute)) {
                 slideOutHorizontally(
                     targetOffsetX = { fullWidth -> (-fullWidth * 0.25f).toInt() },
-                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                    animationSpec = tween(350, easing = FastOutSlowInEasing)
                 ) + fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing))
             } else {
                 val fromIndex = getNavTabOrder(initialRoute)
                 val toIndex = getNavTabOrder(targetRoute)
-                val direction = if (toIndex >= fromIndex) -1 else 1
-                slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> (fullWidth * 0.22f * direction).toInt() },
-                    animationSpec = tween(300, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(220, easing = FastOutLinearInEasing))
+                if (fromIndex == toIndex && fromIndex != -1) {
+                    ExitTransition.None
+                } else {
+                    val forward = toIndex >= fromIndex
+                    slideOutHorizontally(
+                        targetOffsetX = { fullWidth -> if (forward) -fullWidth / 4 else fullWidth / 4 },
+                        animationSpec = tween(350, easing = FastOutSlowInEasing)
+                    ) + fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing))
+                }
             }
         },
         popEnterTransition = {
@@ -95,34 +103,42 @@ fun AppNavGraph(
             if (isDetailRoute(initialRoute)) {
                 slideInHorizontally(
                     initialOffsetX = { fullWidth -> (-fullWidth * 0.25f).toInt() },
-                    animationSpec = tween(320, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing))
+                    animationSpec = tween(350, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(250))
             } else {
                 val fromIndex = getNavTabOrder(initialRoute)
                 val toIndex = getNavTabOrder(targetRoute)
-                val direction = if (toIndex >= fromIndex) 1 else -1
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> (fullWidth * 0.22f * direction).toInt() },
-                    animationSpec = tween(320, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing))
+                if (fromIndex == toIndex && fromIndex != -1) {
+                    EnterTransition.None
+                } else {
+                    val forward = toIndex >= fromIndex
+                    slideInHorizontally(
+                        initialOffsetX = { fullWidth -> if (forward) fullWidth / 4 else -fullWidth / 4 },
+                        animationSpec = tween(350, easing = FastOutSlowInEasing)
+                    ) + fadeIn(animationSpec = tween(250))
+                }
             }
         },
         popExitTransition = {
             val initialRoute = initialState.destination.route
+            val targetRoute = targetState.destination.route
             if (isDetailRoute(initialRoute)) {
                 slideOutHorizontally(
                     targetOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(300, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(220, easing = FastOutLinearInEasing))
+                    animationSpec = tween(350, easing = FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = tween(250))
             } else {
-                val targetRoute = targetState.destination.route
                 val fromIndex = getNavTabOrder(initialRoute)
                 val toIndex = getNavTabOrder(targetRoute)
-                val direction = if (toIndex >= fromIndex) -1 else 1
-                slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> (fullWidth * 0.22f * direction).toInt() },
-                    animationSpec = tween(300, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing))
+                if (fromIndex == toIndex && fromIndex != -1) {
+                    ExitTransition.None
+                } else {
+                    val forward = toIndex >= fromIndex
+                    slideOutHorizontally(
+                        targetOffsetX = { fullWidth -> if (forward) -fullWidth / 4 else fullWidth / 4 },
+                        animationSpec = tween(350, easing = FastOutSlowInEasing)
+                    ) + fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing))
+                }
             }
         }
     ) {

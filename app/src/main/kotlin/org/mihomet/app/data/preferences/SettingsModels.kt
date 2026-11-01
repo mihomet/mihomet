@@ -26,8 +26,8 @@ enum class ProxyMode(val apiValue: String) {
  * take priority over the values coming from the profile YAML itself.
  */
 object ProfileOverrides {
-    /** Valid mihomo log-level values, in UI cycling order (info → warning → error → silent). */
-    val LOG_LEVELS = listOf("info", "warning", "error", "silent")
+    /** Valid mihomo log-level values, in UI cycling order (info → warning → error → debug → silent). */
+    val LOG_LEVELS = listOf("info", "warning", "error", "debug", "silent")
 
     /** Fallback when the stored/constructed log-level value is not a valid core value. */
     const val DEFAULT_LOG_LEVEL = "info"
@@ -101,6 +101,7 @@ data class AppSettings(
     val overrideUnifiedDelay: Boolean = false,
     val overrideTcpConcurrent: Boolean = true,
     val overrideLogLevel: String = ProfileOverrides.DEFAULT_LOG_LEVEL,
+    val persistentLogging: Boolean = false,
     val overrideSnifferEnabled: Boolean = true,
     // Built-in auto-balancer: synthesize an AUTO url-test group when the profile
     // has no balancer of its own. Excludes = newline-separated name substrings

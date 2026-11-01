@@ -530,6 +530,22 @@ internal fun AdvancedSection(
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
+                    // Persistent continuous background logging
+                    ExpressiveSwitchRow(
+                        icon = Icons.Default.Terminal,
+                        iconBg = SecondaryContainerDark,
+                        iconTint = OnSecondaryContainerDark,
+                        title = stringResource(R.string.settings_persistent_logging_title),
+                        subtitle = stringResource(R.string.settings_persistent_logging_desc),
+                        checked = settings.persistentLogging,
+                        onCheckedChange = {
+                            AppHaptics.perform(context, HapticType.CLICK, view)
+                            viewModel.updatePersistentLogging(it)
+                        }
+                    )
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
                     // Happ crypto keyring (encrypted subscriptions)
                     HappCryptoKeysSection(
                         keys = state.cryptoKeys,

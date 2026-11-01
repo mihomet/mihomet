@@ -5,6 +5,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.mihomet.app.core.CoreConstants
 import org.mihomet.app.data.preferences.AppSettings
@@ -37,13 +40,15 @@ class MihomoApiClientProvider(
         const val CLIENT_CLOSE_GRACE_MS = 30_000L
     }
 
-    private val currentClient = AtomicReference(
+    private val _clientFlow = MutableStateFlow(
         MihomoApiClient(
             host = CoreConstants.DEFAULT_CONTROLLER_HOST,
             port = CoreConstants.DEFAULT_CONTROLLER_PORT,
             secret = ""
         )
     )
+    val clientFlow: StateFlow<MihomoApiClient> = _clientFlow.asStateFlow()
+
     private val lastKey = AtomicReference(ClientKey(CoreConstants.DEFAULT_CONTROLLER_PORT, ""))
     private val keyLock = Any()
 
@@ -61,7 +66,7 @@ class MihomoApiClientProvider(
         }
     }
 
-    fun current(): MihomoApiClient = currentClient.get()
+    fun current(): MihomoApiClient = _clientFlow.value
 
     private fun onSettingsChanged(settings: AppSettings) {
         val newKey = ClientKey(settings.controllerPort, settings.controllerSecret)
@@ -69,13 +74,13 @@ class MihomoApiClientProvider(
             if (disposed) return
             if (newKey != lastKey.get()) {
                 lastKey.set(newKey)
-                val oldClient = currentClient.getAndSet(
-                    MihomoApiClient(
-                        host = CoreConstants.DEFAULT_CONTROLLER_HOST,
-                        port = newKey.port,
-                        secret = newKey.secret
-                    )
+                val oldClient = _clientFlow.value
+                val newClient = MihomoApiClient(
+                    host = CoreConstants.DEFAULT_CONTROLLER_HOST,
+                    port = newKey.port,
+                    secret = newKey.secret
                 )
+                _clientFlow.value = newClient
                 // Release the previous engine after the grace period (see class
                 // KDoc): callers that captured the old reference get a window to
                 // finish; the close itself is idempotent and failure-tolerant.
@@ -99,6 +104,6 @@ class MihomoApiClientProvider(
             disposed = true
         }
         scope.cancel()
-        runCatching { currentClient.get().close() }
+        runCatching { _clientFlow.value.close() }
     }
 }

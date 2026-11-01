@@ -3,18 +3,33 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- Mihomet QS tile icon: front M plane of the brand glyph -->
-    <path
-        android:pathData="M2.8,19.5 L7.1,8.5 L12,15.7 L16.9,8.5 L21.2,19.5"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="2.4"
-        android:fillColor="#00000000" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M1,19.5 a1.8,1.8 0 1,0 3.6,0 a1.8,1.8 0 1,0 -3.6,0" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M19.4,19.5 a1.8,1.8 0 1,0 3.6,0 a1.8,1.8 0 1,0 -3.6,0" />
+    <!-- Mihomet M-Network brand glyph: scaled up to standard 21dp QS tile size -->
+    <group
+        android:scaleX="1.38"
+        android:scaleY="1.38"
+        android:pivotX="12"
+        android:pivotY="12.2">
+        <path
+            android:pathData="M5.6,17.2 L9.0,7.1 L12.0,13.9 L15.0,7.1 L18.4,17.2"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="2.0"
+            android:fillColor="#00000000" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M4.2,17.2 a1.4,1.4 0 1,0 2.8,0 a1.4,1.4 0 1,0 -2.8,0" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M17.0,17.2 a1.4,1.4 0 1,0 2.8,0 a1.4,1.4 0 1,0 -2.8,0" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M8.0,7.1 a1.0,1.0 0 1,0 2.0,0 a1.0,1.0 0 1,0 -2.0,0" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M14.0,7.1 a1.0,1.0 0 1,0 2.0,0 a1.0,1.0 0 1,0 -2.0,0" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M11.0,13.9 a1.0,1.0 0 1,0 2.0,0 a1.0,1.0 0 1,0 -2.0,0" />
+    </group>
 </vector>

@@ -132,6 +132,13 @@
     <string name="profiles_headers_label">Headers (JSON or Key: Value)</string>
     <string name="profiles_headers_placeholder">User-Agent: Happ/3.6.0\nx-hwid: 12345\n(or JSON)</string>
     <string name="profile_headers_menu">Subscription headers</string>
+    <string name="profile_auto_update_menu">Auto-update</string>
+    <string name="profile_auto_update_title">Auto-update interval</string>
+    <string name="profile_auto_update_disabled">Disabled</string>
+    <string name="profile_auto_update_1h">Every 1 hour</string>
+    <string name="profile_auto_update_6h">Every 6 hours</string>
+    <string name="profile_auto_update_12h">Every 12 hours</string>
+    <string name="profile_auto_update_24h">Every 24 hours</string>
     <string name="profile_headers_title">Subscription headers</string>
     <string name="profile_headers_hint">One header per line: Name: Value. Sent with every download of this subscription, on top of the global identity settings.</string>
     <string name="profile_headers_saved">Headers saved</string>
@@ -271,6 +278,8 @@
     <string name="settings_override_sniffer_desc">Restore real domains from TLS/HTTP traffic</string>
     <string name="settings_override_log_level">Log level</string>
     <string name="settings_override_log_level_desc">Current value: %1$s</string>
+    <string name="settings_persistent_logging_title">Continuous log recording</string>
+    <string name="settings_persistent_logging_desc">Keep recording logs in the background even when the Logs screen is closed</string>
     <string name="settings_happ_keys">Happ crypto keys</string>
     <string name="settings_happ_key_add">Add key</string>
     <string name="keyring_added">Key added</string>

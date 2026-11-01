@@ -102,7 +102,7 @@ abstract class AppDatabase : RoomDatabase() {
                     for ((id, url, headers) in encrypted) {
                         db.execSQL(
                             "UPDATE profiles SET url = ?, customHeaders = ? WHERE id = ?",
-                            arrayOf(url, headers, id)
+                            arrayOf<Any>(url, headers, id)
                         )
                     }
                 } finally {

@@ -528,7 +528,7 @@ internal object UriListParser {
 
     private fun parseQueryParams(query: String): Map<String, String> {
         return query.split("&").mapNotNull {
-            val p = it.split("=")
+            val p = it.split("=", limit = 2)
             if (p.size == 2) p[0] to URLDecoder.decode(p[1], "UTF-8") else null
         }.toMap()
     }

@@ -24,7 +24,8 @@ data class ProxyNodeInfo(
     val name: String,
     val type: String,
     val server: String,
-    val port: Int
+    val port: Int,
+    val network: String = ""
 )
 
 data class ConnectionTestResult(
@@ -116,11 +117,28 @@ object NodePingTester {
                 val server = proxyMap["server"]?.toString() ?: return@mapNotNull null
                 val port = (proxyMap["port"] as? Number)?.toInt() ?: return@mapNotNull null
 
+                val rawNetwork = proxyMap["network"]?.toString()?.lowercase()
+                val isTls = proxyMap["tls"] == true || proxyMap["tls"] == "true"
+                val isReality = proxyMap.containsKey("reality-opts") || proxyMap["security"] == "reality"
+                val network = when {
+                    isReality -> "reality"
+                    rawNetwork != null && rawNetwork.isNotBlank() && rawNetwork != "tcp" -> rawNetwork
+                    proxyMap.containsKey("ws-opts") -> "ws"
+                    proxyMap.containsKey("grpc-opts") -> "grpc"
+                    proxyMap.containsKey("h2-opts") -> "h2"
+                    proxyMap.containsKey("http-opts") -> "http"
+                    type.equals("hysteria2", ignoreCase = true) || type.equals("tuic", ignoreCase = true) -> "quic"
+                    type.equals("wireguard", ignoreCase = true) -> "udp"
+                    isTls -> "tls"
+                    else -> rawNetwork ?: "tcp"
+                }
+
                 ProxyNodeInfo(
                     name = name,
                     type = type,
                     server = server,
-                    port = port
+                    port = port,
+                    network = network
                 )
             }
         } catch (e: Exception) {
@@ -196,7 +214,8 @@ object NodePingTester {
         var conn: HttpURLConnection? = null
         try {
             if (port != 443 && port != 8443) {
-                val url = URL("http://$server:$port")
+                val host = if (server.contains(":") && !server.startsWith("[")) "[$server]" else server
+                val url = URL("http://$host:$port")
                 conn = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = method
                     connectTimeout = timeoutMs
@@ -251,7 +270,8 @@ object NodePingTester {
     suspend fun testAllNodes(
         nodes: List<ProxyNodeInfo>,
         protocol: PingProtocol = PingProtocol.TCP,
-        timeoutMs: Int = 2000
+        timeoutMs: Int = 2000,
+        onProgress: ((nodeName: String, latency: Long) -> Unit)? = null
     ): Map<String, Long> = withContext(Dispatchers.IO) {
         // Cap concurrency: large subscriptions would otherwise open hundreds of sockets at once
         val semaphore = Semaphore(8)
@@ -259,6 +279,7 @@ object NodePingTester {
             async {
                 semaphore.withPermit {
                     val latency = testNode(node, protocol, timeoutMs)
+                    onProgress?.invoke(node.name, latency)
                     node.name to latency
                 }
             }

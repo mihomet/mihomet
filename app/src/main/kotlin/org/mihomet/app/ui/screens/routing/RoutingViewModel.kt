@@ -3,7 +3,6 @@ package org.mihomet.app.ui.screens.routing
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.graphics.drawable.Drawable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +18,6 @@ data class AppItem(
     val label: String,
     val packageName: String,
     val uid: Int,
-    val icon: Drawable? = null,
     val isSystem: Boolean = false
 )
 
@@ -61,7 +59,6 @@ class RoutingViewModel(
                             label = pm.getApplicationLabel(appInfo).toString(),
                             packageName = appInfo.packageName,
                             uid = appInfo.uid,
-                            icon = runCatching { pm.getApplicationIcon(appInfo) }.getOrNull(),
                             isSystem = isSystem
                         )
                     }.sortedWith(compareBy({ it.isSystem }, { it.label.lowercase() }))

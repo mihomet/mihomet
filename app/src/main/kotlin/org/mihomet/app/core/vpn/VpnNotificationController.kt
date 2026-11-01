@@ -13,8 +13,10 @@ import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import org.mihomet.app.R
+import org.mihomet.app.core.ServiceState
 import org.mihomet.app.data.preferences.SettingsRepository
 import org.mihomet.app.ui.MainActivity
 
@@ -42,6 +44,9 @@ class VpnNotificationController(
     private var screenStateReceiver: BroadcastReceiver? = null
     private var isScreenOn = true
 
+    /** Active profile name displayed as the notification title. */
+    var activeTitle: String? = null
+
     /** The connected / last-good text the speed line is appended to. */
     var baseText: String? = null
 
@@ -57,7 +62,12 @@ class VpnNotificationController(
         }
     }
 
-    fun build(text: String, ongoing: Boolean = true): Notification {
+    fun build(
+        content: String,
+        ongoing: Boolean = true,
+        title: String = activeTitle ?: context.getString(R.string.vpn_notification_title),
+        subText: String? = null
+    ): Notification {
         val pendingIntent = PendingIntent.getActivity(
             context,
             0,
@@ -72,30 +82,52 @@ class VpnNotificationController(
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle(context.getString(R.string.vpn_notification_title))
-            .setContentText(text)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(content)
             .setSmallIcon(R.drawable.ic_proxy_tile)
             .setContentIntent(pendingIntent)
-            .addAction(R.drawable.ic_proxy_tile, context.getString(R.string.action_disconnect), stopIntent)
             .setOngoing(ongoing)
+            .setOnlyAlertOnce(true)
             // Show the foreground notification immediately instead of after the system delay (API 27+)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            .build()
+
+        if (ongoing) {
+            builder.addAction(R.drawable.ic_proxy_tile, context.getString(R.string.action_disconnect), stopIntent)
+        }
+
+        if (!subText.isNullOrBlank()) {
+            builder.setSubText(subText)
+        }
+
+        return builder.build()
     }
 
-    fun update(text: String, ongoing: Boolean = true) {
+    fun update(
+        content: String,
+        ongoing: Boolean = true,
+        title: String = activeTitle ?: context.getString(R.string.vpn_notification_title),
+        subText: String? = null
+    ) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(NOTIFICATION_ID, build(text, ongoing))
+        manager.notify(NOTIFICATION_ID, build(content = content, ongoing = ongoing, title = title, subText = subText))
     }
 
     fun startSpeedUpdates() {
         speedJob?.cancel()
-        val baseText = baseText ?: return
+        if (!isScreenOn) return
         speedJob = scope.launch {
-            apiClientProvider.current().streamTraffic().collect { sample ->
+            @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+            apiClientProvider.clientFlow.flatMapLatest { client ->
+                client.streamTraffic()
+            }.collect { sample ->
+                val durationStr = ServiceState.connectionStartTime.value?.let { start ->
+                    ServiceState.formatDuration(System.currentTimeMillis() - start)
+                } ?: ""
+                val speedText = "↓\u00A0${formatSpeed(sample.down)}   ↑\u00A0${formatSpeed(sample.up)}"
                 update(
-                    "$baseText · ↓ ${formatSpeed(sample.down)} ↑ ${formatSpeed(sample.up)}"
+                    content = speedText,
+                    subText = durationStr.ifBlank { null }
                 )
             }
         }
@@ -158,10 +190,11 @@ class VpnNotificationController(
     private fun formatSpeed(bytesPerSec: Long): String {
         val kb = bytesPerSec / 1024.0
         val mb = kb / 1024.0
-        return when {
+        val formatted = when {
             mb >= 1.0 -> context.getString(R.string.speed_mb_per_s, mb)
             kb >= 1.0 -> context.getString(R.string.speed_kb_per_s, kb)
             else -> context.getString(R.string.speed_b_per_s, bytesPerSec)
         }
+        return formatted.replace(' ', '\u00A0')
     }
 }

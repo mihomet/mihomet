@@ -16,10 +16,13 @@ class NodePingTesterTest {
                 server: lv-03d69266.meow.ac
                 port: 443
                 uuid: f3d1cdd7-3b9e-4d98-aaa9-b11a28a01984
+                tls: true
               - name: "🇫🇮 Финляндия ⚡️"
                 type: vless
                 server: fi-03d69266.meow.ac
                 port: 443
+                reality-opts:
+                  public-key: "xyz"
               - name: "dns-out"
                 type: dns
         """.trimIndent()
@@ -30,8 +33,10 @@ class NodePingTesterTest {
         assertEquals("lv-03d69266.meow.ac", nodes[0].server)
         assertEquals(443, nodes[0].port)
         assertEquals("vless", nodes[0].type)
+        assertEquals("tls", nodes[0].network)
 
         assertEquals("🇫🇮 Финляндия ⚡️", nodes[1].name)
+        assertEquals("reality", nodes[1].network)
     }
 
     @Test
@@ -41,5 +46,11 @@ class NodePingTesterTest {
         // If network is available, it returns > 0, otherwise -1 (which is handled safely)
         println("Direct socket ping test result: $latency ms")
         assertTrue(latency >= -1L)
+    }
+
+    @Test
+    fun `test direct http ping with ipv6 server does not throw malformed url`() = runBlocking {
+        val latency = NodePingTester.testHttpPing("2001:db8::1", 8080, timeoutMs = 100)
+        assertEquals(-1L, latency)
     }
 }

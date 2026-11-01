@@ -113,6 +113,7 @@ internal object XrayJsonConverter {
             // 2. Extract Balancers from items
             val proxyGroups = mutableListOf<Map<String, Any>>()
             val balancerNames = mutableListOf<String>()
+            val balancerTagToGroupName = mutableMapOf<String, String>()
             val rawRulesList = mutableListOf<JsonObject>()
 
             for (item in items) {
@@ -135,10 +136,11 @@ internal object XrayJsonConverter {
                     val intervalStr = burstPing?.get("interval")?.jsonPrimitive?.contentOrNull ?: "300s"
                     val intervalSec = ConverterSupport.parseSeconds(intervalStr, default = 300)
 
-                    // Map item outbounds tags to node names
+                    // Map item outbounds tags to node names, synthesizing missing nodes if any
                     val itemTagToName = mutableMapOf<String, String>()
                     item["outbounds"]?.jsonArray?.filterIsInstance<JsonObject>()?.forEach { ob ->
                         val tag = ob["tag"]?.jsonPrimitive?.contentOrNull ?: return@forEach
+                        if (tag == "direct" || tag == "block" || tag == "dns-out") return@forEach
                         val proto = ob["protocol"]?.jsonPrimitive?.contentOrNull ?: ""
                         val sett = ob["settings"]?.jsonObject ?: JsonObject(emptyMap())
                         val (addr, port) = extractAddressAndPort(proto, sett)
@@ -153,6 +155,7 @@ internal object XrayJsonConverter {
                         val bal = balEl as? JsonObject ?: continue
                         val bTag = bal["tag"]?.jsonPrimitive?.contentOrNull ?: "balancer"
                         val groupName = if (remarks.isNotBlank()) remarks else bTag
+                        balancerTagToGroupName[bTag] = groupName
                         if (!balancerNames.contains(groupName)) {
                             balancerNames.add(groupName)
                         }
@@ -173,7 +176,31 @@ internal object XrayJsonConverter {
                             }
                         }
 
-                        val finalProxies = if (selectedNodes.isNotEmpty()) selectedNodes else serverNames
+                        // If strategy specifies high costs (e.g. ^TIER2 has cost 1,000,000,000 as emergency fallback),
+                        // filter out high cost nodes from url-test pool if low cost nodes exist
+                        val strategySettings = bal["strategy"]?.jsonObject?.get("settings")?.jsonObject
+                        val costs = strategySettings?.get("costs")?.jsonArray
+                        val highCostPatterns = mutableListOf<Regex>()
+                        costs?.filterIsInstance<JsonObject>()?.forEach { c ->
+                            val v = c["value"]?.jsonPrimitive?.contentOrNull?.toLongOrNull() ?: 0L
+                            val m = c["match"]?.jsonPrimitive?.contentOrNull ?: ""
+                            if (v >= 1000L && m.isNotBlank()) {
+                                runCatching { highCostPatterns.add(Regex(m)) }
+                            }
+                        }
+
+                        val nonHighCostNodes = if (highCostPatterns.isNotEmpty()) {
+                            selectedNodes.filter { nodeName ->
+                                val origTag = itemTagToName.entries.firstOrNull { it.value == nodeName }?.key ?: nodeName
+                                highCostPatterns.none { it.containsMatchIn(origTag) }
+                            }
+                        } else emptyList()
+
+                        val finalProxies = when {
+                            nonHighCostNodes.size >= 2 -> nonHighCostNodes
+                            selectedNodes.isNotEmpty() -> selectedNodes
+                            else -> serverNames
+                        }
 
                         val autoGroup = mutableMapOf<String, Any>(
                             "name" to groupName,

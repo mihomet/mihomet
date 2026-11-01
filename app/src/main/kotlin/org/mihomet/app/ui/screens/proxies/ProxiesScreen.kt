@@ -97,14 +97,17 @@ fun ProxiesScreen(
 
     LaunchedEffect(state.statusMessageRes) {
         state.statusMessageRes?.let { resId ->
+            val args = state.statusMessageArgs
+            viewModel.clearStatusMessage()
             snackbarHostState.showSnackbar(
-                context.getString(resId, *state.statusMessageArgs.toTypedArray())
+                context.getString(resId, *args.toTypedArray())
             )
         }
     }
 
     LaunchedEffect(state.error) {
         state.error?.let {
+            viewModel.clearError()
             snackbarHostState.showSnackbar(context.getString(R.string.proxies_error_load, it), withDismissAction = true)
         }
     }
@@ -287,7 +290,7 @@ fun ProxiesScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(bottom = 96.dp)
+                    contentPadding = PaddingValues(bottom = 12.dp)
                 ) {
                     items(sortedServers, key = { it.name }) { node ->
                         val isSelected = node.name == state.selectedNodeName
@@ -439,6 +442,10 @@ fun ExpressiveServerNodeCard(
                 ) {
                     // Content-sized protocol tag: never wrapped, never truncated mid-word
                     ProtocolBadge(protocol = node.type)
+                    if (node.network.isNotBlank()) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        ProtocolBadge(protocol = node.network.uppercase())
+                    }
 
                     if (node.server.isNotBlank()) {
                         Spacer(modifier = Modifier.width(6.dp))

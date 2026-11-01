@@ -233,6 +233,12 @@ class SettingsViewModel(
         }
     }
 
+    fun updatePersistentLogging(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updatePersistentLogging(enabled)
+        }
+    }
+
     fun updateOverrideSnifferEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.updateOverrideSnifferEnabled(enabled)

@@ -410,10 +410,16 @@ class AppUpdateManager(private val context: Context) {
                     val confirm = extractConfirmIntent(intent)
                     if (confirm == null) {
                         Log.w(TAG, "Install status carried an unexpected confirmation intent — ignored")
+                        unregisterInstallStatusReceiver()
+                        dispatch(AppUpdateEvent.InstallCommitFailed("unexpected confirmation intent"))
                         return
                     }
                     runCatching { ctx.startActivity(confirm) }
-                        .onFailure { Log.w(TAG, "Could not launch the install confirmation dialog", it) }
+                        .onFailure {
+                            Log.w(TAG, "Could not launch the install confirmation dialog", it)
+                            unregisterInstallStatusReceiver()
+                            dispatch(AppUpdateEvent.InstallCommitFailed("failed to launch confirm dialog"))
+                        }
                 }
 
                 PackageInstaller.STATUS_SUCCESS -> {
@@ -441,7 +447,6 @@ class AppUpdateManager(private val context: Context) {
             intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
         } ?: return null
         if (confirm.action != CONFIRM_INSTALL_ACTION) return null
-        if (confirm.component != null) return null
         return confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 

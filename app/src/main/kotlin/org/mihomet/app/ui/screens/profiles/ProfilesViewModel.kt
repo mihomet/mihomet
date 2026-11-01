@@ -409,72 +409,19 @@ class ProfilesViewModel(
      */
     fun updateProfile(profile: ProfileEntity) {
         if (profile.type != ProfileType.REMOTE) return
-        // url / custom_headers are encrypted at rest — decrypt before use; the
-        // migrated URL is re-encrypted on write below.
-        val url = try {
-            SecretsCipher.decrypt(profile.url)
-        } catch (e: org.mihomet.app.data.crypto.SecretsCipher.SecretDecryptException) {
-            errorMessageFlow.value = context.getString(R.string.profiles_subscription_undecryptable)
-            return
-        }
-        val headers = try {
-            SecretsCipher.decrypt(profile.customHeaders)
-        } catch (e: org.mihomet.app.data.crypto.SecretsCipher.SecretDecryptException) {
-            errorMessageFlow.value = context.getString(R.string.profiles_subscription_undecryptable)
-            return
-        }
-        if (url.isBlank()) return
         viewModelScope.launch {
-            try {
-                val download = subscriptionRepository.downloadAndConvert(url, headers)
-                // Profile-key whitelist warnings (audit P1 §2.1): never silent.
-                val outcome = withProfileKeyWarnings(download.outcome)
-                // Fail-closed: never overwrite the profile file with a semantically
-                // invalid conversion result (no non-empty proxies / proxy-providers /
-                // rules — see ProfileValidation). Returns before any write, so the
-                // last good file and the stored lastUpdated / quota stay untouched.
-                if (!isValidGeneratedConfig(outcome.yaml)) {
-                    errorMessageFlow.value = context.getString(R.string.profiles_invalid_result)
-                    return@launch
+            subscriptionRepository.refreshProfileWithOutcome(profile)
+                .onSuccess { result ->
+                    val outcome = withProfileKeyWarnings(result.outcome)
+                    requestBehaviorConsent(result.profile.id, result.profile.name, result.meta)
+                    errorMessageFlow.value = null
+                    successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_updated), outcome)
                 }
-                // Panel-initiated subscription relocation (New-Url / Fallback-Url): auto-migrate.
-                val migratedUrl = download.meta.redirectUrl
-                    ?.takeIf { !it.equals(url, ignoreCase = true) } ?: url
-                // Encrypt the (possibly migrated) URL BEFORE overwriting the profile
-                // file (audit I2 / N07-2): when the data-loss gate refuses encryption,
-                // the last good file and the stored lastUpdated / quota must stay
-                // untouched — the refresh is refused entirely.
-                val encryptedUrl = try {
-                    SecretsCipher.encryptIfSecret(migratedUrl)
-                } catch (e: SecretsCipher.SecretEncryptException) {
-                    errorMessageFlow.value = context.getString(R.string.profiles_encrypt_failed)
-                    return@launch
+                .onFailure { e ->
+                    if (e is CancellationException) throw e
+                    errorMessageFlow.value =
+                        context.getString(R.string.profiles_update_failed, localizeError(e))
                 }
-                // Same crash-safe write path as the repository's background refresh.
-                SubscriptionRepository.atomicWriteText(File(profile.filePath), outcome.yaml)
-                // If the server sent no Subscription-Userinfo this time, keep the previous quota.
-                val quota = download.userinfo
-                val updated = profile.copy(
-                    url = encryptedUrl,
-                    lastUpdated = System.currentTimeMillis(),
-                    uploadUsed = quota?.uploadUsed ?: profile.uploadUsed,
-                    downloadUsed = quota?.downloadUsed ?: profile.downloadUsed,
-                    trafficTotal = quota?.trafficTotal ?: profile.trafficTotal,
-                    expireAt = quota?.expireAt ?: profile.expireAt,
-                    // Absent profile-update-interval keeps the previously stored interval.
-                    updateIntervalHours = download.meta.updateIntervalHours
-                        .takeIf { it > 0 } ?: profile.updateIntervalHours
-                )
-                profileDao.updateProfile(updated)
-                requestBehaviorConsent(updated.id, updated.name, download.meta)
-                errorMessageFlow.value = null
-                successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_updated), outcome)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                errorMessageFlow.value =
-                    context.getString(R.string.profiles_update_failed, localizeError(e))
-            }
         }
     }
 
@@ -545,6 +492,12 @@ class ProfilesViewModel(
                 settingsRepository.updateSelectedAppUids(consent.perAppUids)
             }
             consent.tunModeHint?.let { settingsRepository.updateRootMode(!it) }
+        }
+    }
+
+    fun updateProfileInterval(profile: ProfileEntity, hours: Int) {
+        viewModelScope.launch {
+            profileDao.updateProfile(profile.copy(updateIntervalHours = hours))
         }
     }
 

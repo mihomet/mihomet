@@ -348,12 +348,13 @@ class MihometVpnService : VpnService(), KoinComponent, CoreWatchdog.Hooks {
             // started successfully, so it is safe to fall back to on a broken profile.
             runCatching { lastGoodConfigFile.writeText(runtimeYaml) }
             val profileLabel = selectedProfile?.name ?: getString(R.string.dashboard_default_profile_name)
+            notifications.activeTitle = profileLabel
             val baseText = if (profileBroken) {
                 // F13: name the profile whose start failed, so the user sees
                 // which profile is actually serving traffic (the last-good one).
                 getString(R.string.vpn_last_good_used, profileLabel)
             } else {
-                getString(R.string.vpn_connected, profileLabel)
+                getString(R.string.tile_connected)
             }
             notifications.baseText = baseText
             notifications.update(baseText)

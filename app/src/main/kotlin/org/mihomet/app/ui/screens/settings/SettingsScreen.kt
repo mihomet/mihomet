@@ -15,6 +15,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -52,7 +53,7 @@ fun SettingsScreen(
     var showSubscriptionHwidDialog by remember { mutableStateOf(false) }
     var showMtuDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
-    var isAdvancedExpanded by remember { mutableStateOf(false) }
+    var isAdvancedExpanded by rememberSaveable { mutableStateOf(false) }
 
     // Manufacturer diagnostics — only on devices from vendors whose power
     // managers are known to kill background VPN services (MIUI, ColorOS, …).
@@ -96,7 +97,7 @@ fun SettingsScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(top = 10.dp, bottom = 100.dp)
+            contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
         ) {
             // 1. Connection Mode Grouped Card
             item {

@@ -132,6 +132,13 @@
     <string name="profiles_headers_label">Заголовки (JSON или Ключ: Значение)</string>
     <string name="profiles_headers_placeholder">User-Agent: Happ/3.6.0\nx-hwid: 12345\n(или JSON)</string>
     <string name="profile_headers_menu">Заголовки подписки</string>
+    <string name="profile_auto_update_menu">Автообновление</string>
+    <string name="profile_auto_update_title">Интервал автообновления</string>
+    <string name="profile_auto_update_disabled">Отключено</string>
+    <string name="profile_auto_update_1h">Каждый час</string>
+    <string name="profile_auto_update_6h">Каждые 6 часов</string>
+    <string name="profile_auto_update_12h">Каждые 12 часов</string>
+    <string name="profile_auto_update_24h">Каждые 24 часа</string>
     <string name="profile_headers_title">Заголовки подписки</string>
     <string name="profile_headers_hint">По одному заголовку в строке: Имя: Значение. Отправляются при каждой загрузке этой подписки поверх глобальных настроек идентификации.</string>
     <string name="profile_headers_saved">Заголовки сохранены</string>
@@ -273,6 +280,8 @@
     <string name="settings_override_sniffer_desc">Восстановление реальных доменов из TLS/HTTP-трафика</string>
     <string name="settings_override_log_level">Уровень логов</string>
     <string name="settings_override_log_level_desc">Текущее значение: %1$s</string>
+    <string name="settings_persistent_logging_title">Непрерывная запись логов</string>
+    <string name="settings_persistent_logging_desc">Записывать логи в фоне постоянно, а не только при открытии экрана логов</string>
     <string name="settings_happ_keys">Happ crypto-ключи</string>
     <string name="settings_happ_key_add">Добавить ключ</string>
     <string name="keyring_added">Ключ добавлен</string>

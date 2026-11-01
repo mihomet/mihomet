@@ -14,6 +14,7 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.mihomet.app.R
+import org.mihomet.app.core.CoreConstants
 import org.mihomet.app.core.CoreManager
 import org.mihomet.app.core.ServiceState
 import org.mihomet.app.core.config.ConfigGenerator
@@ -40,7 +41,8 @@ data class ServerNodeItem(
     val server: String = "",
     val port: Int = 0,
     val delayMs: Long = 0, // 0 = not tested, -1 = timeout, >0 = latency ms
-    val isAutoSelect: Boolean = false
+    val isAutoSelect: Boolean = false,
+    val network: String = ""
 )
 
 data class ProxyGroupUiModel(
@@ -189,6 +191,29 @@ class ProxiesViewModel(
                     )
                 }
 
+                // Synthesize AUTO group if subscription lacks balancer and auto balancer is enabled
+                val settings = settingsRepository.settingsFlow.first()
+                if (autoGroupSet.isEmpty() && settings.autoBalancerEnabled && parsedNodes.size >= 2) {
+                    val excludes = settings.autoBalancerExcludes.lines().map { it.trim() }.filter { it.isNotEmpty() }
+                    val pool = parsedNodes.map { it.name }.filter { name -> excludes.none { name.contains(it, ignoreCase = true) } }
+                    if (pool.size >= 2) {
+                        autoGroupSet.add(CoreConstants.AUTO_GROUP_NAME)
+                        val selectorGroup = groupsList.firstOrNull { it.type == "select" || it.type == "selector" }
+                        if (selectorGroup != null) {
+                            val updatedNodes = if (settings.autoBalancerPreferDefault) {
+                                listOf(CoreConstants.AUTO_GROUP_NAME) + selectorGroup.nodeNames
+                            } else {
+                                selectorGroup.nodeNames + CoreConstants.AUTO_GROUP_NAME
+                            }
+                            val idx = groupsList.indexOf(selectorGroup)
+                            groupsList[idx] = selectorGroup.copy(
+                                nodeNames = updatedNodes,
+                                selectedNode = if (settings.autoBalancerPreferDefault) CoreConstants.AUTO_GROUP_NAME else selectorGroup.selectedNode
+                            )
+                        }
+                    }
+                }
+
                 // 3. Create items list containing only legitimate nodes and auto-select groups
                 val serverItems = mutableListOf<ServerNodeItem>()
 
@@ -210,7 +235,8 @@ class ProxiesViewModel(
                             name = node.name,
                             type = node.type.uppercase(),
                             server = node.server,
-                            port = node.port
+                            port = node.port,
+                            network = node.network
                         )
                     )
                 }
@@ -379,6 +405,14 @@ class ProxiesViewModel(
         }
     }
 
+    fun clearStatusMessage() {
+        _uiState.update { it.copy(statusMessageRes = null, statusMessageArgs = emptyList()) }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
+    }
+
     fun testAllServers() {
         if (_uiState.value.isTestingAll) return
         val currentProtocol = _uiState.value.pingProtocol
@@ -422,21 +456,31 @@ class ProxiesViewModel(
         } else rawTestUrl
         val timeout = currentTestTimeoutMs
 
-        val groupResults = mutableMapOf<String, Long>()
+        val groupResults = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+        fun updateNodeDelays(updates: Map<String, Long>) {
+            _uiState.update { state ->
+                val updated = state.allServers.map { item ->
+                    val d = updates[item.name]
+                    if (d != null) item.copy(delayMs = d) else item
+                }
+                state.copy(allServers = updated)
+            }
+        }
 
         // 1. Group delay test via Mihomo core (GLOBAL and current selected group)
         client.testGroupDelay("GLOBAL", testUrl, timeout).onSuccess { map ->
-            map.forEach { (name, delay) ->
-                if (delay > 0) groupResults[name] = delay.toLong()
-            }
+            val positive = map.filterValues { it > 0 }.mapValues { it.value.toLong() }
+            groupResults.putAll(positive)
+            updateNodeDelays(positive)
         }
 
         val activeGroup = _uiState.value.selectedGroupName
         if (activeGroup.isNotBlank() && !activeGroup.equals("GLOBAL", ignoreCase = true)) {
             client.testGroupDelay(activeGroup, testUrl, timeout).onSuccess { map ->
-                map.forEach { (name, delay) ->
-                    if (delay > 0) groupResults[name] = delay.toLong()
-                }
+                val positive = map.filterValues { it > 0 }.mapValues { it.value.toLong() }
+                groupResults.putAll(positive)
+                updateNodeDelays(positive)
             }
         }
 
@@ -448,13 +492,14 @@ class ProxiesViewModel(
                 async {
                     semaphore.withPermit {
                         val apiDelay = client.testNodeDelay(node.name, testUrl, timeout).getOrDefault(-1)
-                        node.name to (if (apiDelay > 0) apiDelay.toLong() else -1L)
+                        val delay = if (apiDelay > 0) apiDelay.toLong() else -1L
+                        groupResults[node.name] = delay
+                        updateNodeDelays(mapOf(node.name to delay))
+                        node.name to delay
                     }
                 }
             }
-            deferred.awaitAll().forEach { (name, delay) ->
-                groupResults[name] = delay
-            }
+            deferred.awaitAll()
         }
 
         val bestDelay = groupResults.values.filter { it > 0 }.minOrNull() ?: -1L
@@ -464,7 +509,7 @@ class ProxiesViewModel(
                 val delay = if (item.isAutoSelect) {
                     bestDelay
                 } else {
-                    groupResults[item.name] ?: -1L
+                    groupResults[item.name] ?: item.delayMs
                 }
                 item.copy(delayMs = delay)
             }
@@ -481,7 +526,19 @@ class ProxiesViewModel(
     private suspend fun runDirectNetworkTestAll(
         protocol: PingProtocol
     ) = withContext(Dispatchers.IO) {
-        val results = NodePingTester.testAllNodes(parsedNodes, protocol = protocol, timeoutMs = 2500)
+        val results = NodePingTester.testAllNodes(
+            nodes = parsedNodes,
+            protocol = protocol,
+            timeoutMs = 2500,
+            onProgress = { name, delay ->
+                _uiState.update { state ->
+                    val updated = state.allServers.map { item ->
+                        if (item.name == name) item.copy(delayMs = delay) else item
+                    }
+                    state.copy(allServers = updated)
+                }
+            }
+        )
         val bestDelay = results.values.filter { it > 0 }.minOrNull() ?: -1L
 
         _uiState.update { state ->

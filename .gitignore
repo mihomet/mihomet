@@ -30,3 +30,8 @@ app/src/main/assets/geosite.dat
 
 # Core build outputs (produced by core-build/build-core.sh, published to GitHub Releases)
 core-build/dist/
+
+# Local audit reports and notes
+AUDIT.md
+*.local.md
+

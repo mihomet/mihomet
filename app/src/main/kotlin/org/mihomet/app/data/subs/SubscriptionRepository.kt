@@ -53,7 +53,8 @@ data class SubscriptionDownload(
  */
 data class ProfileRefreshResult(
     val profile: ProfileEntity,
-    val outcome: ConversionOutcome
+    val outcome: ConversionOutcome,
+    val meta: SubscriptionMeta = SubscriptionMeta()
 )
 
 /**
@@ -227,33 +228,8 @@ class SubscriptionRepository(
                 null
             }
 
-            // If Base64 encoded subscription, decode it
-            val decoded = decrypted ?: if (!trimmed.startsWith("port:") &&
-                !trimmed.startsWith("mixed-port:") &&
-                !trimmed.startsWith("proxies:") &&
-                !trimmed.startsWith("{") &&
-                !trimmed.startsWith("[") &&
-                !trimmed.startsWith("#")
-            ) {
-                runCatching {
-                    val clean = trimmed.replace("\n", "").replace("\r", "").replace(" ", "").trim()
-                    val padded = when (clean.length % 4) {
-                        2 -> "$clean=="
-                        3 -> "$clean="
-                        else -> clean
-                    }
-                    val bytes = try {
-                        Base64.getDecoder().decode(padded)
-                    } catch (e: Exception) {
-                        Base64.getUrlDecoder().decode(padded)
-                    }
-                    String(bytes, java.nio.charset.StandardCharsets.UTF_8)
-                }.getOrDefault(responseText)
-            } else {
-                responseText
-            }
-
-            UniversalConfigConverter.convertToMihomoYamlWithOutcome(decoded).let { outcome ->
+            val payload = decrypted ?: responseText
+            UniversalConfigConverter.convertToMihomoYamlWithOutcome(payload).let { outcome ->
                 SubscriptionDownload(outcome = outcome, userinfo = userinfo, meta = meta)
             }
         }
@@ -334,7 +310,7 @@ class SubscriptionRepository(
                 .takeIf { it > 0 } ?: profile.updateIntervalHours
         )
         profileDao.updateProfile(updated)
-        return ProfileRefreshResult(updated, download.outcome)
+        return ProfileRefreshResult(updated, download.outcome, download.meta)
     }
 
     companion object {

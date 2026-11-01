@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.2
+
+- Notification layout: active profile name in title, duration timer in native header subText, live speed (↓ / ↑) on a dedicated line with non-breaking spaces preventing mid-unit wrapping
+- Notification performance: added setOnlyAlertOnce and paused updates when screen is turned off for battery savings
+- Network handover: seamless transitions (Wi-Fi ↔ LTE, LTE ↔ LTE, Wi-Fi ↔ Wi-Fi) without dropping connections on RSSI changes
+- Quick Settings tile: enlarged 5-node route glyph to 21.5dp; tap opens client directly; fixed long-press intent resolution (CATEGORY_DEFAULT)
+- Launcher icon: scaled foreground safe area to standard 40dp (0.72x) matching Android system grid
+- Edge-to-edge UI: eliminated double status-bar and navigation-bar padding (no wasted space at top/bottom of screens)
+- Material 3 Expressive motion: directional Shared-Axis X page transitions
+- Proxies: protocol transport badge (VLESS, Reality, TLS, WS, gRPC, QUIC) + parallel ping with progressive updates
+- Balancers: resolved multi-node outbounds in Happ Xray subscriptions and removed phantom nodes from server list
+- Logging: configurable log levels + continuous background logging toggle
+- Subscriptions: auto-update interval selection in dropdown menu (1h, 6h, 12h, 24h)
+- Core memory usage: fixed WebSocket streaming from Mihomo core
+
 ## 1.2.1 — external audit recheck (hardening wave 2)
 
 ### Root / firewall

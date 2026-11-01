@@ -184,6 +184,7 @@ object ConfigGenerator {
             configMap["tproxy-port"] = settings.tproxyPort
             configMap["redir-port"] = CoreConstants.DEFAULT_REDIR_PORT
             configMap["routing-mark"] = CoreConstants.CORE_ROUTING_MARK
+            configMap.remove("tun")
         } else {
             // Non-root VPN mode: SO_MARK and TProxy/Redir require CAP_NET_ADMIN (not available in non-root)
             configMap.remove("tproxy-port")

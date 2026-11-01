@@ -13,9 +13,13 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
+import org.mihomet.app.data.api.AppLogBuffer
+import org.mihomet.app.data.api.MihomoApiClientProvider
 import org.mihomet.app.data.crypto.SecretsCipher
 import org.mihomet.app.data.preferences.SettingsRepository
 import org.mihomet.app.data.subs.SubscriptionRefreshWorker
@@ -93,6 +97,18 @@ class MihometApplication : Application() {
             SubscriptionRefreshWorker.schedulePeriodicRefresh(this)
         }.onFailure {
             Log.w("MihometApplication", "Failed to schedule subscription refresh", it)
+        }
+
+        // Persistent background logging controller
+        val clientProvider = koin.get<MihomoApiClientProvider>()
+        appScope.launch {
+            settingsRepository.settingsFlow.map { it.persistentLogging }.distinctUntilChanged().collect { enabled ->
+                if (enabled) {
+                    AppLogBuffer.startContinuousLogging(clientProvider)
+                } else {
+                    AppLogBuffer.stopContinuousLogging()
+                }
+            }
         }
     }
 

@@ -110,8 +110,7 @@ object SecretsCipher {
      * because UI catch-alls surface it via `e.message`.
      */
     class SecretEncryptException(
-        message: String = "Не удалось зашифровать данные — ключ шифрования недоступен. " +
-            "Сохранение в открытом виде отклонено, чтобы не потерять секрет.",
+        message: String = "Could not encrypt data: encryption key is unavailable.",
         cause: Throwable? = null
     ) : IllegalStateException(message, cause)
 

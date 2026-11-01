@@ -5,9 +5,13 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -15,9 +19,11 @@ import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -352,15 +358,19 @@ class RootTProxyService : Service(), KoinComponent {
             // failed copy must not fail the start.
             Shell.cmd("cp ${CoreConstants.ROOT_CONFIG_PATH} $lastGoodConfigPath 2>/dev/null || true").exec()
             val profileLabel = selectedProfile?.name ?: getString(R.string.dashboard_default_profile_name)
-            updateNotification(
-                if (profileBroken) {
-                    // F13: name the profile whose start failed, so the user sees
-                    // which profile is actually serving traffic (the last-good one).
-                    getString(R.string.root_last_good_used, profileLabel)
-                } else {
-                    getString(R.string.root_running, profileLabel)
-                }
-            )
+            activeProfileName = profileLabel
+            val statusContent = if (profileBroken) {
+                // F13: name the profile whose start failed, so the user sees
+                // which profile is actually serving traffic (the last-good one).
+                getString(R.string.root_last_good_used, profileLabel)
+            } else {
+                getString(R.string.tile_connected)
+            }
+            activeNotificationContent = statusContent
+            updateNotification(content = statusContent, title = profileLabel)
+            registerNetworkTracker()
+            registerScreenStateReceiver()
+            startSpeedUpdates()
 
             // Watchdog: the root daemon is a detached nohup process — if it crashes,
             // restart it with backoff (same policy as the VPN core watchdog); after
@@ -458,6 +468,7 @@ class RootTProxyService : Service(), KoinComponent {
     private suspend fun awaitCoreReadiness(): Boolean {
         val deadline = System.currentTimeMillis() + CORE_READINESS_TIMEOUT_MS
         while (!isStopping) {
+            if (!RootShellManager.isDaemonRunning()) return false
             val answered = runCatching {
                 withTimeout(CORE_READINESS_PROBE_TIMEOUT_MS) {
                     apiClientProvider.current().getVersion().isSuccess
@@ -479,6 +490,10 @@ class RootTProxyService : Service(), KoinComponent {
      * we got here, and a clean ServiceState flip with a widget refresh.
      */
     private fun rollbackRootStart() {
+        speedJob?.cancel()
+        speedJob = null
+        unregisterScreenStateReceiver()
+        unregisterNetworkTracker()
         runCatching { RootShellManager.stopDaemon() }
             .onFailure { android.util.Log.w("RootTProxy", "rollback: stopDaemon failed", it) }
         // teardown(false): the session's IPv6 setting does not matter on the
@@ -521,6 +536,10 @@ class RootTProxyService : Service(), KoinComponent {
             // stuck on "connected" until the app is restarted.
             daemonMonitorJob?.cancel()
             daemonMonitorJob = null
+            speedJob?.cancel()
+            speedJob = null
+            unregisterScreenStateReceiver()
+            unregisterNetworkTracker()
             try {
                 try {
                     val settings = settingsRepository.settingsFlow.first()
@@ -568,7 +587,17 @@ class RootTProxyService : Service(), KoinComponent {
         }
     }
 
-    private fun buildNotification(text: String, ongoing: Boolean = true): Notification {
+    private var activeProfileName: String = ""
+    private var activeNotificationContent: String = ""
+    private var screenStateReceiver: BroadcastReceiver? = null
+    private var isScreenOn = true
+
+    private fun buildNotification(
+        content: String,
+        ongoing: Boolean = true,
+        title: String = activeProfileName.ifBlank { getString(R.string.root_notification_title) },
+        subText: String? = null
+    ): Notification {
         val pendingIntent = PendingIntent.getActivity(
             this,
             0,
@@ -583,18 +612,145 @@ class RootTProxyService : Service(), KoinComponent {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.root_notification_title))
-            .setContentText(text)
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(content)
             .setSmallIcon(R.drawable.ic_proxy_tile)
             .setContentIntent(pendingIntent)
-            .addAction(R.drawable.ic_proxy_tile, getString(R.string.action_disconnect), stopIntent)
             .setOngoing(ongoing)
-            .build()
+            .setOnlyAlertOnce(true)
+
+        if (ongoing) {
+            builder.addAction(R.drawable.ic_proxy_tile, getString(R.string.action_disconnect), stopIntent)
+        }
+
+        if (!subText.isNullOrBlank()) {
+            builder.setSubText(subText)
+        }
+
+        return builder.build()
     }
 
-    private fun updateNotification(text: String, ongoing: Boolean = true) {
+    private fun updateNotification(
+        content: String,
+        ongoing: Boolean = true,
+        title: String = activeProfileName.ifBlank { getString(R.string.root_notification_title) },
+        subText: String? = null
+    ) {
+        if (!content.contains("↓")) {
+            activeNotificationContent = content
+        }
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(NOTIFICATION_ID, buildNotification(text, ongoing))
+        manager.notify(NOTIFICATION_ID, buildNotification(content = content, ongoing = ongoing, title = title, subText = subText))
+    }
+
+    private var speedJob: Job? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
+    private fun registerScreenStateReceiver() {
+        if (screenStateReceiver != null) return
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                when (intent.action) {
+                    Intent.ACTION_SCREEN_ON -> {
+                        isScreenOn = true
+                        serviceScope.launch {
+                            val settings = runCatching {
+                                settingsRepository.settingsFlow.first()
+                            }.getOrNull()
+                            if (settings?.showSpeedInNotification == true) {
+                                startSpeedUpdates()
+                            }
+                        }
+                    }
+                    Intent.ACTION_SCREEN_OFF -> {
+                        isScreenOn = false
+                        speedJob?.cancel()
+                        speedJob = null
+                        val content = activeNotificationContent.ifBlank { getString(R.string.tile_connected) }
+                        updateNotification(content)
+                    }
+                }
+            }
+        }
+        screenStateReceiver = receiver
+        registerReceiver(receiver, IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+        })
+    }
+
+    private fun unregisterScreenStateReceiver() {
+        screenStateReceiver?.let { runCatching { unregisterReceiver(it) } }
+        screenStateReceiver = null
+    }
+
+    private fun registerNetworkTracker() {
+        if (networkCallback != null) return
+        try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val callback = object : ConnectivityManager.NetworkCallback() {
+                private var activeNet: Network? = cm.activeNetwork
+                override fun onAvailable(network: Network) {
+                    if (activeNet != network) {
+                        activeNet = network
+                        serviceScope.launch {
+                            runCatching { apiClientProvider.current().closeAllConnections() }
+                        }
+                    }
+                }
+                override fun onLost(network: Network) {
+                    if (activeNet == network) {
+                        activeNet = cm.activeNetwork
+                        serviceScope.launch {
+                            runCatching { apiClientProvider.current().closeAllConnections() }
+                        }
+                    }
+                }
+            }
+            networkCallback = callback
+            cm.registerDefaultNetworkCallback(callback)
+        } catch (_: Exception) {}
+    }
+
+    private fun unregisterNetworkTracker() {
+        networkCallback?.let {
+            runCatching { (getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager).unregisterNetworkCallback(it) }
+        }
+        networkCallback = null
+    }
+
+    private fun startSpeedUpdates() {
+        speedJob?.cancel()
+        if (!isScreenOn) return
+        speedJob = serviceScope.launch {
+            val settings = settingsRepository.settingsFlow.first()
+            if (!settings.showSpeedInNotification) return@launch
+            @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+            apiClientProvider.clientFlow.flatMapLatest { client ->
+                client.streamTraffic()
+            }.collect { sample ->
+                val durationStr = ServiceState.connectionStartTime.value?.let { start ->
+                    ServiceState.formatDuration(System.currentTimeMillis() - start)
+                } ?: ""
+                val speedText = "↓\u00A0${formatSpeed(sample.down)}   ↑\u00A0${formatSpeed(sample.up)}"
+                updateNotification(
+                    content = speedText,
+                    title = activeProfileName.ifBlank { getString(R.string.root_notification_title) },
+                    subText = durationStr.ifBlank { null }
+                )
+            }
+        }
+    }
+
+    private fun formatSpeed(bytesPerSec: Long): String {
+        val kb = bytesPerSec / 1024.0
+        val mb = kb / 1024.0
+        val formatted = when {
+            mb >= 1.0 -> getString(R.string.speed_mb_per_s, mb)
+            kb >= 1.0 -> getString(R.string.speed_kb_per_s, kb)
+            else -> getString(R.string.speed_b_per_s, bytesPerSec)
+        }
+        return formatted.replace(' ', '\u00A0')
     }
 }

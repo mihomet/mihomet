@@ -39,6 +39,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.mihomet.app.R
 import org.koin.androidx.compose.koinViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import org.mihomet.app.core.ServiceState
 import org.mihomet.app.data.preferences.ProxyMode
 import org.mihomet.app.ui.components.ExpressiveLatencyBadge
 import org.mihomet.app.ui.components.PulsingStatusDot
@@ -289,27 +292,6 @@ fun DashboardScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-
-                        if (state.isRunning && state.trafficHistory.isNotEmpty()) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                ) {
-                                    PulsingStatusDot(color = AccentGreen, size = 6.dp)
-                                    Spacer(modifier = Modifier.width(5.dp))
-                                    Text(
-                                        text = "LIVE",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = AccentGreen
-                                    )
-                                }
-                            }
-                        }
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
@@ -323,7 +305,7 @@ fun DashboardScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(96.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -342,7 +324,7 @@ fun ExpressiveHeroConnect(
 
     val outerRingScale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = if (isRunning || isConnecting) 1.18f else if (isDisconnecting) 1.08f else 1f,
+        targetValue = if (isRunning || isConnecting) 1.08f else if (isDisconnecting) 1.05f else 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(if (isDisconnecting) 800 else 1600, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -352,7 +334,7 @@ fun ExpressiveHeroConnect(
 
     val innerRingScale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = if (isRunning || isConnecting) 1.09f else if (isDisconnecting) 1.04f else 1f,
+        targetValue = if (isRunning || isConnecting) 1.04f else if (isDisconnecting) 1.02f else 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(if (isDisconnecting) 600 else 1200, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -400,19 +382,33 @@ fun ExpressiveHeroConnect(
         label = "pressScale"
     )
 
+    var uptimeText by remember { mutableStateOf("") }
+    val connectionStartTime by ServiceState.connectionStartTime.collectAsState()
+    LaunchedEffect(isRunning, connectionStartTime) {
+        if (!isRunning || connectionStartTime == null) {
+            uptimeText = ""
+            return@LaunchedEffect
+        }
+        while (isActive) {
+            val start = connectionStartTime ?: break
+            uptimeText = ServiceState.formatDuration(System.currentTimeMillis() - start)
+            delay(1000)
+        }
+    }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(vertical = 14.dp)
+        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
     ) {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.size(190.dp)
+            modifier = Modifier.size(175.dp)
         ) {
             // Outer Ambient Pulse Ring
             if (isRunning || isConnecting || isDisconnecting) {
                 Box(
                     modifier = Modifier
-                        .size(185.dp)
+                        .size(165.dp)
                         .scale(outerRingScale)
                         .clip(ExpressiveShapes.Hero)
                         .background(buttonGlowColor.copy(alpha = 0.14f))
@@ -421,7 +417,7 @@ fun ExpressiveHeroConnect(
                 // Inner Ambient Pulse Ring
                 Box(
                     modifier = Modifier
-                        .size(160.dp)
+                        .size(150.dp)
                         .scale(innerRingScale)
                         .clip(ExpressiveShapes.Hero)
                         .background(buttonGlowColor)
@@ -472,7 +468,7 @@ fun ExpressiveHeroConnect(
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // Status Capsule Pill
         Surface(
@@ -503,7 +499,10 @@ fun ExpressiveHeroConnect(
                     text = when {
                         isConnecting -> stringResource(R.string.dashboard_status_connecting)
                         isDisconnecting -> stringResource(R.string.dashboard_status_disconnecting)
-                        isRunning -> stringResource(R.string.dashboard_status_protected)
+                        isRunning -> {
+                            val base = stringResource(R.string.dashboard_status_protected)
+                            if (uptimeText.isNotBlank()) "$base  ·  $uptimeText" else base
+                        }
                         else -> stringResource(R.string.dashboard_status_disconnected)
                     },
                     style = MaterialTheme.typography.labelMedium,

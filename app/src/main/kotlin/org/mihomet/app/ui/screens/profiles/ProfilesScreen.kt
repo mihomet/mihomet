@@ -63,6 +63,7 @@ fun ProfilesScreen(
     // Subscription headers editor: profile id + decrypted "Name: Value" lines
     // (resolved on demand — the stored headers are encrypted at rest)
     var headersDialog by remember { mutableStateOf<HeadersDialogData?>(null) }
+    var autoUpdateProfile by remember { mutableStateOf<ProfileEntity?>(null) }
     // Subscription QR sharing: profile name + decrypted URL resolved on demand
     var qrDialogData by remember { mutableStateOf<ProfileQrData?>(null) }
     val clipboardManager = LocalClipboardManager.current
@@ -72,15 +73,15 @@ fun ProfilesScreen(
     val view = LocalView.current
 
     LaunchedEffect(state.errorMessage) {
-        state.errorMessage?.let {
-            snackbarHostState.showSnackbar(it, withDismissAction = true)
+        state.errorMessage?.let { msg ->
             viewModel.clearError()
+            snackbarHostState.showSnackbar(msg, withDismissAction = true)
         }
     }
     LaunchedEffect(state.successMessage) {
-        state.successMessage?.let {
-            snackbarHostState.showSnackbar(it)
+        state.successMessage?.let { msg ->
             viewModel.clearSuccess()
+            snackbarHostState.showSnackbar(msg)
         }
     }
 
@@ -255,7 +256,7 @@ fun ProfilesScreen(
                     .padding(innerPadding)
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 100.dp)
+                contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
             ) {
                 items(state.profiles, key = { it.id }) { profile ->
                     ExpressiveProfileCard(
@@ -277,6 +278,10 @@ fun ProfilesScreen(
                                     initialText = viewModel.getHeadersText(profile.id)
                                 )
                             }
+                        },
+                        onEditInterval = {
+                            AppHaptics.perform(context, HapticType.CLICK, view)
+                            autoUpdateProfile = profile
                         },
                         onShowQr = {
                             AppHaptics.perform(context, HapticType.CLICK, view)
@@ -312,6 +317,58 @@ fun ProfilesScreen(
                 onAddBlank = { name ->
                     viewModel.addBlankProfile(name)
                     showAddDialog = false
+                }
+            )
+        }
+
+        autoUpdateProfile?.let { targetProfile ->
+            val intervals = listOf(
+                0 to stringResource(R.string.profile_auto_update_disabled),
+                1 to stringResource(R.string.profile_auto_update_1h),
+                6 to stringResource(R.string.profile_auto_update_6h),
+                12 to stringResource(R.string.profile_auto_update_12h),
+                24 to stringResource(R.string.profile_auto_update_24h)
+            )
+            AlertDialog(
+                onDismissRequest = { autoUpdateProfile = null },
+                title = { Text(stringResource(R.string.profile_auto_update_title), fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        intervals.forEach { (hours, label) ->
+                            val isSelected = targetProfile.updateIntervalHours == hours
+                            Surface(
+                                shape = ExpressiveShapes.Small,
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.updateProfileInterval(targetProfile, hours)
+                                        autoUpdateProfile = null
+                                    }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                                ) {
+                                    RadioButton(
+                                        selected = isSelected,
+                                        onClick = {
+                                            viewModel.updateProfileInterval(targetProfile, hours)
+                                            autoUpdateProfile = null
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { autoUpdateProfile = null }) {
+                        Text(stringResource(R.string.action_cancel))
+                    }
                 }
             )
         }
@@ -530,6 +587,7 @@ fun ExpressiveProfileCard(
     onEditYaml: () -> Unit,
     onEditPatch: () -> Unit,
     onEditHeaders: () -> Unit,
+    onEditInterval: () -> Unit = {},
     onShowQr: () -> Unit,
     onUpdate: () -> Unit,
     onDelete: () -> Unit
@@ -681,6 +739,14 @@ fun ExpressiveProfileCard(
                                         onEditHeaders()
                                     },
                                     leadingIcon = { Icon(Icons.Default.Subject, contentDescription = null) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.profile_auto_update_menu)) },
+                                    onClick = {
+                                        showMenu = false
+                                        onEditInterval()
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null) }
                                 )
                                 // QR sharing only makes sense for a subscription URL
                                 // (remote profile with a non-blank stored url).

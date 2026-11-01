@@ -481,4 +481,22 @@ class UniversalConfigConverterTest {
         val parsed = Yaml().load<Map<String, Any>>(outcome.yaml)
         assertTrue(parsed.containsKey("proxies"))
     }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test URI query params with base64 padding and comments are parsed correctly`() {
+        val uriList = """
+            # comment with proxies: 10
+            vless://uuid-test@example.com:443?security=reality&sni=example.com&pbk=dGVzdGtleQ==&sid=id#Server-proxies:fast
+        """.trimIndent()
+
+        val outcome = UniversalConfigConverter.convertToMihomoYamlWithOutcome(uriList)
+        val yaml = Yaml()
+        val parsed = yaml.load<Map<String, Any>>(outcome.yaml)
+        val proxies = parsed["proxies"] as List<Map<String, Any>>
+        assertEquals(1, proxies.size)
+        assertEquals("Server-proxies:fast", proxies[0]["name"])
+        val realityOpts = proxies[0]["reality-opts"] as Map<String, Any>
+        assertEquals("dGVzdGtleQ==", realityOpts["public-key"])
+    }
 }

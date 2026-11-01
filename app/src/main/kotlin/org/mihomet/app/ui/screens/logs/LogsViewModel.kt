@@ -7,8 +7,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.mihomet.app.data.api.AppLogBuffer
 import org.mihomet.app.data.api.LogEntry
 import org.mihomet.app.data.api.MihomoApiClientProvider
+import org.mihomet.app.data.preferences.SettingsRepository
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -44,22 +46,30 @@ fun buildLogExportText(
 
 class LogsViewModel(
     private val apiClientProvider: MihomoApiClientProvider,
-    private val appContext: Context
+    private val appContext: Context,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LogsUiState())
     val uiState: StateFlow<LogsUiState> = _uiState.asStateFlow()
 
-    private val logBuffer = mutableListOf<LogEntry>()
-
     init {
+        _uiState.update { it.copy(logs = AppLogBuffer.buffer.toList()) }
+
         viewModelScope.launch {
-            apiClientProvider.current().streamLogs().collect { entry ->
-                logBuffer.add(entry)
-                if (logBuffer.size > 500) {
-                    logBuffer.removeAt(0)
+            val settings = settingsRepository.settingsFlow.first()
+            if (settings.persistentLogging) {
+                AppLogBuffer.entries.collect { list ->
+                    _uiState.update { it.copy(logs = list) }
                 }
-                _uiState.update { it.copy(logs = logBuffer.toList()) }
+            } else {
+                @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+                apiClientProvider.clientFlow.flatMapLatest { client ->
+                    client.streamLogs()
+                }.collect { entry ->
+                    AppLogBuffer.add(entry)
+                    _uiState.update { it.copy(logs = AppLogBuffer.buffer.toList()) }
+                }
             }
         }
     }
@@ -69,7 +79,7 @@ class LogsViewModel(
     }
 
     fun clearLogs() {
-        logBuffer.clear()
+        AppLogBuffer.clear()
         _uiState.update { it.copy(logs = emptyList()) }
     }
 

@@ -49,7 +49,7 @@ fun ExpressiveNavigationBar(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 10.dp)
+            .padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 6.dp)
             .shadow(
                 elevation = 12.dp,
                 shape = ExpressiveShapes.ExtraLarge,

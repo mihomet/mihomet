@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -358,9 +359,12 @@ fun RoutingScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    if (app.icon != null) {
+                                    val icon = remember(app.packageName) {
+                                        runCatching { context.packageManager.getApplicationIcon(app.packageName) }.getOrNull()
+                                    }
+                                    if (icon != null) {
                                         Image(
-                                            bitmap = app.icon.toBitmap().asImageBitmap(),
+                                            bitmap = remember(icon) { icon.toBitmap().asImageBitmap() },
                                             contentDescription = null,
                                             modifier = Modifier
                                                 .size(40.dp)

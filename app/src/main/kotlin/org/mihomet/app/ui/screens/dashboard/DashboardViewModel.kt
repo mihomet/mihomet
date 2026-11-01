@@ -53,6 +53,7 @@ class DashboardViewModel(
 
     private var trafficJob: Job? = null
     private var coreStatsJob: Job? = null
+    private var memoryJob: Job? = null
     private val historyBuffer = mutableListOf<TrafficSample>()
 
     private companion object {
@@ -197,7 +198,10 @@ class DashboardViewModel(
     private fun startTrafficMonitor() {
         trafficJob?.cancel()
         trafficJob = viewModelScope.launch {
-            apiClientProvider.current().streamTraffic().collect { sample ->
+            @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+            apiClientProvider.clientFlow.flatMapLatest { client ->
+                client.streamTraffic()
+            }.collect { sample ->
                 historyBuffer.add(sample)
                 if (historyBuffer.size > 30) {
                     historyBuffer.removeAt(0)
@@ -238,10 +242,18 @@ class DashboardViewModel(
                 api.getConnections().onSuccess { response ->
                     _uiState.update { it.copy(connectionsCount = response.connections.size) }
                 }
-                api.getMemory().onSuccess { memory ->
+                delay(CORE_STATS_POLL_INTERVAL_MS)
+            }
+        }
+        memoryJob?.cancel()
+        memoryJob = viewModelScope.launch {
+            @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+            apiClientProvider.clientFlow.flatMapLatest { client ->
+                client.streamMemory()
+            }.collect { memory ->
+                if (memory.inuse > 0) {
                     _uiState.update { it.copy(memoryInuse = memory.inuse) }
                 }
-                delay(CORE_STATS_POLL_INTERVAL_MS)
             }
         }
     }
@@ -249,6 +261,8 @@ class DashboardViewModel(
     private fun stopCoreStatsMonitor() {
         coreStatsJob?.cancel()
         coreStatsJob = null
+        memoryJob?.cancel()
+        memoryJob = null
         _uiState.update {
             it.copy(
                 connectionsCount = 0,

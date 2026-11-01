@@ -15,9 +15,14 @@ import java.io.StringWriter
  */
 internal object ClashYamlConverter {
 
+    private val PROXIES_REGEX = Regex("""(?m)^[ \t]*proxies\s*:""")
+    private val PROXY_GROUPS_REGEX = Regex("""(?m)^[ \t]*proxy-groups\s*:""")
+
     fun isClashYaml(str: String): Boolean {
         if (str.startsWith("{") || str.startsWith("[")) return false
-        return str.contains("proxies:") || str.contains("proxy-groups:") || (str.contains("mixed-port:") && str.contains("rules:"))
+        return PROXIES_REGEX.containsMatchIn(str) ||
+            PROXY_GROUPS_REGEX.containsMatchIn(str) ||
+            (str.contains("mixed-port:") && str.contains("rules:"))
     }
 
     fun validateAndNormalizeYaml(yamlContent: String, warnings: MutableList<ConversionWarning>? = null): String {

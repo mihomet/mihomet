@@ -145,4 +145,31 @@ class ConfigGeneratorTest {
         assertEquals(listOf("AUTO", "Node-1", "Node-2"), proxyGroupProxies)
         assertFalse(proxyGroupProxies.contains("⚡ Автовыбор"))
     }
+
+    @Test
+    fun `test config generator strips tun block in root mode`() {
+        val yamlWithTun = """
+            tun:
+              enable: true
+              stack: mixed
+            proxies:
+              - name: "TestNode"
+                type: ss
+                server: 1.2.3.4
+                port: 8388
+                cipher: aes-256-gcm
+                password: "password"
+            rules:
+              - MATCH,DIRECT
+        """.trimIndent()
+
+        val output = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = yamlWithTun,
+            settings = AppSettings(),
+            tunFd = null
+        )
+
+        val parsed = Yaml().load<Map<String, Any>>(output)
+        assertNull("tun block must be removed in root mode", parsed["tun"])
+    }
 }

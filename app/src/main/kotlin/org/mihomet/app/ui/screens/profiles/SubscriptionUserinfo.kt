@@ -139,9 +139,7 @@ object SubscriptionMetaParser {
 
         val lookup = HashMap<String, String>(headers.size)
         for ((key, value) in headers) {
-            if (key != null && value != null) {
-                lookup.putIfAbsent(key.trim().lowercase(Locale.ROOT), value)
-            }
+            lookup.putIfAbsent(key.trim().lowercase(Locale.ROOT), value)
         }
 
         val title = lookup["profile-title"]?.trim()?.takeIf { it.isNotEmpty() }?.let(::decodeTitle)

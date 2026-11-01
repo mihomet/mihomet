@@ -33,12 +33,18 @@ class MihometTileService : TileService(), KoinComponent {
 
     override fun onStartListening() {
         super.onStartListening()
+        updateTileState()
         listenJob?.cancel()
         listenJob = scope.launch {
             ServiceState.isRunning.collect { running ->
                 updateTileState(running)
             }
         }
+    }
+
+    override fun onTileAdded() {
+        super.onTileAdded()
+        updateTileState()
     }
 
     override fun onStopListening() {
@@ -91,12 +97,12 @@ class MihometTileService : TileService(), KoinComponent {
                     MihometVpnService.start(this@MihometTileService)
                 }
             }
-            updateTileState(!isRunning)
         }
     }
 
     private fun updateTileState(isRunning: Boolean = ServiceState.isRunning.value) {
         val tile = qsTile ?: return
+        tile.icon = android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_proxy_tile)
         tile.state = if (isRunning) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         tile.label = getString(R.string.app_name)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
