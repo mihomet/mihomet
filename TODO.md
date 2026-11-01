@@ -103,10 +103,72 @@
 - [x] Free MTU (1280–65535 numeric input + presets) and TUN stack choice instead of hardcodes.
 - [x] App language picker (per-app locales, API 33+) + `localeConfig`.
 
-### Feature ideas (from real-panel testing)
-- [ ] Local auto-balancer: when a subscription yields nodes but NO groups (URI-list
-  panels), synthesize a `url-test` group ("Авто-выбор") alongside the fallback
-  PROXY select — mimics Happ's auto-routing for panel templates without groups.
+### Feature: built-in auto-balancer "AUTO" (spec for implementing agent — self-contained, do not re-ask)
+
+**Goal.** URI-list subscriptions (and panels with group-less templates) give nodes but no
+balancing group. When the profile ends up without any balancer, Mihomet synthesizes its own
+mihomo-native `url-test` group so the user gets Happ-style auto-selection. NO custom networking:
+mihomo itself runs the latency probes and fails over — we only generate config.
+
+**Core principle (how it works).** Group type `url-test`: mihomo periodically (interval) sends an
+HTTP probe through every member, keeps the lowest-latency member active, and re-picks on failure.
+`tolerance` (ms) prevents flapping between near-equal nodes. The dashboard already renders
+url-test groups natively (Servers screen shows the current pick + latencies) — zero UI work.
+
+**Multiple subscriptions.** Strictly per-profile: the balancer is synthesized inside ONE profile's
+generated runtime config and balances only that profile's nodes. Cross-profile balancing is
+explicitly OUT of scope (the core runs a single config; merging subscriptions would need
+proxy-providers with per-provider auth headers — a separate large feature).
+
+**Design decisions (locked):**
+1. Trigger: after profile parse, if the effective group list contains NO group of type
+   `url-test` / `load-balance` / `fallback`, AND the real-node pool (see 4) has >= 2 nodes,
+   AND `autoBalancerEnabled` — synthesize the group. Panel-provided balancers always win
+   (never duplicate, never modify a panel balancer).
+2. Name: constant `AUTO` (add `CoreConstants.AUTO_GROUP_NAME = "AUTO"` — matches the existing
+   `PROXY` convention; visible in Servers screen as-is).
+3. Group fields: `type: url-test`, `udp: true`, `url: "https://www.gstatic.com/generate_204"`
+   (constant in CoreConstants), `interval: 300`, `tolerance: 50`.
+4. Pool = profile's real proxies (the same `realProxyNames` list the fallback PROXY synthesis
+   uses, already excluding reserved names) MINUS every name containing any user exclude
+   pattern (case-insensitive substring match, patterns split by newline; empty setting = no
+   exclusions). Real-world motivation: bridge nodes («Мост …»), gaming nodes («[🎮 Игровой]»),
+   bypass nodes («ОБХОД») balance badly — let the user cut them out.
+5. Integration with groups:
+   - If the app synthesizes the fallback `PROXY` select group anyway (panel gave no groups):
+     PROXY proxies = `[AUTO, ...pool]` — AUTO is the default pick, MATCH,PROXY keeps working.
+   - If the panel DID provide groups (but no balancer): AUTO is APPENDED to the proxy list of
+     the FIRST `select`-type group (available, NOT the default pick). If the setting
+     `autoBalancerPreferDefault` is ON, prepend it instead (AUTO becomes that group's default).
+     Never touch non-select panel groups.
+6. Settings (DataStore via SettingsRepository, global — per-profile overrides are future work):
+   - `autoBalancerEnabled: Boolean = true`
+   - `autoBalancerExcludes: String = ""` (newline-separated substrings)
+   - `autoBalancerPreferDefault: Boolean = false`
+7. Settings UI: a card in the Advanced section («Продвинутые») titled «Авто-балансировщик»:
+   enable toggle, excludes multiline field (hint: one substring per line, e.g. `Мост`,
+   `Игровой`), and the prefer-default toggle with an explicit warning-style subtitle that
+   enabling changes the default routing target for panel select-groups. ALL strings in BOTH
+   locales via stringResource; follow SubscriptionsSection/AdvancedSection patterns
+   (SettingsScreen is split — the card lives in its own file or AdvancedSection).
+8. Files touched: `core/config/ConfigGenerator.kt` (synthesis + injection, near the existing
+   fallback PROXY logic ~lines 300-335), `CoreConstants.kt` (constants), `data/preferences/`
+   (settings fields + sanitizer like other string settings), `ui/screens/settings/` (card),
+   `res/values*/strings.xml` (append at END, both locales), tests.
+9. Tests (strict style, extend ConfigGeneratorStrictTest / ConfigGeneratorWhitelistStrictTest):
+   - synthesized when no groups; fields exact (type/url/interval/tolerance/udp);
+   - NOT synthesized when a panel url-test/load-balance/fallback group exists;
+   - not synthesized with < 2 pool nodes after exclusions; exclusions applied
+     case-insensitively;
+   - fallback-PROXY path: AUTO first in PROXY list, MATCH,PROXY unchanged;
+   - panel-select-group path: appended by default, prepended when prefer-default ON,
+     panel non-select groups untouched;
+   - panel balancer + feature ON → zero changes to panel groups.
+10. Out of scope (do NOT build): cross-profile balancing, per-profile settings, probe URL /
+    interval settings UI, latency-test integration with NodePingTester.
+
+Verification: `./gradlew compileDebugKotlin testDebugUnitTest` green; build with
+`JAVA_HOME=/home/misha/.jdks/jdk-21`.
 ### Wave 3 — build-stack & refactors (closed this milestone)
 - [x] **P2.1** God files split: `MihometVpnService` 961→467 (+TunBuilder/CoreProcessLauncher/
   CoreReadinessProbe/CoreWatchdog/VpnNotificationController/UnderlyingNetworkTracker),
