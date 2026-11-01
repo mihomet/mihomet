@@ -8,6 +8,7 @@ import io.ktor.client.request.header
 import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.counted
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -312,7 +313,8 @@ class SubscriptionRepositoryStreamTest {
         // behavior (buffer the whole body first) would read every byte.
         val limit = SubscriptionRepository.MAX_SUBSCRIPTION_BYTES
         val body = ByteArray((limit + 4L * 1024 * 1024).toInt()) { 'x'.code.toByte() }
-        val channel = io.ktor.utils.io.ByteReadChannel(body)
+        // Ktor 3: totalBytesRead moved to the counted() wrapper channel.
+        val channel = io.ktor.utils.io.ByteReadChannel(body).counted()
         val error = assertThrows(SubscriptionTooLargeException::class.java) {
             runBlocking {
                 org.mihomet.app.data.subs.SubscriptionRepository

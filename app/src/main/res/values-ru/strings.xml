@@ -445,4 +445,21 @@
     <string name="vpn_httpproxy_desc">Публикует локальный HTTP-прокси приложениям внутри VPN (mixed-port)</string>
     <!-- ICMP-задержка: устройство не умеет ICMP (нет бинарника ping / отказ ОС), а не недоступность узла (аудит P2.8) -->
     <string name="latency_icmp_unavailable">ICMP недоступен</string>
+
+    <!-- Обновление самого приложения (аудит P1.4): Настройки → О программе → строка версии -->
+    <string name="app_update_version_label">Версия</string>
+    <string name="app_update_check">Проверить обновления</string>
+    <string name="app_update_checking">Проверка обновлений…</string>
+    <string name="app_update_up_to_date">Актуальная версия (%1$s)</string>
+    <string name="app_update_available">Доступна версия %1$s</string>
+    <string name="app_update_available_manual">Доступна версия %1$s — откройте страницу релиза и установите вручную</string>
+    <string name="app_update_download">Скачать и установить</string>
+    <string name="app_update_downloading">Загрузка… %1$d%%</string>
+    <string name="app_update_ready">Версия %1$s загружена и проверена</string>
+    <string name="app_update_install">Установить обновление</string>
+    <string name="app_update_install_requested">Завершите установку в системном диалоге</string>
+    <string name="app_update_need_permission">Для установки приложений нужно разрешение Android</string>
+    <string name="app_update_grant_permission">Разрешить в настройках</string>
+    <string name="app_update_open_release">Открыть страницу релиза</string>
+    <string name="app_update_error">Не удалось обновить: %1$s</string>
 </resources>

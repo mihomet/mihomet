@@ -443,4 +443,21 @@
     <string name="vpn_httpproxy_desc">Expose a local HTTP proxy to apps inside the VPN (mixed-port)</string>
     <!-- ICMP latency: capability gap on this device (no ping binary / OS refusal), not a node failure (audit P2.8) -->
     <string name="latency_icmp_unavailable">ICMP unavailable</string>
+
+    <!-- In-app self-update (audit P1.4): Settings → About → Version row -->
+    <string name="app_update_version_label">Version</string>
+    <string name="app_update_check">Check for updates</string>
+    <string name="app_update_checking">Checking for updates…</string>
+    <string name="app_update_up_to_date">Up to date (%1$s)</string>
+    <string name="app_update_available">Version %1$s is available</string>
+    <string name="app_update_available_manual">Version %1$s is available — open the release page to install it manually</string>
+    <string name="app_update_download">Download &amp; install</string>
+    <string name="app_update_downloading">Downloading… %1$d%%</string>
+    <string name="app_update_ready">Version %1$s downloaded and verified</string>
+    <string name="app_update_install">Install update</string>
+    <string name="app_update_install_requested">Follow the system dialog to finish installing</string>
+    <string name="app_update_need_permission">Android needs permission to install apps</string>
+    <string name="app_update_grant_permission">Allow in Settings</string>
+    <string name="app_update_open_release">Open release page</string>
+    <string name="app_update_error">Update failed: %1$s</string>
 </resources>

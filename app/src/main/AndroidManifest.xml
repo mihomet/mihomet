@@ -13,6 +13,11 @@
     <!-- One-time battery-optimization whitelist prompt (FlClash BatteryPlugin pattern) -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- In-app self-update (audit P1.4): PackageInstaller session install with the
+         standard user consent dialog. Install only happens on an explicit user tap
+         after the APK passed size + signing-certificate verification. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <!-- Per-app proxy list (audit P3.6): replaces QUERY_ALL_PACKAGES. Only launchable
          apps are visible to the package manager — which is exactly what the routing
          screen lists (QUERY_ALL_PACKAGES was broader than the feature needs). -->
