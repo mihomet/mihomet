@@ -41,6 +41,8 @@ jobs:
 
       - name: Unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
+      - name: Coverage report
+        run: ./gradlew jacocoUnitTestReport
 
       # Audit P2.7: static analysis. Both fail on NEW issues only — existing
       # debt is frozen in app/lint-baseline.xml and config/detekt-baseline.xml.
@@ -92,7 +94,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-reports
-          path: app/build/reports/tests/
+          path: |
+            app/build/reports/tests/
+            app/build/reports/jacoco/
 
       - name: Upload static analysis reports
         if: failure()

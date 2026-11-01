@@ -10,6 +10,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.detekt)
+    id("jacoco")
 }
 
 // Mihomo core is kept out of git and downloaded at build time.
@@ -282,4 +283,35 @@ dependencies {
     androidTestImplementation(libs.room.testing)
     androidTestImplementation(libs.kotlinx.coroutines.test)
     debugImplementation(libs.androidx.ui.tooling)
+}
+
+// Unit-test coverage report (CI uploads it as an artifact; no hard gate — the
+// Android-bound service/UI layers are covered by instrumented tests instead).
+jacoco {
+    toolVersion = "0.8.12"
+}
+tasks.register("jacocoUnitTestReport", JacocoReport::class) {
+    dependsOn("testDebugUnitTest")
+    group = "verification"
+    outputs.upToDateWhen { false }
+    executionData(fileTree(layout.buildDirectory.dir("jacoco")) { include("**/*.exec") })
+    sourceDirectories.setFrom(files("$projectDir/src/main/kotlin"))
+    classDirectories.setFrom(
+        fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/debug")) {
+            exclude(
+                "**/*Test*.*",
+                "**/di/**",
+                "**/*_Factory*.*",
+                "**/*\$Injector*.*",
+                "**/R.class", "**/R\$*.class", "**/BuildConfig.*",
+                "**/*_Impl\$*.*", "**/*\$serializer*.*",
+                "dagger/**", "hilt_aggregated_deps/**"
+            )
+        }
+    )
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/html"))
+    }
 }
