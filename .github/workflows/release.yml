@@ -27,6 +27,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Release provenance: builds are only ever cut from a tag whose signature
+      # GitHub has verified against a registered SSH/GPG signing key of the
+      # maintainer account. Unsigned or unverified tags fail the release.
+      - name: Verify tag signature
+        run: |
+          set -euo pipefail
+          TAG_SHA="$(git rev-parse "refs/tags/${GITHUB_REF_NAME}^{tag}")"
+          RESP="$(curl -sf --max-time 20 -H 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/git/tags/${TAG_SHA}" || true)"
+          if [ -z "$RESP" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} is lightweight or unknown to the GitHub API. Releases are cut from SIGNED annotated tags only (git tag -s -a vX.Y.Z)."
+            exit 1
+          fi
+          VERIFIED="$(printf '%s' "$RESP" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("verification",{}).get("verified", False))' 2>/dev/null || true)"
+          if [ "$VERIFIED" != "True" ]; then
+            REASON="$(printf '%s' "$RESP" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("verification",{}).get("reason","unknown"))' 2>/dev/null || echo unknown)"
+            echo "::error::Tag ${GITHUB_REF_NAME} is not verified by GitHub (reason: ${REASON}). Register the signing key under Settings → SSH and GPG keys with type 'Signing Key'."
+            exit 1
+          fi
+          echo "Tag signature verified by GitHub."
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
