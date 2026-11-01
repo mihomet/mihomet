@@ -111,11 +111,12 @@
 - [x] **P2.9** Typed `ConversionWarning` sealed hierarchy end-to-end; Russian-prefix matching in
   `WarningLocalizer` deleted; Russian literals removed from converters. (Exception path messages
   still Russian — tracked below.)
-- [x] **P2.4** Dependency ladder (safe tiers): core-ktx 1.18, activity-compose 1.13, lifecycle 2.10,
+- [x] **P2.4** Dependency ladder: core-ktx 1.18, activity-compose 1.13, lifecycle 2.10,
   navigation 2.9.8, WorkManager 2.12, DataStore 1.3, Compose BOM 2026.06, Room 2.8.5 (KSP2),
-  kotlinx-serialization 1.8.1, Koin 4.1.1, splashscreen 1.2.0, AGP 8.13.2 + Gradle 8.13;
-  ben-manes versions plugin + weekly `dependencyUpdates` CI job. Deliberately on majors:
-  Kotlin 2.1.0 (Ktor 3 migration in progress — see wave 2), Kotlin 2.3/AGP 9 deferred.
+  kotlinx-serialization 1.8.1, Koin 4.1.1, splashscreen 1.2.0, AGP 8.13.2 + Gradle 8.13,
+  **Ktor 2.3.12 → 3.3.3** (latest consumable on Kotlin 2.1; 3.4+ needs the Kotlin bump),
+  MockWebServer 5.2.1; ben-manes versions plugin + weekly `dependencyUpdates` CI job.
+  Deliberately deferred: Kotlin 2.3 / AGP 9 (their own migration steps).
 - [x] **P2.5** compileSdk 37, targetSdk 36.
 - [x] **P2.7** CI: Android Lint (baseline 109 pre-existing) + detekt (baseline 70 IDs, file/function
   size limits) — new code must be clean.
@@ -130,10 +131,18 @@
 - [x] **P1.3** Instrumented tests: 14 tests / 4 classes (Room migrations incl. Keystore round trip,
   deep-link manifest contract, VpnService manifest contract, ConfigGenerator on-device whitelist
   smoke) + `connected` CI job on API 29+35 emulator matrix.
-- [ ] **P1.4** In-app update check + signature-verified APK install — in progress (wave 2).
-- [ ] **P3 (rest)** Signed tags/GPG for releases (needs the maintainer's GPG key); typed exceptions
-  for fail-closed error messages (Russian literals on the exception path); versionCode still manual —
-  bump on next release.
+- [x] **P1.4** In-app self-update (Settings → About): semver check against GitHub releases,
+  fail-closed verifier (version-info.json → tag binding → versionCode monotonicity → asset
+  sha256/size → **signing-certificate equality**), streamed download + PackageInstaller with
+  the user-consent flow; releases without `version-info.json` (e.g. published v1.2.1) degrade
+  to "open release page" only. Verified on-device: real GitHub round trip.
+- [x] **P2.9 (tail)** Fail-closed errors typed end-to-end (`AppErrorCode`/`AppException` +
+  resource mapping, guarded by `AppErrorResourcesTest` in both locales) — no Russian literals
+  left in core/data layers.
+- [ ] **P3 (rest)** Signed tags/GPG for releases (needs the maintainer's GPG key).
+- [x] **P1.3 (addendum)** JaCoCo unit-test coverage report in CI (artifact, no hard gate).
+- Release readiness: versionCode 6 / versionName 1.3.0 + CHANGELOG prepared; tag `v1.3.0`
+  waits for maintainer go-ahead.
 
 ---
 
