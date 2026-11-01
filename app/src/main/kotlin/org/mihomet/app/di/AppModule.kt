@@ -10,12 +10,14 @@ import org.mihomet.app.data.api.MihomoApiClientProvider
 import org.mihomet.app.data.db.AppDatabase
 import org.mihomet.app.data.preferences.SettingsRepository
 import org.mihomet.app.data.subs.SubscriptionRepository
+import org.mihomet.app.data.update.AppUpdateManager
 import org.mihomet.app.ui.screens.connections.ConnectionsViewModel
 import org.mihomet.app.ui.screens.dashboard.DashboardViewModel
 import org.mihomet.app.ui.screens.logs.LogsViewModel
 import org.mihomet.app.ui.screens.profiles.ProfilesViewModel
 import org.mihomet.app.ui.screens.proxies.ProxiesViewModel
 import org.mihomet.app.ui.screens.routing.RoutingViewModel
+import org.mihomet.app.ui.screens.settings.AppUpdateViewModel
 import org.mihomet.app.ui.screens.settings.SettingsViewModel
 
 val appModule = module {
@@ -38,6 +40,8 @@ val appModule = module {
     single { CoreManager(androidContext()) }
     single { FirewallManager() }
     single { SubscriptionRepository(androidContext(), get(), get()) }
+    // In-app self-update (audit P1.4): GitHub check + verified APK install
+    single { AppUpdateManager(androidContext()) }
 
     // API Client (recreated only when controller port/secret changes)
     single { MihomoApiClientProvider(get()) }
@@ -50,4 +54,5 @@ val appModule = module {
     viewModel { ConnectionsViewModel(get()) }
     viewModel { LogsViewModel(get(), androidContext()) }
     viewModel { SettingsViewModel(get(), get(), get()) }
+    viewModel { AppUpdateViewModel(get()) }
 }
