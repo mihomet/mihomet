@@ -31,19 +31,28 @@ jobs:
       # GitHub has verified against a registered SSH/GPG signing key of the
       # maintainer account. Unsigned or unverified tags fail the release.
       - name: Verify tag signature
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG_SHA="$(git rev-parse "refs/tags/${GITHUB_REF_NAME}^{tag}")"
-          RESP="$(curl -sf --max-time 20 -H 'Accept: application/vnd.github+json' \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/git/tags/${TAG_SHA}" || true)"
-          if [ -z "$RESP" ]; then
-            echo "::error::Tag ${GITHUB_REF_NAME} is lightweight or unknown to the GitHub API. Releases are cut from SIGNED annotated tags only (git tag -s -a vX.Y.Z)."
+          API="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          AUTH=(-H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json')
+          REF_JSON="$(curl -sf --max-time 20 "${AUTH[@]}" "$API/git/ref/tags/${GITHUB_REF_NAME}" || true)"
+          if [ -z "$REF_JSON" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} not found via the GitHub API."
             exit 1
           fi
-          VERIFIED="$(printf '%s' "$RESP" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("verification",{}).get("verified", False))' 2>/dev/null || true)"
+          OBJ_TYPE="$(printf '%s' "$REF_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["object"]["type"])')"
+          OBJ_SHA="$(printf '%s' "$REF_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["object"]["sha"])')"
+          if [ "$OBJ_TYPE" != "tag" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} is lightweight. Releases are cut from SIGNED annotated tags only (git tag -s -a vX.Y.Z)."
+            exit 1
+          fi
+          TAG_JSON="$(curl -sf --max-time 20 "${AUTH[@]}" "$API/git/tags/${OBJ_SHA}" || true)"
+          VERIFIED="$(printf '%s' "$TAG_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("verification",{}).get("verified", False))' 2>/dev/null || true)"
           if [ "$VERIFIED" != "True" ]; then
-            REASON="$(printf '%s' "$RESP" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("verification",{}).get("reason","unknown"))' 2>/dev/null || echo unknown)"
-            echo "::error::Tag ${GITHUB_REF_NAME} is not verified by GitHub (reason: ${REASON}). Register the signing key under Settings → SSH and GPG keys with type 'Signing Key'."
+            REASON="$(printf '%s' "$TAG_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("verification",{}).get("reason","unknown"))' 2>/dev/null || echo unknown)"
+            echo "::error::Tag ${GITHUB_REF_NAME} is not verified by GitHub (reason: ${REASON}). Sign with the registered signing key: git tag -s -a vX.Y.Z (tagger email must match the GitHub account)."
             exit 1
           fi
           echo "Tag signature verified by GitHub."
