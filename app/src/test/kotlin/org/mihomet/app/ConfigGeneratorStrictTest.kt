@@ -2,6 +2,8 @@ package org.mihomet.app
 
 import org.junit.Assert.*
 import org.junit.Test
+import org.mihomet.app.core.AppErrorCode
+import org.mihomet.app.core.AppException
 import org.mihomet.app.core.config.ConfigGenerator
 import org.mihomet.app.data.preferences.AppSettings
 import org.mihomet.app.data.preferences.ProxyMode
@@ -436,10 +438,14 @@ class ConfigGeneratorStrictTest {
                 tunFd = null
             )
             fail("Broken profile must be rejected, got a runtime config for: $input")
-        } catch (e: IllegalStateException) {
+        } catch (e: AppException) {
             assertTrue(
-                "Message must name the broken YAML, was: ${e.message}",
-                e.message?.contains("Профиль содержит некорректный YAML") == true
+                "Fail-closed rejection must be a typed YAML error, was: ${e.code}",
+                e.code == AppErrorCode.PROFILE_YAML_EMPTY || e.code == AppErrorCode.PROFILE_YAML_INVALID
+            )
+            assertTrue(
+                "Exception message must keep the code (and parser detail, if any) for logs, was: ${e.message}",
+                e.message?.contains("PROFILE_YAML") == true
             )
         }
     }

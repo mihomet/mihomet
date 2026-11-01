@@ -1,5 +1,7 @@
 package org.mihomet.app.core.config
 
+import org.mihomet.app.core.AppErrorCode
+import org.mihomet.app.core.AppException
 import org.mihomet.app.core.CoreConstants
 import org.mihomet.app.core.dns.DnsCategory
 import org.mihomet.app.core.dns.DnsPresets
@@ -105,20 +107,21 @@ object ConfigGenerator {
         // services refuse the core start (or fall back to the last known-good
         // runtime config) instead of silently losing the user's routing.
         if (profileYamlContent.isBlank()) {
-            throw IllegalStateException("Профиль содержит некорректный YAML: файл пуст")
+            throw AppException(AppErrorCode.PROFILE_YAML_EMPTY)
         }
         val yaml = Yaml()
         val configMap: MutableMap<String, Any> = try {
             val parsed = yaml.load<Any>(profileYamlContent)
-                ?: throw IllegalStateException("Профиль содержит некорректный YAML: файл пуст")
+                ?: throw AppException(AppErrorCode.PROFILE_YAML_EMPTY)
             (parsed as? Map<String, Any>)?.toMutableMap()
-                ?: throw IllegalStateException(
-                    "Профиль содержит некорректный YAML: документ не является словарём (${parsed::class.simpleName})"
+                ?: throw AppException(
+                    AppErrorCode.PROFILE_YAML_INVALID,
+                    "document is ${parsed::class.simpleName}, expected a map"
                 )
-        } catch (e: IllegalStateException) {
+        } catch (e: AppException) {
             throw e
         } catch (e: Exception) {
-            throw IllegalStateException("Профиль содержит некорректный YAML: ${e.message ?: "неизвестная ошибка"}")
+            throw AppException(AppErrorCode.PROFILE_YAML_INVALID, e.message ?: "unknown parse error", cause = e)
         }
 
         // Profile-key whitelist (audit P1 §2.1): drop every top-level key the app does

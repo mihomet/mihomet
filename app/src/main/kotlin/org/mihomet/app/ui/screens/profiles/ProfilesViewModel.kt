@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.mihomet.app.R
+import org.mihomet.app.core.AppException
+import org.mihomet.app.core.stringRes
 import org.mihomet.app.core.config.ConfigGenerator
 import org.mihomet.app.core.config.ConversionOutcome
 import org.mihomet.app.core.config.UniversalConfigConverter
@@ -389,7 +391,7 @@ class ProfilesViewModel(
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                onError(context.getString(R.string.profiles_import_error, e.localizedMessage ?: e.message))
+                onError(context.getString(R.string.profiles_import_error, localizeError(e)))
             }
         }
     }
@@ -471,7 +473,7 @@ class ProfilesViewModel(
                 throw e
             } catch (e: Exception) {
                 errorMessageFlow.value =
-                    context.getString(R.string.profiles_update_failed, e.message ?: context.getString(R.string.profiles_unknown_error))
+                    context.getString(R.string.profiles_update_failed, localizeError(e))
             }
         }
     }
@@ -613,7 +615,7 @@ class ProfilesViewModel(
                 successMessageFlow.value = context.getString(R.string.profile_headers_saved)
             } catch (e: Exception) {
                 errorMessageFlow.value =
-                    context.getString(R.string.profiles_update_failed, e.message ?: context.getString(R.string.profiles_unknown_error))
+                    context.getString(R.string.profiles_update_failed, localizeError(e))
             }
         }
         return Result.success(Unit)
@@ -635,6 +637,23 @@ class ProfilesViewModel(
             return@withContext ""
         }
         SubscriptionHeaders.toLines(SubscriptionHeaders.parseLenient(stored))
+    }
+
+    /**
+     * Localizes a thrown error for display (audit P2.9 tail): typed [AppException]s
+     * from the core/data layers map to string resources; anything else keeps the
+     * legacy `e.message` fallback. Producers no longer carry UI-language strings.
+     */
+    private fun localizeError(e: Throwable): String {
+        if (e is AppException) {
+            val res = e.code.stringRes()
+            return if (e.args.isEmpty()) {
+                context.getString(res)
+            } else {
+                context.getString(res, *e.args)
+            }
+        }
+        return e.message ?: context.getString(R.string.profiles_unknown_error)
     }
 
     /** Maps a pure parser [SubscriptionHeaders.Violation] to a localized message. */
@@ -737,7 +756,7 @@ class ProfilesViewModel(
                 successMessageFlow.value = context.getString(R.string.profile_patch_saved)
             } catch (e: Exception) {
                 errorMessageFlow.value =
-                    context.getString(R.string.profiles_update_failed, e.message ?: context.getString(R.string.profiles_unknown_error))
+                    context.getString(R.string.profiles_update_failed, localizeError(e))
             }
         }
         return Result.success(Unit)

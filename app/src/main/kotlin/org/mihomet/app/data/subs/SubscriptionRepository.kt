@@ -12,6 +12,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import org.mihomet.app.R
+import org.mihomet.app.core.AppErrorCode
+import org.mihomet.app.core.AppException
 import org.mihomet.app.core.HappCrypto
 import org.mihomet.app.core.HwidProvider
 import org.mihomet.app.core.config.ConversionOutcome
@@ -57,22 +59,9 @@ data class ProfileRefreshResult(
  * key id in the URL, key material from the [SettingsRepository] keyring) and
  * applies refreshes to remote [ProfileEntity]s (file rewrite + DB update).
  */
-// Surfaced through Result.failure; the data exists but the Keystore key does not.
-private const val SUBSCRIPTION_UNDECRYPTABLE_MESSAGE =
-    "Не удалось расшифровать данные подписки — ключ шифрования недоступен или был заменён. Добавьте подписку заново."
-
-// Surfaced through Result.failure when the (possibly panel-migrated) URL cannot
-// be re-encrypted before persisting the refresh (external audit N07-2): the
-// stored row and the profile file are left untouched rather than downgraded to
-// plaintext. Russian like the other data-layer errors.
-private const val SUBSCRIPTION_UNENCRYPTABLE_MESSAGE =
-    "Не удалось зашифровать URL подписки — ключ шифрования недоступен. Обновление отменено, прежние данные не изменены."
-
-// Surfaced through Result.failure when a refresh produced a semantically invalid
-// config (see ProfileValidation): the last good profile file and its metadata are
-// kept untouched, the refresh is rejected. Russian like the other data-layer errors.
-private const val REFRESH_REJECTED_INVALID_CONFIG_MESSAGE =
-    "Обновление отклонено: сервер вернул невалидную конфигурацию"
+// Fail-closed errors are typed AppException codes (core/AppError.kt, audit P2.9
+// tail): the data layer never carries UI-language strings, the display layer
+// localizes via AppErrorCode.stringRes().
 
 /**
  * The subscription payload exceeds [SubscriptionRepository.MAX_SUBSCRIPTION_BYTES] —
@@ -225,17 +214,11 @@ class SubscriptionRepository(
             val tag = encryptTag
             val decrypted: String? = if (tag != null) {
                 val keyId = HappCrypto.keyIdFromUrl(url)
-                    ?: throw IllegalArgumentException(
-                        "Зашифрованная подписка: ключ не указан в URL (нет параметра ?key=keyNN)"
-                    )
+                    ?: throw AppException(AppErrorCode.ENC_SUB_NO_KEY)
                 val key = settingsRepository.getCryptoKeys()[keyId]
-                    ?: throw IllegalArgumentException(
-                        "Зашифрованная подписка: в настройках нет ключа $keyId"
-                    )
+                    ?: throw AppException(AppErrorCode.ENC_SUB_UNKNOWN_KEY, keyId)
                 HappCrypto.decrypt(trimmed, tag, key.toByteArray(Charsets.UTF_8))
-                    ?: throw IllegalArgumentException(
-                        "Зашифрованная подписка: не удалось расшифровать ответ (ключ $keyId)"
-                    )
+                    ?: throw AppException(AppErrorCode.ENC_SUB_DECRYPT_FAILED, keyId)
             } else {
                 null
             }
@@ -302,12 +285,12 @@ class SubscriptionRepository(
         val url = try {
             SecretsCipher.decrypt(profile.url)
         } catch (e: org.mihomet.app.data.crypto.SecretsCipher.SecretDecryptException) {
-            throw IllegalStateException(SUBSCRIPTION_UNDECRYPTABLE_MESSAGE, e)
+            throw AppException(AppErrorCode.SUBSCRIPTION_UNDECRYPTABLE, cause = e)
         }
         val headers = try {
             SecretsCipher.decrypt(profile.customHeaders)
         } catch (e: org.mihomet.app.data.crypto.SecretsCipher.SecretDecryptException) {
-            throw IllegalStateException(SUBSCRIPTION_UNDECRYPTABLE_MESSAGE, e)
+            throw AppException(AppErrorCode.SUBSCRIPTION_UNDECRYPTABLE, cause = e)
         }
         val download = downloadAndConvert(url, headers)
         // Fail-closed: a refresh (including the background worker) must never
@@ -316,7 +299,7 @@ class SubscriptionRepository(
         // to DIRECT while the UI shows "connected". On rejection the profile
         // file and all metadata below are left untouched.
         if (!ProfileValidation.isValid(download.outcome.yaml)) {
-            throw IllegalStateException(REFRESH_REJECTED_INVALID_CONFIG_MESSAGE)
+            throw AppException(AppErrorCode.REFRESH_REJECTED_INVALID_CONFIG)
         }
         // Panel-initiated subscription relocation (New-Url / Fallback-Url): auto-migrate.
         val migratedUrl = download.meta.redirectUrl
@@ -330,7 +313,7 @@ class SubscriptionRepository(
         val encryptedUrl = try {
             SecretsCipher.encrypt(migratedUrl)
         } catch (e: SecretsCipher.SecretEncryptException) {
-            throw IllegalStateException(SUBSCRIPTION_UNENCRYPTABLE_MESSAGE, e)
+            throw AppException(AppErrorCode.SUBSCRIPTION_ENCRYPT_FAILED, cause = e)
         }
         atomicWriteText(File(profile.filePath), download.outcome.yaml)
         // If the server sent no Subscription-Userinfo this time, keep the previous quota.

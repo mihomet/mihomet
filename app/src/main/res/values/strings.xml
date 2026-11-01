@@ -402,6 +402,12 @@
     <string name="root_last_good_used">Profile is broken — running the last working configuration (%1$s)</string>
     <string name="profiles_subscription_undecryptable">Could not decrypt the subscription data — the encryption key is unavailable or was replaced. Please add the subscription again.</string>
     <string name="profiles_encrypt_failed">Could not encrypt subscription data — key unavailable</string>
+    <string name="profiles_err_yaml_empty">Profile contains invalid YAML: file is empty</string>
+    <string name="profiles_err_yaml_invalid">Profile contains invalid YAML: %1$s</string>
+    <string name="profiles_err_refresh_rejected">Refresh rejected: the server returned an invalid configuration</string>
+    <string name="profiles_err_enc_sub_no_key">Encrypted subscription: no key parameter in the URL (?key=keyNN)</string>
+    <string name="profiles_err_enc_sub_unknown_key">Encrypted subscription: key %1$s is not in the keyring</string>
+    <string name="profiles_err_enc_sub_decrypt_failed">Encrypted subscription: could not decrypt the response (key %1$s)</string>
 
     <!-- Fail-closed start guards: a selected profile with a missing file or no
          routing source (no proxies / providers / rules) must never start the core -->

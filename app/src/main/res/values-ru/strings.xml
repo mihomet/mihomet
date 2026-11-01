@@ -404,6 +404,12 @@
     <string name="root_last_good_used">Профиль повреждён — работает последняя рабочая конфигурация (%1$s)</string>
     <string name="profiles_subscription_undecryptable">Не удалось расшифровать данные подписки — ключ шифрования недоступен или был заменён. Добавьте подписку заново.</string>
     <string name="profiles_encrypt_failed">Не удалось зашифровать данные подписки — ключ недоступен</string>
+    <string name="profiles_err_yaml_empty">Профиль содержит некорректный YAML: файл пуст</string>
+    <string name="profiles_err_yaml_invalid">Профиль содержит некорректный YAML: %1$s</string>
+    <string name="profiles_err_refresh_rejected">Обновление отклонено: сервер вернул невалидную конфигурацию</string>
+    <string name="profiles_err_enc_sub_no_key">Зашифрованная подписка: в URL нет параметра с ключом (?key=keyNN)</string>
+    <string name="profiles_err_enc_sub_unknown_key">Зашифрованная подписка: в настройках нет ключа %1$s</string>
+    <string name="profiles_err_enc_sub_decrypt_failed">Зашифрованная подписка: не удалось расшифровать ответ (ключ %1$s)</string>
 
     <!-- Fail-closed start guards: a selected profile with a missing file or no
          routing source (no proxies / providers / rules) must never start the core -->
