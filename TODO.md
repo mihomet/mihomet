@@ -207,12 +207,15 @@ Verification: `./gradlew compileDebugKotlin testDebugUnitTest` green; build with
 - [x] **P2.9 (tail)** Fail-closed errors typed end-to-end (`AppErrorCode`/`AppException` +
   resource mapping, guarded by `AppErrorResourcesTest` in both locales) — no Russian literals
   left in core/data layers.
-- [ ] **P3 (rest)** Signed tags/GPG for releases (needs the maintainer's GPG key).
+- [x] **P3 (rest)** Signed tags for releases (SSH-signing via ~/.ssh/id_ed25519 + GitHub API tag-signature verification gate in release.yml; verified on v1.3.1).
 - [x] **P1.3 (addendum)** JaCoCo unit-test coverage report in CI (artifact, no hard gate).
 - [x] **v1.3.0 RELEASED** (tag on d0d2338, CI-signed, cert SHA-256 `b85405a2…` verified;
   per-ABI APKs ≈30 MB; version-info.json published → the self-updater has its baseline).
   Release gate bug fixed en route: the versionCode-monotonicity step died via pipefail when
   the previous release had no version-info.json.
+- [x] **v1.3.1 RELEASED** (tag on eb7451a, GitHub API tag-signature verified, CI-signed with prod cert
+  `b85405a2…`, per-ABI APKs ≈29-31 MB, version-info.json published; release notes set from CHANGELOG;
+  built-in auto-balancer AUTO + quiet app-managed drops shipped).
 
 ---
 
