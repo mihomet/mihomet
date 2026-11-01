@@ -26,6 +26,10 @@
   external-ui, …) still warn
 - Refresh snackbar wording: "(пропущено элементов: N)" → "(предупреждений: N)"
 - (Fix release-gate pipefail bug shipped in 1.3.0 tag reload)
+- Built-in auto-balancer: subscriptions without any balancing group now get a
+  synthesized AUTO url-test group (mihomo probes nodes and fails over natively);
+  node pool is customizable via exclusions (Settings → Advanced), optional
+  "prefer AUTO by default" for panel select-groups; panel balancers always win
 
 ## 1.3.0
 
