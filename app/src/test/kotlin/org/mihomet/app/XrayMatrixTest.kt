@@ -283,6 +283,29 @@ class XrayMatrixTest {
         assertEquals(listOf("h3"), p["alpn"])
     }
 
+    @Test
+    fun `http outbound with basic auth maps to mihomo http`() {
+        val parsed = convert(singleOutbound(
+            """{"tag":"proxy","protocol":"http",
+               "settings":{"address":"p.example.com","port":3128,
+                 "users":[{"user":"ProxyUser","pass":"ProxyPass"}]}}"""))
+        val p = first(parsed)
+        assertEquals("http", p["type"])
+        assertEquals("ProxyUser", p["username"])
+        assertEquals("ProxyPass", p["password"])
+    }
+
+    @Test
+    fun `socks outbound maps to mihomo socks5`() {
+        val parsed = convert(singleOutbound(
+            """{"tag":"proxy","protocol":"socks",
+               "settings":{"address":"sk.example.com","port":1080,
+                 "users":[{"user":"SocksUser","pass":"SocksPass"}]}}"""))
+        val p = first(parsed)
+        assertEquals("socks5", p["type"])
+        assertEquals("SocksUser", p["username"])
+    }
+
     // ---- Exotic outbounds must warn, not vanish ----
 
     @Test

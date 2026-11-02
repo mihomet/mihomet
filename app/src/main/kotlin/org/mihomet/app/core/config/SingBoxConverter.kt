@@ -340,6 +340,21 @@ internal object SingBoxConverter {
                 if (!sni.isNullOrBlank()) map["sni"] = sni
                 map
             }
+            "http" -> {
+                // sing-box http outbound -> mihomo http proxy.
+                val map = mutableMapOf<String, Any>(
+                    "name" to tag,
+                    "type" to "http",
+                    "server" to server,
+                    "port" to port
+                )
+                ob["username"]?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }?.let { map["username"] = it }
+                ob["password"]?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }?.let { map["password"] = it }
+                applySingBoxTls(map, ob["tls"]?.jsonObject, server)
+                map
+            }
             "anytls" -> {
                 // mihomo supports the anytls protocol natively.
                 val map = mutableMapOf<String, Any>(

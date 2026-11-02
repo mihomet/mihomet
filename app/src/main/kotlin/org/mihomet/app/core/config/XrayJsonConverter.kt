@@ -480,6 +480,48 @@ internal object XrayJsonConverter {
                 applyStreamSecurityAndTransport(map, net, security, streamSettings, address)
                 map
             }
+            "http" -> {
+                // Xray http outbound -> mihomo http proxy (with optional basic auth).
+                val address = settings["address"]?.jsonPrimitive?.contentOrNull ?: return null
+                val port = settings["port"]?.jsonPrimitive?.intOrNull ?: 8080
+                val map = mutableMapOf<String, Any>(
+                    "name" to name,
+                    "type" to "http",
+                    "server" to address,
+                    "port" to port
+                )
+                val users = settings["users"] as? JsonArray
+                val user = users?.firstOrNull() as? JsonObject
+                user?.get("user")?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }?.let { map["username"] = it }
+                user?.get("pass")?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }?.let { map["password"] = it }
+                val tlsSettings = streamSettings["tlsSettings"] as? JsonObject ?: JsonObject(emptyMap())
+                if (security == "tls") {
+                    map["tls"] = true
+                    val sni = tlsSettings["serverName"]?.jsonPrimitive?.contentOrNull ?: address
+                    if (sni.isNotBlank() && !sni.matches(Regex("^[0-9.]+$"))) map["sni"] = sni
+                }
+                map
+            }
+            "socks" -> {
+                // Xray socks outbound -> mihomo socks5.
+                val address = settings["address"]?.jsonPrimitive?.contentOrNull ?: return null
+                val port = settings["port"]?.jsonPrimitive?.intOrNull ?: 1080
+                val map = mutableMapOf<String, Any>(
+                    "name" to name,
+                    "type" to "socks5",
+                    "server" to address,
+                    "port" to port
+                )
+                val users = settings["users"] as? JsonArray
+                val user = users?.firstOrNull() as? JsonObject
+                user?.get("user")?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }?.let { map["username"] = it }
+                user?.get("pass")?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }?.let { map["password"] = it }
+                map
+            }
             "tuic" -> {
                 val address = settings["address"]?.jsonPrimitive?.contentOrNull ?: return null
                 val port = settings["port"]?.jsonPrimitive?.intOrNull ?: 443

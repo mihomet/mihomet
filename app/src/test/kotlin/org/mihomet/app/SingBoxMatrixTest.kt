@@ -218,6 +218,18 @@ class SingBoxMatrixTest {
         assertEquals(true, smux["padding"])
     }
 
+    @Test
+    fun `http outbound with auth maps to mihomo http`() {
+        val parsed = convert(wrapper(outbound("http", """
+            "server":"p.example.com","server_port":3128,
+            "username":"ProxyUser","password":"ProxyPass"
+        """)))
+        val p = byName(parsed, "proxy")
+        assertEquals("http", p["type"])
+        assertEquals("ProxyUser", p["username"])
+        assertEquals("ProxyPass", p["password"])
+    }
+
     // ---- Groups ----
 
     @Test
