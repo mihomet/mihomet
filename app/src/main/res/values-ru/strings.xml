@@ -479,4 +479,5 @@
     <string name="settings_auto_balancer_excludes_hint">Подстрока имени узла, по одной в строке — например Мост, Игровой; совпавшие узлы не попадут в пул балансировки</string>
     <string name="settings_auto_balancer_prefer">Включать Авто по умолчанию</string>
     <string name="settings_auto_balancer_prefer_desc">AUTO станет выбором по умолчанию в первой select-группе панели</string>
+    <string name="proxies_empty_hint">Импортируйте подписку в Профилях или проверьте выбранный профиль — узлы появятся здесь.</string>
 </resources>

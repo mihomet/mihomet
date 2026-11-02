@@ -477,4 +477,5 @@
     <string name="settings_auto_balancer_excludes_hint">One node-name substring per line, e.g. Мост, Игровой — matching nodes are removed from the balance pool</string>
     <string name="settings_auto_balancer_prefer">Prefer AUTO by default</string>
     <string name="settings_auto_balancer_prefer_desc">AUTO becomes the default pick of the panel\'s first select group</string>
+    <string name="proxies_empty_hint">Import a subscription in Profiles or check the selected profile — nodes will appear here.</string>
 </resources>
