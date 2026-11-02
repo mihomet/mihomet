@@ -486,8 +486,9 @@ internal object XrayJsonConverter {
                 val uuid = settings["uuid"]?.jsonPrimitive?.contentOrNull ?: ""
                 val password = settings["password"]?.jsonPrimitive?.contentOrNull ?: ""
                 val congestion = settings["congestion_controller"]?.jsonPrimitive?.contentOrNull ?: "bbr"
+                val tlsSettings = streamSettings["tlsSettings"] as? JsonObject ?: JsonObject(emptyMap())
 
-                mutableMapOf(
+                val map = mutableMapOf<String, Any>(
                     "name" to name,
                     "type" to "tuic",
                     "server" to address,
@@ -496,6 +497,17 @@ internal object XrayJsonConverter {
                     "password" to password,
                     "congestion-controller" to congestion
                 )
+                settings["udp_relay_mode"]?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }?.let { map["udp-relay-mode"] = it }
+                if (settings["reduce_rtt"]?.jsonPrimitive?.booleanOrNull == true) map["reduce-rtt"] = true
+                if (settings["disable_sni"]?.jsonPrimitive?.booleanOrNull == true) map["disable-sni"] = true
+                val sni = tlsSettings["serverName"]?.jsonPrimitive?.contentOrNull ?: address
+                if (sni.isNotBlank() && !sni.matches(Regex("^[0-9.]+$"))) map["sni"] = sni
+                val alpn = tlsSettings["alpn"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }
+                if (!alpn.isNullOrEmpty()) map["alpn"] = alpn
+                val allowInsecure = tlsSettings["allowInsecure"]?.jsonPrimitive?.booleanOrNull == true
+                if (allowInsecure) map["skip-cert-verify"] = true
+                map
             }
             "wireguard" -> {
                 val address = settings["address"]?.jsonPrimitive?.contentOrNull ?: return null
@@ -557,9 +569,20 @@ internal object XrayJsonConverter {
         if (net == "ws") {
             val wsSettings = streamSettings["wsSettings"] as? JsonObject
             val path = wsSettings?.get("path")?.jsonPrimitive?.contentOrNull ?: "/"
-            val host = wsSettings?.get("headers")?.jsonObject?.get("Host")?.jsonPrimitive?.contentOrNull ?: ""
             val wsOpts = mutableMapOf<String, Any>("path" to path)
-            if (host.isNotBlank()) wsOpts["headers"] = mapOf("Host" to host)
+            val wsHeaders = wsSettings?.get("headers")?.jsonObject
+            if (wsHeaders != null && wsHeaders.isNotEmpty()) {
+                wsOpts["headers"] = wsHeaders.entries.associate { (k, v) ->
+                    k to (v.jsonPrimitive.contentOrNull ?: "")
+                }
+            }
+            val maxEarly = wsSettings?.get("maxEarlyData")?.jsonPrimitive?.intOrNull
+                ?: wsSettings?.get("maxEarlyDataPx")?.let { null }
+            if (maxEarly != null && maxEarly > 0) {
+                wsOpts["max-early-data"] = maxEarly
+                val earlyHeader = wsSettings?.get("earlyDataHeaderName")?.jsonPrimitive?.contentOrNull
+                if (!earlyHeader.isNullOrBlank()) wsOpts["early-data-header-name"] = earlyHeader
+            }
             map["ws-opts"] = wsOpts
         }
 
@@ -568,7 +591,34 @@ internal object XrayJsonConverter {
             val grpcSettings = streamSettings["grpcSettings"] as? JsonObject
             val svc = grpcSettings?.get("serviceName")?.jsonPrimitive?.contentOrNull ?: ""
             if (svc.isNotBlank()) {
-                map["grpc-opts"] = mapOf("grpc-service-name" to svc)
+                val grpcOpts = mutableMapOf<String, Any>("grpc-service-name" to svc)
+                if (grpcSettings?.get("multiMode")?.jsonPrimitive?.booleanOrNull == true) {
+                    grpcOpts["grpc-multi-mode"] = true
+                }
+                map["grpc-opts"] = grpcOpts
+            }
+        }
+
+        // TCP with HTTP obfs header (header.type == "http") -> mihomo http-opts
+        if (net == "tcp") {
+            val tcpHeader = streamSettings["tcpSettings"]?.jsonObject?.get("header")?.jsonObject
+            if (tcpHeader?.get("type")?.jsonPrimitive?.contentOrNull == "http") {
+                val request = tcpHeader["request"]?.jsonObject
+                val httpOpts = mutableMapOf<String, Any>()
+                request?.get("method")?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }?.let { httpOpts["method"] = it }
+                val paths = request?.get("path")?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }
+                if (!paths.isNullOrEmpty()) httpOpts["path"] = paths
+                val headers = request?.get("headers")?.jsonObject
+                if (headers != null && headers.isNotEmpty()) {
+                    val headerMap = headers.entries.associate { (k, v) ->
+                        val list = (v as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull }
+                            ?: listOfNotNull(v.jsonPrimitive.contentOrNull)
+                        k to list
+                    }
+                    httpOpts["headers"] = headerMap
+                }
+                map["http-opts"] = httpOpts
             }
         }
 
@@ -593,6 +643,30 @@ internal object XrayJsonConverter {
             val h2Opts = mutableMapOf<String, Any>("path" to path)
             if (host.isNotEmpty()) h2Opts["host"] = host
             map["h2-opts"] = h2Opts
+        }
+
+        // HTTPUpgrade Settings
+        if (net == "httpupgrade") {
+            val upSettings = streamSettings["httpupgradeSettings"] as? JsonObject
+            val path = upSettings?.get("path")?.jsonPrimitive?.contentOrNull ?: "/"
+            val host = upSettings?.get("host")?.jsonPrimitive?.contentOrNull ?: ""
+            val opts = mutableMapOf<String, Any>("path" to path)
+            if (host.isNotBlank()) opts["host"] = host
+            map["httpupgrade-opts"] = opts
+        }
+
+        // mKCP Settings
+        if (net == "kcp") {
+            val kcpSettings = streamSettings["kcpSettings"] as? JsonObject
+            val opts = mutableMapOf<String, Any>()
+            kcpSettings?.get("mtu")?.jsonPrimitive?.intOrNull?.let { opts["mtu"] = it }
+            kcpSettings?.get("seed")?.jsonPrimitive?.contentOrNull
+                ?.takeIf { it.isNotBlank() }?.let { opts["seed"] = it }
+            val headerType = kcpSettings?.get("header")?.jsonObject?.get("type")?.jsonPrimitive?.contentOrNull
+            if (!headerType.isNullOrBlank() && headerType != "none") {
+                opts["header"] = mapOf("type" to headerType)
+            }
+            map["kcp-opts"] = opts
         }
     }
 

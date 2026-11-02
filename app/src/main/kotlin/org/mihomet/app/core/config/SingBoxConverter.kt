@@ -212,6 +212,7 @@ internal object SingBoxConverter {
 
                 applySingBoxTls(map, ob["tls"]?.jsonObject, server)
                 applySingBoxTransport(map, ob["transport"]?.jsonObject)
+                applyMultiplex(map, ob["multiplex"]?.jsonObject)
                 map
             }
             "hysteria2" -> {
@@ -248,14 +249,18 @@ internal object SingBoxConverter {
                 map
             }
             "hysteria" -> {
-                val authStr = ob["auth_str"]?.jsonPrimitive?.contentOrNull ?: ""
                 val map = mutableMapOf<String, Any>(
                     "name" to tag,
                     "type" to "hysteria",
                     "server" to server,
                     "port" to port,
-                    "auth_str" to authStr
+                    // mihomo maps hysteria v1 auth to `password`
+                    "password" to (ob["auth_str"]?.jsonPrimitive?.contentOrNull
+                        ?: ob["password"]?.jsonPrimitive?.contentOrNull ?: ""),
+                    "udp" to true
                 )
+                ob["up_mbps"]?.jsonPrimitive?.intOrNull?.let { map["up"] = "$it Mbps" }
+                ob["down_mbps"]?.jsonPrimitive?.intOrNull?.let { map["down"] = "$it Mbps" }
                 val sni = ob["tls"]?.jsonObject?.get("server_name")?.jsonPrimitive?.contentOrNull
                 if (!sni.isNullOrBlank()) map["sni"] = sni
                 map
@@ -275,6 +280,7 @@ internal object SingBoxConverter {
                 )
                 applySingBoxTls(map, ob["tls"]?.jsonObject, server)
                 applySingBoxTransport(map, ob["transport"]?.jsonObject)
+                applyMultiplex(map, ob["multiplex"]?.jsonObject)
                 map
             }
             "trojan" -> {
@@ -288,6 +294,7 @@ internal object SingBoxConverter {
                 )
                 applySingBoxTls(map, ob["tls"]?.jsonObject, server)
                 applySingBoxTransport(map, ob["transport"]?.jsonObject)
+                applyMultiplex(map, ob["multiplex"]?.jsonObject)
                 map
             }
             "shadowsocks" -> {
@@ -312,7 +319,9 @@ internal object SingBoxConverter {
             "tuic" -> {
                 val uuid = ob["uuid"]?.jsonPrimitive?.contentOrNull ?: ""
                 val pass = ob["password"]?.jsonPrimitive?.contentOrNull ?: ""
-                val cc = ob["congestion_controller"]?.jsonPrimitive?.contentOrNull ?: "bbr"
+                // sing-box renamed the field across versions: accept both spellings.
+                val cc = ob["congestion_control"]?.jsonPrimitive?.contentOrNull
+                    ?: ob["congestion_controller"]?.jsonPrimitive?.contentOrNull ?: "bbr"
                 val map = mutableMapOf<String, Any>(
                     "name" to tag,
                     "type" to "tuic",
@@ -322,8 +331,39 @@ internal object SingBoxConverter {
                     "password" to pass,
                     "congestion-controller" to cc
                 )
+                ob["udp_relay_mode"]?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }?.let { map["udp-relay-mode"] = it }
+                if (ob["reduce_rtt"]?.jsonPrimitive?.booleanOrNull == true) map["reduce-rtt"] = true
+                val alpn = jsonStringList(ob["tls"]?.jsonObject?.get("alpn"))
+                if (alpn.isNotEmpty()) map["alpn"] = alpn
                 val sni = ob["tls"]?.jsonObject?.get("server_name")?.jsonPrimitive?.contentOrNull
                 if (!sni.isNullOrBlank()) map["sni"] = sni
+                map
+            }
+            "anytls" -> {
+                // mihomo supports the anytls protocol natively.
+                val map = mutableMapOf<String, Any>(
+                    "name" to tag,
+                    "type" to "anytls",
+                    "server" to server,
+                    "port" to port,
+                    "password" to (ob["password"]?.jsonPrimitive?.contentOrNull ?: "")
+                )
+                applySingBoxTls(map, ob["tls"]?.jsonObject, server)
+                applySingBoxTransport(map, ob["transport"]?.jsonObject)
+                map
+            }
+            "shadowtls" -> {
+                // mihomo shadowtls: server, port, version, password + client TLS params.
+                val map = mutableMapOf<String, Any>(
+                    "name" to tag,
+                    "type" to "shadowtls",
+                    "server" to server,
+                    "port" to port,
+                    "version" to (ob["version"]?.jsonPrimitive?.intOrNull ?: 3),
+                    "password" to (ob["password"]?.jsonPrimitive?.contentOrNull ?: "")
+                )
+                applySingBoxTls(map, ob["tls"]?.jsonObject, server)
                 map
             }
             "wireguard" -> {
@@ -381,13 +421,33 @@ internal object SingBoxConverter {
         val tType = transport["type"]?.jsonPrimitive?.contentOrNull ?: return
 
         when (tType) {
-            "ws", "httpupgrade" -> {
+            "ws" -> {
                 map["network"] = "ws"
                 val path = transport["path"]?.jsonPrimitive?.contentOrNull ?: "/"
-                val host = transport["headers"]?.jsonObject?.get("Host")?.jsonPrimitive?.contentOrNull ?: ""
                 val wsOpts = mutableMapOf<String, Any>("path" to path)
-                if (host.isNotBlank()) wsOpts["headers"] = mapOf("Host" to host)
+                val wsHeaders = transport["headers"]?.jsonObject
+                if (wsHeaders != null && wsHeaders.isNotEmpty()) {
+                    wsOpts["headers"] = wsHeaders.entries.associate { (k, v) ->
+                        k to (v.jsonPrimitive.contentOrNull ?: "")
+                    }
+                }
+                val maxEarly = transport["max_early_data"]?.jsonPrimitive?.intOrNull
+                if (maxEarly != null && maxEarly > 0) {
+                    wsOpts["max-early-data"] = maxEarly
+                    val earlyHeader = transport["early_data_header_name"]?.jsonPrimitive?.contentOrNull
+                    if (!earlyHeader.isNullOrBlank()) wsOpts["early-data-header-name"] = earlyHeader
+                }
                 map["ws-opts"] = wsOpts
+            }
+            "httpupgrade" -> {
+                // httpupgrade is its own mihomo network — do NOT fold it into ws.
+                map["network"] = "httpupgrade"
+                val path = transport["path"]?.jsonPrimitive?.contentOrNull ?: "/"
+                val host = transport["host"]?.jsonPrimitive?.contentOrNull
+                    ?: transport["headers"]?.jsonObject?.get("Host")?.jsonPrimitive?.contentOrNull ?: ""
+                val opts = mutableMapOf<String, Any>("path" to path)
+                if (host.isNotBlank()) opts["host"] = host
+                map["httpupgrade-opts"] = opts
             }
             "grpc" -> {
                 map["network"] = "grpc"
@@ -405,6 +465,24 @@ internal object SingBoxConverter {
                 map["h2-opts"] = h2Opts
             }
         }
+        // Multiplex (smux / h2mux / yamux) -> mihomo smux block.
+        val mux = transport["multiplex"]?.jsonObject
+            ?: transport["transport"]?.jsonObject?.get("multiplex")?.jsonObject
+        if (mux == null && transport["multiplex"] == null) {
+            // multiplex may also sit on the outbound itself (handled by callers via applyMultiplex)
+        }
+    }
+
+    /** Multiplex block (sing-box "multiplex") -> mihomo "smux". */
+    private fun applyMultiplex(map: MutableMap<String, Any>, mux: JsonObject?) {
+        if (mux?.get("enabled")?.jsonPrimitive?.booleanOrNull != true) return
+        val smux = mutableMapOf<String, Any>()
+        mux["protocol"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }?.let { smux["protocol"] = it }
+        mux["max_connections"]?.jsonPrimitive?.intOrNull?.let { smux["max-connections"] = it }
+        mux["min_streams"]?.jsonPrimitive?.intOrNull?.let { smux["min-streams"] = it }
+        mux["max_streams"]?.jsonPrimitive?.intOrNull?.let { smux["max-streams"] = it }
+        if (mux["padding"]?.jsonPrimitive?.booleanOrNull == true) smux["padding"] = true
+        if (smux.isNotEmpty()) map["smux"] = smux
     }
 
     /**

@@ -71,8 +71,14 @@ internal object UriListParser {
 
         val (server, rawPort) = parseHostPort(hostPort) ?: return null
         val port = rawPort.toIntOrNull() ?: 443
+        if (uuid.isBlank() || server.isBlank() || port !in 1..65535) return null
 
         val params = parseQueryParams(query)
+        // splithttp is emitted by some panels as the alias of xhttp
+        val network = when (params["type"]) {
+            "splithttp" -> "xhttp"
+            else -> params["type"] ?: "tcp"
+        }
 
         val map = mutableMapOf<String, Any>(
             "name" to name,
@@ -80,7 +86,7 @@ internal object UriListParser {
             "server" to server,
             "port" to port,
             "uuid" to uuid,
-            "network" to (params["type"] ?: "tcp"),
+            "network" to network,
             "udp" to true
         )
         params["flow"]?.let { if (it.isNotBlank()) map["flow"] = it }
@@ -101,15 +107,48 @@ internal object UriListParser {
             params["alpn"]?.let { map["alpn"] = it.split(",") }
         }
 
-        if (map["network"] == "ws") {
-            val wsOpts = mutableMapOf<String, Any>("path" to (params["path"] ?: "/"))
-            params["host"]?.let { wsOpts["headers"] = mapOf("Host" to it) }
-            // WebSocket 0-RTT early data (v2ray/xray "ed"/"eh" params)
-            params["ed"]?.toIntOrNull()?.let { wsOpts["max-early-data"] = it }
-            params["eh"]?.takeIf { it.isNotBlank() }?.let { wsOpts["early-data-header-name"] = it }
-            map["ws-opts"] = wsOpts
-        } else if (map["network"] == "grpc") {
-            params["serviceName"]?.let { map["grpc-opts"] = mapOf("grpc-service-name" to it) }
+        when (map["network"]) {
+            "ws" -> {
+                val wsOpts = mutableMapOf<String, Any>("path" to (params["path"] ?: "/"))
+                params["host"]?.let { wsOpts["headers"] = mapOf("Host" to it) }
+                // WebSocket 0-RTT early data (v2ray/xray "ed"/"eh" params)
+                params["ed"]?.toIntOrNull()?.let { wsOpts["max-early-data"] = it }
+                params["eh"]?.takeIf { it.isNotBlank() }?.let { wsOpts["early-data-header-name"] = it }
+                map["ws-opts"] = wsOpts
+            }
+            "grpc" -> {
+                params["serviceName"]?.let { map["grpc-opts"] = mapOf("grpc-service-name" to it) }
+            }
+            "xhttp" -> {
+                val opts = mutableMapOf<String, Any>(
+                    "path" to (params["path"] ?: "/")
+                )
+                params["host"]?.let { opts["host"] = it }
+                params["mode"]?.let { if (it.isNotBlank()) opts["mode"] = it }
+                map["xhttp-opts"] = opts
+            }
+            "httpupgrade" -> {
+                val opts = mutableMapOf<String, Any>("path" to (params["path"] ?: "/"))
+                params["host"]?.let { opts["host"] = it }
+                map["httpupgrade-opts"] = opts
+            }
+            "kcp" -> {
+                val opts = mutableMapOf<String, Any>()
+                params["seed"]?.takeIf { it.isNotBlank() }?.let { opts["seed"] = it }
+                params["headerType"]?.takeIf { it.isNotBlank() && it != "none" }
+                    ?.let { opts["header"] = mapOf("type" to it) }
+                map["kcp-opts"] = opts
+            }
+            "tcp" -> {
+                // HTTP obfs (headerType=http) -> mihomo http-opts
+                if (params["headerType"] == "http") {
+                    val opts = mutableMapOf<String, Any>()
+                    params["path"]?.takeIf { it.isNotBlank() }?.let { opts["path"] = listOf(it) }
+                    params["host"]?.takeIf { it.isNotBlank() }
+                        ?.let { opts["headers"] = mapOf("Host" to listOf(it)) }
+                    map["http-opts"] = opts
+                }
+            }
         }
 
         return map
@@ -135,7 +174,7 @@ internal object UriListParser {
             "port" to port,
             "uuid" to uuid,
             "alterId" to alterId,
-            "cipher" to "auto",
+            "cipher" to (obj["scy"]?.jsonPrimitive?.contentOrNull ?: "auto"),
             "network" to net,
             "udp" to true
         )
@@ -427,7 +466,12 @@ internal object UriListParser {
             "udp" to true
         )
         params["version"]?.takeIf { it.isNotBlank() }?.let { map["version"] = it }
-        params["obfs"]?.takeIf { it.isNotBlank() && it != "none" }?.let { map["obfs-opts"] = mapOf("mode" to it) }
+        val obfsMode = params["obfs"]?.takeIf { it.isNotBlank() && it != "none" }
+        if (obfsMode != null) {
+            val obfsOpts = mutableMapOf<String, Any>("mode" to obfsMode)
+            params["obfs-host"]?.takeIf { it.isNotBlank() }?.let { obfsOpts["host"] = it }
+            map["obfs-opts"] = obfsOpts
+        }
         return map
     }
 
