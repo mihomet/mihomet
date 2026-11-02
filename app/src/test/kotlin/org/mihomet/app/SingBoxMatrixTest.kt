@@ -133,6 +133,20 @@ class SingBoxMatrixTest {
     }
 
     @Test
+    fun `ss plugin_opts string parses into mihomo plugin-opts map`() {
+        val parsed = convert(wrapper(outbound("shadowsocks", """
+            "server":"pl.example.com","server_port":8388,
+            "method":"aes-256-gcm","password":"P",
+            "plugin":"obfs-local","plugin_opts":"obfs=http;obfs-host=cdn.example.com"
+        """)))
+        val p = byName(parsed, "proxy")
+        assertEquals("obfs", p["plugin"])
+        val opts = p["plugin-opts"] as Map<String, Any>
+        assertEquals("http", opts["mode"])
+        assertEquals("cdn.example.com", opts["host"])
+    }
+
+    @Test
     fun `hysteria v1 keeps its own type with auth and bandwidth`() {
         val parsed = convert(wrapper(outbound("hysteria", """
             "server":"h1.example.com","server_port":36712,

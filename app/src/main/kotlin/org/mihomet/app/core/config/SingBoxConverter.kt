@@ -311,8 +311,28 @@ internal object SingBoxConverter {
                 val plugin = ob["plugin"]?.jsonPrimitive?.contentOrNull
                 val pluginOpts = ob["plugin_opts"]?.jsonPrimitive?.contentOrNull
                 if (!plugin.isNullOrBlank()) {
-                    map["plugin"] = plugin
-                    if (!pluginOpts.isNullOrBlank()) map["plugin-opts"] = pluginOpts
+                    // Normalize sing-box plugin names to mihomo equivalents and parse
+                    // the "k=v;k=v" opts string into the mihomo plugin-opts MAP
+                    // (mihomo rejects a raw string there).
+                    map["plugin"] = when (plugin) {
+                        "obfs-local", "simple-obfs" -> "obfs"
+                        else -> plugin
+                    }
+                    if (!pluginOpts.isNullOrBlank()) {
+                        val opts = mutableMapOf<String, Any>()
+                        for (part in pluginOpts.split(";")) {
+                            val kv = part.split("=", limit = 2)
+                            when (kv.getOrNull(0)) {
+                                "obfs" -> opts["mode"] = kv.getOrNull(1) ?: "http"
+                                "obfs-host" -> kv.getOrNull(1)?.let { opts["host"] = it }
+                                "mode" -> opts["mode"] = kv.getOrNull(1) ?: "websocket"
+                                "host" -> kv.getOrNull(1)?.let { opts["host"] = it }
+                                "path" -> kv.getOrNull(1)?.let { opts["path"] = it }
+                                "tls" -> opts["tls"] = true
+                            }
+                        }
+                        if (opts.isNotEmpty()) map["plugin-opts"] = opts
+                    }
                 }
                 map
             }
