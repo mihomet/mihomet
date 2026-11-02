@@ -21,7 +21,7 @@ proxies:
   tcp-opts: {}
   udp: true
   tls: true
-  servername: www.microsoft.com
+  servername: microsoft.com
   client-fingerprint: chrome
   reality-opts:
     public-key: Ouz0_jVyBK7prtJPjLWqUc2YjodxneFtt-hMpTvEyUM

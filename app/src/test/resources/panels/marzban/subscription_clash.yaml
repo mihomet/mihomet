@@ -6,7 +6,7 @@ proxies:
   name: 🚀 Marz (MihometTest) [VMess - ws]
   network: ws
   port: 10002
-  server: 9.247.6.62
+  server: 80.86.209.12
   type: vmess
   udp: true
   uuid: 959776f0-b606-44c0-8dc2-fea04c207711
@@ -18,14 +18,14 @@ proxies:
   network: tcp
   password: 0Gg2OQ7/b8zRlnDCBpUInmuGKSDj4kYZxXFkKMnglPI=
   port: 10003
-  server: 9.247.6.62
+  server: 80.86.209.12
   type: ss
   udp: true
 - name: 🚀 Marz (MihometTest) [Trojan - tcp]
   network: tcp
   password: WxDVHv33BlNHvVo3AyrMdA
   port: 10004
-  server: 9.247.6.62
+  server: 80.86.209.12
   tcp-opts:
     ip-version: dual
   type: trojan

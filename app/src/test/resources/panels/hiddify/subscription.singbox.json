@@ -172,7 +172,7 @@
     {
       "tag": "grpc vless HC yahoo.com IP4 ",
       "type": "vless",
-      "server": "93.89.217.1",
+      "server": "80.86.209.12",
       "server_port": 443,
       "uuid": "83999090-86f8-4009-a889-746a492638d1",
       "transport": {
@@ -288,7 +288,7 @@
     {
       "tag": "grpc vmess yahoo.com IP4 ",
       "type": "vmess",
-      "server": "93.89.217.1",
+      "server": "80.86.209.12",
       "server_port": 443,
       "uuid": "83999090-86f8-4009-a889-746a492638d1",
       "security": "auto",
@@ -382,7 +382,7 @@
     {
       "tag": "grpc vmess HC yahoo.com IP4 ",
       "type": "vmess",
-      "server": "93.89.217.1",
+      "server": "80.86.209.12",
       "server_port": 443,
       "uuid": "83999090-86f8-4009-a889-746a492638d1",
       "security": "auto",
@@ -502,7 +502,7 @@
           "Referer": "https://93.89.217.1/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -542,7 +542,7 @@
           "Referer": "https://93.89.217.1.sslip.io/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -582,7 +582,7 @@
           "Referer": "https://93.89.217.1/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -610,7 +610,7 @@
           "Referer": "https://93.89.217.1.sslip.io/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -642,7 +642,7 @@
           "Referer": "https://93.89.217.1/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -686,7 +686,7 @@
           "Referer": "https://93.89.217.1.sslip.io/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -730,7 +730,7 @@
           "Referer": "https://93.89.217.1/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -774,7 +774,7 @@
           "Referer": "https://93.89.217.1.sslip.io/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -818,7 +818,7 @@
           "Referer": "https://93.89.217.1/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -850,7 +850,7 @@
           "Referer": "https://93.89.217.1.sslip.io/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -882,7 +882,7 @@
           "Referer": "https://93.89.217.1/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -914,7 +914,7 @@
           "Referer": "https://93.89.217.1.sslip.io/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -946,7 +946,7 @@
           "Referer": "https://93.89.217.1/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -978,7 +978,7 @@
           "Referer": "https://93.89.217.1.sslip.io/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -1014,7 +1014,7 @@
           "Referer": "https://93.89.217.1/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -1050,7 +1050,7 @@
           "Referer": "https://93.89.217.1.sslip.io/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -1086,7 +1086,7 @@
           "Referer": "https://93.89.217.1/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -1122,7 +1122,7 @@
           "Referer": "https://93.89.217.1.sslip.io/",
           "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
           "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "'Windows']",
+          "sec-ch-ua-platform": "'macOS'",
           "Sec-Fetch-Dest": "empty",
           "Sec-Fetch-Mode": "cors",
           "Sec-Fetch-Site": "same-origin"
@@ -1132,7 +1132,7 @@
     {
       "tag": "raw vless REALITY yahoo.com IP4 ",
       "type": "vless",
-      "server": "93.89.217.1",
+      "server": "80.86.209.12",
       "server_port": 443,
       "uuid": "83999090-86f8-4009-a889-746a492638d1",
       "flow": "xtls-rprx-vision",

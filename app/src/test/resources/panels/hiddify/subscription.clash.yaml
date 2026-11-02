@@ -190,7 +190,7 @@ proxies:
   tag: 'xhttp vless TLS H2 93.89.217.1.sslip.io IP4 '
 - name: 'xhttp vless TLS H2 yahoo.com IP4 '
   type: vless
-  server: 93.89.217.1
+  server: 80.86.209.12
   port: 443
   uuid: 83999090-86f8-4009-a889-746a492638d1
   udp: true
@@ -248,7 +248,7 @@ proxies:
   tag: 'xhttp vless TLS H2 HC 93.89.217.1.sslip.io IP4 '
 - name: 'xhttp vless TLS H2 HC yahoo.com IP4 '
   type: vless
-  server: 93.89.217.1
+  server: 80.86.209.12
   port: 443
   uuid: 83999090-86f8-4009-a889-746a492638d1
   udp: true
@@ -377,7 +377,7 @@ proxies:
   tag: 'grpc vless 93.89.217.1.sslip.io IP4 '
 - name: 'grpc vless yahoo.com IP4 '
   type: vless
-  server: 93.89.217.1
+  server: 80.86.209.12
   port: 443
   uuid: 83999090-86f8-4009-a889-746a492638d1
   udp: true
@@ -429,7 +429,7 @@ proxies:
   tag: 'grpc vless HC 93.89.217.1.sslip.io IP4 '
 - name: 'grpc vless HC yahoo.com IP4 '
   type: vless
-  server: 93.89.217.1
+  server: 80.86.209.12
   port: 443
   uuid: 83999090-86f8-4009-a889-746a492638d1
   udp: true
@@ -530,7 +530,7 @@ proxies:
   tag: 'grpc vmess 93.89.217.1.sslip.io IP4 '
 - name: 'grpc vmess yahoo.com IP4 '
   type: vmess
-  server: 93.89.217.1
+  server: 80.86.209.12
   port: 443
   uuid: 83999090-86f8-4009-a889-746a492638d1
   alterId: 0
@@ -587,7 +587,7 @@ proxies:
   tag: 'grpc vmess HC 93.89.217.1.sslip.io IP4 '
 - name: 'grpc vmess HC yahoo.com IP4 '
   type: vmess
-  server: 93.89.217.1
+  server: 80.86.209.12
   port: 443
   uuid: 83999090-86f8-4009-a889-746a492638d1
   alterId: 0
@@ -1054,7 +1054,7 @@ proxies:
   tag: 'rawhttp vless 93.89.217.1.sslip.io IP4 '
 - name: 'rawhttp vless yahoo.com IP4 '
   type: vless
-  server: 93.89.217.1
+  server: 80.86.209.12
   port: 443
   uuid: 83999090-86f8-4009-a889-746a492638d1
   udp: true
@@ -1118,7 +1118,7 @@ proxies:
   tag: 'rawhttp vless HC 93.89.217.1.sslip.io IP4 '
 - name: 'rawhttp vless HC yahoo.com IP4 '
   type: vless
-  server: 93.89.217.1
+  server: 80.86.209.12
   port: 443
   uuid: 83999090-86f8-4009-a889-746a492638d1
   udp: true
@@ -1247,7 +1247,7 @@ proxies:
   tag: 'rawhttp vmess 93.89.217.1.sslip.io IP4 '
 - name: 'rawhttp vmess yahoo.com IP4 '
   type: vmess
-  server: 93.89.217.1
+  server: 80.86.209.12
   port: 443
   uuid: 83999090-86f8-4009-a889-746a492638d1
   alterId: 0
@@ -1316,7 +1316,7 @@ proxies:
   tag: 'rawhttp vmess HC 93.89.217.1.sslip.io IP4 '
 - name: 'rawhttp vmess HC yahoo.com IP4 '
   type: vmess
-  server: 93.89.217.1
+  server: 80.86.209.12
   port: 443
   uuid: 83999090-86f8-4009-a889-746a492638d1
   alterId: 0
@@ -1407,7 +1407,7 @@ proxies:
   tag: 'rawhttp vmess HTTP HC 93.89.217.1.sslip.io IP4 '
 - name: 'raw vless REALITY yahoo.com IP4 '
   type: vless
-  server: 93.89.217.1
+  server: 80.86.209.12
   port: 443
   uuid: 83999090-86f8-4009-a889-746a492638d1
   udp: true

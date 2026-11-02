@@ -80,7 +80,7 @@
         {
             "type": "vless",
             "tag": "\ud83d\ude80 Marz (MihometTest) [VLESS - tcp]",
-            "server": "9.247.6.62",
+            "server": "80.86.209.12",
             "server_port": 10001,
             "flow": "xtls-rprx-vision",
             "tls": {
@@ -89,7 +89,7 @@
                 "reality": {
                     "enabled": true,
                     "public_key": "imq_4oNAudRtHTgXSdjbe4-VmHsa6FjE7gkRrIn8hF4",
-                    "short_id": "97cc3a6bb2aa"
+                    "short_id": "2ecb4f2063dd8151"
                 },
                 "utls": {
                     "enabled": true,
@@ -106,7 +106,7 @@
         {
             "type": "vmess",
             "tag": "\ud83d\ude80 Marz (MihometTest) [VMess - ws]",
-            "server": "9.247.6.62",
+            "server": "80.86.209.12",
             "server_port": 10002,
             "transport": {
                 "headers": {},
@@ -123,7 +123,7 @@
         {
             "type": "shadowsocks",
             "tag": "\ud83d\ude80 Marz (MihometTest) [Shadowsocks - tcp]",
-            "server": "9.247.6.62",
+            "server": "80.86.209.12",
             "server_port": 10003,
             "multiplex": {
                 "enabled": false,
@@ -136,7 +136,7 @@
         {
             "type": "trojan",
             "tag": "\ud83d\ude80 Marz (MihometTest) [Trojan - tcp]",
-            "server": "9.247.6.62",
+            "server": "80.86.209.12",
             "server_port": 10004,
             "multiplex": {
                 "enabled": false,

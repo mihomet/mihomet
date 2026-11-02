@@ -1,0 +1,5 @@
+proxies:
+  - {"type":"vless","name":"RawVLESS-Reality","server":"9.247.6.62","port":10001,"uuid":"e8a597d1-faeb-477c-8f9d-06c9d0b1cabd","udp":true,"tls":true,"flow":"xtls-rprx-vision","client-fingerprint":"chrome","skip-cert-verify":false,"packet-encoding":"xudp","reality-opts":{"public-key":"imq_4oNAudRtHTgXSdjbe4-VmHsa6FjE7gkRrIn8hF4","short-id":"a11f9b7f"},"network":"tcp","servername":"www.microsoft.com"}
+  - {"name":"RawVMess-WS-TLS","type":"vmess","server":"9.247.6.62","port":10002,"cipher":"auto","uuid":"5f5f7f07-623f-4d20-a357-cc4dd79355a5","alterId":0,"tls":true,"network":"ws","ws-opts":{"path":"/mws","headers":{}},"udp":true}
+  - {"type":"ss","skip-cert-verify":false,"udp":true,"server":"9.247.6.62","port":10003,"cipher":"2022-blake3-aes-256-gcm","password":"0Gg2OQ7/b8zRlnDCBpUInmuGKSDj4kYZxXFkKMnglPI=","name":"RawSS2022-BLAKE3"}
+  - {"type":"trojan","password":"0a914a5f34f24dcda056df8ee883caee114410e1479340f1","server":"9.247.6.62","port":10004,"name":"RawTrojan-TLS","sni":"www.microsoft.com","alpn":["h2","http/1.1"],"network":"tcp","udp":true}

@@ -20,6 +20,9 @@ import java.io.StringWriter
  */
 internal object XrayJsonConverter {
 
+    /** Service/special outbound protocols that never become proxy nodes. */
+    private val SERVICE_PROTOCOLS = setOf("freedom", "blackhole", "dns", "dokodemo-door", "api")
+
     fun isXrayJson(str: String): Boolean {
         if (str.startsWith("[")) return true
         if (!str.startsWith("{")) return false
@@ -56,13 +59,23 @@ internal object XrayJsonConverter {
                         for (obEl in outbounds) {
                             val ob = obEl as? JsonObject ?: continue
                             val tag = ob["tag"]?.jsonPrimitive?.contentOrNull ?: ""
-                            if (tag == "direct" || tag == "block" || tag == "dns-out") continue
+                            if (tag == "direct" || tag == "block" || tag == "dns-out" || tag == "api") continue
 
                             val protocol = ob["protocol"]?.jsonPrimitive?.contentOrNull ?: ""
+                            if (protocol.lowercase() in SERVICE_PROTOCOLS) continue
+
                             val settings = ob["settings"]?.jsonObject ?: JsonObject(emptyMap())
                             val streamSettings = ob["streamSettings"]?.jsonObject ?: JsonObject(emptyMap())
 
                             val proxyMap = parseXrayOutboundToMihomo(remarks, protocol, settings, streamSettings)
+                            if (proxyMap == null) {
+                                warnings?.add(
+                                    ConversionWarning.ProxyParseError(
+                                        tag.ifBlank { protocol },
+                                        "unsupported protocol or malformed settings"
+                                    )
+                                )
+                            }
                             if (proxyMap != null) {
                                 val srv = proxyMap["server"]?.toString() ?: ""
                                 val port = proxyMap["port"]?.toString() ?: ""
@@ -85,13 +98,23 @@ internal object XrayJsonConverter {
                     for (obEl in outbounds) {
                         val ob = obEl as? JsonObject ?: continue
                         val tag = ob["tag"]?.jsonPrimitive?.contentOrNull ?: ""
-                        if (tag.isBlank() || tag == "direct" || tag == "block" || tag == "dns-out") continue
+                        if (tag.isBlank() || tag == "direct" || tag == "block" || tag == "dns-out" || tag == "api") continue
 
                         val protocol = ob["protocol"]?.jsonPrimitive?.contentOrNull ?: ""
+                        if (protocol.lowercase() in SERVICE_PROTOCOLS) continue
+
                         val settings = ob["settings"]?.jsonObject ?: JsonObject(emptyMap())
                         val streamSettings = ob["streamSettings"]?.jsonObject ?: JsonObject(emptyMap())
 
                         val proxyMap = parseXrayOutboundToMihomo(tag, protocol, settings, streamSettings)
+                        if (proxyMap == null) {
+                            warnings?.add(
+                                ConversionWarning.ProxyParseError(
+                                    tag,
+                                    "unsupported protocol or malformed settings"
+                                )
+                            )
+                        }
                         if (proxyMap != null) {
                             proxies.add(proxyMap)
                             serverNames.add(tag)
@@ -304,15 +327,16 @@ internal object XrayJsonConverter {
 
         return when (protocol.lowercase()) {
             "vless" -> {
-                val vnextList = settings["vnext"] as? JsonArray ?: return null
-                val vnext = vnextList.firstOrNull() as? JsonObject ?: return null
-                val address = vnext["address"]?.jsonPrimitive?.contentOrNull ?: return null
-                val port = vnext["port"]?.jsonPrimitive?.intOrNull ?: 443
-
-                val usersList = vnext["users"] as? JsonArray ?: return null
-                val user = usersList.firstOrNull() as? JsonObject ?: return null
-                val uuid = user["id"]?.jsonPrimitive?.contentOrNull ?: return null
-                val flow = user["flow"]?.jsonPrimitive?.contentOrNull ?: ""
+                // Standard Xray form: settings.vnext[i] = {address, port, users:[{id, flow}]},
+                // plus the flat 3x-ui export form: settings = {address, port, id, flow} directly.
+                val vnextItem = (settings["vnext"] as? JsonArray)?.firstOrNull() as? JsonObject
+                val record: JsonObject? =
+                    (vnextItem?.get("users") as? JsonArray)?.firstOrNull() as? JsonObject
+                val address = (vnextItem?.get("address") ?: settings["address"])?.jsonPrimitive?.contentOrNull
+                    ?: return null
+                val port = (vnextItem?.get("port") ?: settings["port"])?.jsonPrimitive?.intOrNull ?: 443
+                val uuid = (record?.get("id") ?: settings["id"])?.jsonPrimitive?.contentOrNull ?: return null
+                val flow = (record?.get("flow") ?: settings["flow"])?.jsonPrimitive?.contentOrNull ?: ""
 
                 val map = mutableMapOf<String, Any>(
                     "name" to name,
@@ -322,12 +346,50 @@ internal object XrayJsonConverter {
                     "uuid" to uuid,
                     "network" to if (net == "splithttp") "xhttp" else net
                 )
+                val encryption = settings["encryption"]?.jsonPrimitive?.contentOrNull
+                if (encryption != null && encryption != "none") map["encryption"] = encryption
                 if (flow.isNotBlank()) map["flow"] = flow
 
                 applyStreamSecurityAndTransport(map, net, security, streamSettings, address)
                 map
             }
-            "hysteria", "hysteria2" -> {
+            "hysteria" -> {
+                // mihomo supports hysteria v1 natively — do NOT mislabel it as hysteria2.
+                val address = settings["address"]?.jsonPrimitive?.contentOrNull
+                    ?: (settings["servers"] as? JsonArray)?.firstOrNull()?.jsonObject?.get("address")?.jsonPrimitive?.contentOrNull
+                    ?: return null
+                val port = settings["port"]?.jsonPrimitive?.intOrNull
+                    ?: (settings["servers"] as? JsonArray)?.firstOrNull()?.jsonObject?.get("port")?.jsonPrimitive?.intOrNull
+                    ?: 443
+                val auth = settings["auth"]?.jsonPrimitive?.contentOrNull
+                    ?: settings["auth_str"]?.jsonPrimitive?.contentOrNull
+                    ?: settings["password"]?.jsonPrimitive?.contentOrNull
+                    ?: (settings["servers"] as? JsonArray)?.firstOrNull()?.jsonObject?.get("password")?.jsonPrimitive?.contentOrNull
+                    ?: ""
+                val up = settings["up"]?.jsonPrimitive?.contentOrNull
+                    ?: settings["up_mbps"]?.jsonPrimitive?.intOrNull?.let { "$it Mbps" }
+                val down = settings["down"]?.jsonPrimitive?.contentOrNull
+                    ?: settings["down_mbps"]?.jsonPrimitive?.intOrNull?.let { "$it Mbps" }
+                val tlsSettings = streamSettings["tlsSettings"] as? JsonObject ?: JsonObject(emptyMap())
+
+                val map = mutableMapOf<String, Any>(
+                    "name" to name,
+                    "type" to "hysteria",
+                    "server" to address,
+                    "port" to port,
+                    "udp" to true
+                )
+                if (auth.isNotBlank()) map["password"] = auth
+                if (up != null) map["up"] = up
+                if (down != null) map["down"] = down
+                val sni = tlsSettings["serverName"]?.jsonPrimitive?.contentOrNull ?: address
+                if (sni.isNotBlank() && !sni.matches(Regex("^[0-9.]+$"))) map["sni"] = sni
+                map["alpn"] = listOf("h3")
+                val allowInsecure = tlsSettings["allowInsecure"]?.jsonPrimitive?.booleanOrNull == true
+                if (allowInsecure) map["skip-cert-verify"] = true
+                map
+            }
+            "hysteria2" -> {
                 val address = settings["address"]?.jsonPrimitive?.contentOrNull
                     ?: (settings["servers"] as? JsonArray)?.firstOrNull()?.jsonObject?.get("address")?.jsonPrimitive?.contentOrNull
                     ?: return null
@@ -358,14 +420,17 @@ internal object XrayJsonConverter {
                 map
             }
             "vmess" -> {
-                val vnextList = settings["vnext"] as? JsonArray ?: return null
-                val vnext = vnextList.firstOrNull() as? JsonObject ?: return null
-                val address = vnext["address"]?.jsonPrimitive?.contentOrNull ?: return null
-                val port = vnext["port"]?.jsonPrimitive?.intOrNull ?: 443
-                val user = (vnext["users"] as? JsonArray)?.firstOrNull() as? JsonObject ?: return null
-                val uuid = user["id"]?.jsonPrimitive?.contentOrNull ?: return null
-                val alterId = user["alterId"]?.jsonPrimitive?.intOrNull ?: 0
-                val cipher = user["security"]?.jsonPrimitive?.contentOrNull ?: "auto"
+                // Standard vnext[] form + flat 3x-ui export form (see vless note).
+                val vnextItem = (settings["vnext"] as? JsonArray)?.firstOrNull() as? JsonObject
+                val record: JsonObject? =
+                    (vnextItem?.get("users") as? JsonArray)?.firstOrNull() as? JsonObject
+                val address = (vnextItem?.get("address") ?: settings["address"])?.jsonPrimitive?.contentOrNull
+                    ?: return null
+                val port = (vnextItem?.get("port") ?: settings["port"])?.jsonPrimitive?.intOrNull ?: 443
+                val uuid = (record?.get("id") ?: settings["id"])?.jsonPrimitive?.contentOrNull ?: return null
+                val alterId = (record?.get("alterId") ?: settings["alterId"])?.jsonPrimitive?.intOrNull ?: 0
+                val cipher = (record?.get("security") ?: settings["security"])?.jsonPrimitive?.contentOrNull
+                    ?: "auto"
 
                 val map = mutableMapOf<String, Any>(
                     "name" to name,

@@ -100,3 +100,31 @@
     memory/connections на дашборде. N3 в работе: battery-промпты, allowBypass, HTTP-proxy
     через VPN.
 8. ◐ Override-слой поверх профиля: базовая typed-версия готова (unified-delay / tcp-concurrent / log-level / sniffer в Настройки→Продвинутые, приоритет над профилем); per-profile override-патч готов (Room v4 `overridePatch`, YAML-фрагмент в меню профиля, глубокий merge в runtime-конфиг ДО обязательных настроек — allow-lan/порты/DNS приложения всегда приоритетны). Остаток (L): полный блок dns (nameserver-policy, fake-ip-filter-mode), sniffer per-protocol, JS-скрипты как в FlClash.
+
+## Ночная синхронизация бенча (02.11.2026) — покрытие форматов и починенные пробелы
+
+Пересняты фикстуры со всех 7 панелей (свежие контейнеры), добавлен
+`PanelConversionCoverageTest`: 32 фикстуры × (узлы/группы/warnings) — таблица в тесте.
+
+Починено в `XrayJsonConverter`:
+1. **Плоская форма vless/vmess от 3x-ui** (`settings = {address, port, id, flow}` без
+   `vnext[]`) — раньше терялась молча (4 outbound'а → 2 узла, 0 warnings). Теперь
+   разбираются обе формы; узел `id` берётся из `vnext[i].users[0]` (двухуровневая
+   структура — не схлопывать!).
+2. **Hysteria v1 больше не маскируется под hysteria2** — отдельная ветка с
+   `up`/`down`/`password`/alpn h3 (mihomo поддерживает v1 нативно).
+3. **Тихие потери запрещены**: неразобранный outbound → `ProxyParseError` warning;
+   служебные протоколы (freedom/blackhole/dns/dokodemo-door/api) скипаются без шума.
+
+Проверено и оставлено как есть:
+- sing-box: ssh/naive/mieru outbounds не маппятся в mihomo (типов нет) — уходят в
+  warnings (Hiddify sing-box: 42/50 узлов + 8 warnings — корректно).
+- URI-схемы Hiddify: snell/ssh/wg/hysteria/hy2/tuic — парсер поддерживает snell и wg;
+  mierus/snell-дубли и ssh уходят в warnings.
+- Sub-Store отдаёт `raw-uris` без групп для всех targets — ожидаемо (пул без групп).
+
+Контентно-осознанный UA-фолбэк (`SubscriptionContentChoice` + цепочка
+`[Mihomet, mihomo/v1.19.33, Happ, sing-box, ClashMeta, v2rayNG]`): первый ответ
+с узлами+группами останавливает цепочку; group-less ответ хранится как fallback,
+пока идут попытки. Решение вынесено в чистый объект (`SubscriptionContentChoiceTest`,
+7 тестов) — репозиторий нельзя конструировать на JVM.

@@ -135,6 +135,11 @@ class SubscriptionRepository(
             var meta = SubscriptionMeta()
             var lastException: Exception? = null
             var encryptTag: String? = null
+            // Content-aware acceptance: the first response that converts WITH
+            // proxy-groups beats a group-less one (panels that serve a bare URI
+            // list to unknown User-Agents). A group-less success is kept as a
+            // fallback while the chain still has entries to try.
+            var sawGroups = false
 
             for (ua in userAgentsToTry) {
                 try {
@@ -188,11 +193,20 @@ class SubscriptionRepository(
                         )
                     }
                     if (attempt != null) {
-                        responseText = attempt.text
-                        encryptTag = attempt.encryptTag
-                        userinfo = attempt.userinfo
-                        meta = attempt.meta
-                        break
+                        val decision = SubscriptionContentChoice.evaluate(
+                            currentHasResponse = responseText.isNotEmpty(),
+                            currentSawGroups = sawGroups,
+                            attemptEncrypted = attempt.encryptTag != null,
+                            attemptText = attempt.text
+                        )
+                        if (decision.accept) {
+                            responseText = attempt.text
+                            encryptTag = attempt.encryptTag
+                            userinfo = attempt.userinfo
+                            meta = attempt.meta
+                            sawGroups = decision.sawGroups
+                        }
+                        if (decision.stop) break
                     }
                 } catch (e: CancellationException) {
                     throw e
@@ -421,6 +435,10 @@ class SubscriptionRepository(
          */
         val UA_FALLBACK_CHAIN = listOf(
             APP_USER_AGENT,
+            // Remnawave-type panels serve a full Mihomo YAML (with groups) to this
+            // tier while unknown clients get a bare URI list — the content-aware
+            // acceptance below walks the chain until a grouped response appears.
+            "mihomo/v1.19.33",
             "Happ/3.6.0 (Android; Xray)",
             "sing-box/1.10.0 (Android)",
             "ClashMeta/1.18.0",

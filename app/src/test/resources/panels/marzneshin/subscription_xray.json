@@ -1,0 +1,674 @@
+[
+    {
+        "log": {
+            "loglevel": "warning"
+        },
+        "dns": {
+            "queryStrategy": "UseIP",
+            "servers": [
+                "1.1.1.1",
+                "8.8.8.8"
+            ],
+            "tag": "dns_out"
+        },
+        "routing": {
+            "domainStrategy": "IPIfNonMatch",
+            "rules": [
+                {
+                    "domain": [
+                        "geosite:category-ads-all"
+                    ],
+                    "outboundTag": "block"
+                },
+                {
+                    "domain": [
+                        "regexp:.*\\.ir",
+                        "domain:ir",
+                        "geosite:private"
+                    ],
+                    "outboundTag": "direct"
+                },
+                {
+                    "ip": [
+                        "geoip:ir",
+                        "geoip:private"
+                    ],
+                    "outboundTag": "direct"
+                }
+            ]
+        },
+        "policy": {
+            "system": {
+                "statsOutboundDownlink": true,
+                "statsOutboundUplink": true
+            }
+        },
+        "inbounds": [
+            {
+                "port": 10808,
+                "protocol": "socks",
+                "settings": {
+                    "auth": "noauth",
+                    "udp": true,
+                    "userLevel": 8
+                },
+                "sniffing": {
+                    "destOverride": [
+                        "http",
+                        "tls",
+                        "fakedns"
+                    ],
+                    "enabled": true
+                },
+                "tag": "socks"
+            },
+            {
+                "port": 10809,
+                "protocol": "http",
+                "settings": {
+                    "userLevel": 8
+                },
+                "tag": "http"
+            }
+        ],
+        "outbounds": [
+            {
+                "tag": "\ud83d\ude80 Marz (mihomettest) [vless - tcp]",
+                "protocol": "vless",
+                "settings": {
+                    "vnext": [
+                        {
+                            "address": "198.18.0.1",
+                            "port": 10031,
+                            "users": [
+                                {
+                                    "id": "a8dddbaa-2614-451b-a961-a3c1eeede929",
+                                    "encryption": "none",
+                                    "flow": "xtls-rprx-vision"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "streamSettings": {
+                    "network": "tcp",
+                    "tcpSettings": {
+                        "header": {
+                            "type": "none"
+                        }
+                    },
+                    "security": "reality",
+                    "realitySettings": {
+                        "serverName": "www.microsoft.com",
+                        "fingerprint": "chrome",
+                        "show": false,
+                        "publicKey": "Ouz0_jVyBK7prtJPjLWqUc2YjodxneFtt-hMpTvEyUM",
+                        "shortId": "4708c1a6",
+                        "spiderX": ""
+                    }
+                }
+            },
+            {
+                "tag": "direct",
+                "protocol": "freedom"
+            },
+            {
+                "tag": "block",
+                "protocol": "blackhole"
+            }
+        ],
+        "stats": {},
+        "remarks": "\ud83d\ude80 Marz (mihomettest) [vless - tcp]"
+    },
+    {
+        "log": {
+            "loglevel": "warning"
+        },
+        "dns": {
+            "queryStrategy": "UseIP",
+            "servers": [
+                "1.1.1.1",
+                "8.8.8.8"
+            ],
+            "tag": "dns_out"
+        },
+        "routing": {
+            "domainStrategy": "IPIfNonMatch",
+            "rules": [
+                {
+                    "domain": [
+                        "geosite:category-ads-all"
+                    ],
+                    "outboundTag": "block"
+                },
+                {
+                    "domain": [
+                        "regexp:.*\\.ir",
+                        "domain:ir",
+                        "geosite:private"
+                    ],
+                    "outboundTag": "direct"
+                },
+                {
+                    "ip": [
+                        "geoip:ir",
+                        "geoip:private"
+                    ],
+                    "outboundTag": "direct"
+                }
+            ]
+        },
+        "policy": {
+            "system": {
+                "statsOutboundDownlink": true,
+                "statsOutboundUplink": true
+            }
+        },
+        "inbounds": [
+            {
+                "port": 10808,
+                "protocol": "socks",
+                "settings": {
+                    "auth": "noauth",
+                    "udp": true,
+                    "userLevel": 8
+                },
+                "sniffing": {
+                    "destOverride": [
+                        "http",
+                        "tls",
+                        "fakedns"
+                    ],
+                    "enabled": true
+                },
+                "tag": "socks"
+            },
+            {
+                "port": 10809,
+                "protocol": "http",
+                "settings": {
+                    "userLevel": 8
+                },
+                "tag": "http"
+            }
+        ],
+        "outbounds": [
+            {
+                "tag": "\ud83d\ude80 Marz (mihomettest) [vmess - ws]",
+                "protocol": "vmess",
+                "settings": {
+                    "vnext": [
+                        {
+                            "address": "198.18.0.1",
+                            "port": 10032,
+                            "users": [
+                                {
+                                    "id": "a8dddbaa-2614-451b-a961-a3c1eeede929",
+                                    "security": "auto"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "streamSettings": {
+                    "network": "ws",
+                    "wsSettings": {
+                        "headers": {},
+                        "path": "/mws"
+                    },
+                    "security": "none"
+                }
+            },
+            {
+                "tag": "direct",
+                "protocol": "freedom"
+            },
+            {
+                "tag": "block",
+                "protocol": "blackhole"
+            }
+        ],
+        "stats": {},
+        "remarks": "\ud83d\ude80 Marz (mihomettest) [vmess - ws]"
+    },
+    {
+        "log": {
+            "loglevel": "warning"
+        },
+        "dns": {
+            "queryStrategy": "UseIP",
+            "servers": [
+                "1.1.1.1",
+                "8.8.8.8"
+            ],
+            "tag": "dns_out"
+        },
+        "routing": {
+            "domainStrategy": "IPIfNonMatch",
+            "rules": [
+                {
+                    "domain": [
+                        "geosite:category-ads-all"
+                    ],
+                    "outboundTag": "block"
+                },
+                {
+                    "domain": [
+                        "regexp:.*\\.ir",
+                        "domain:ir",
+                        "geosite:private"
+                    ],
+                    "outboundTag": "direct"
+                },
+                {
+                    "ip": [
+                        "geoip:ir",
+                        "geoip:private"
+                    ],
+                    "outboundTag": "direct"
+                }
+            ]
+        },
+        "policy": {
+            "system": {
+                "statsOutboundDownlink": true,
+                "statsOutboundUplink": true
+            }
+        },
+        "inbounds": [
+            {
+                "port": 10808,
+                "protocol": "socks",
+                "settings": {
+                    "auth": "noauth",
+                    "udp": true,
+                    "userLevel": 8
+                },
+                "sniffing": {
+                    "destOverride": [
+                        "http",
+                        "tls",
+                        "fakedns"
+                    ],
+                    "enabled": true
+                },
+                "tag": "socks"
+            },
+            {
+                "port": 10809,
+                "protocol": "http",
+                "settings": {
+                    "userLevel": 8
+                },
+                "tag": "http"
+            }
+        ],
+        "outbounds": [
+            {
+                "tag": "\ud83d\ude80 Marz (mihomettest) [shadowsocks - <missing>]",
+                "protocol": "shadowsocks",
+                "settings": {
+                    "servers": [
+                        {
+                            "address": "198.18.0.1",
+                            "port": 10033,
+                            "password": "a8dddbaa2614451ba961a3c1eeede929",
+                            "email": "kiomars",
+                            "method": "chacha20-ietf-poly1305",
+                            "uot": false
+                        }
+                    ]
+                },
+                "streamSettings": {
+                    "network": null
+                }
+            },
+            {
+                "tag": "direct",
+                "protocol": "freedom"
+            },
+            {
+                "tag": "block",
+                "protocol": "blackhole"
+            }
+        ],
+        "stats": {},
+        "remarks": "\ud83d\ude80 Marz (mihomettest) [shadowsocks - <missing>]"
+    },
+    {
+        "log": {
+            "loglevel": "warning"
+        },
+        "dns": {
+            "queryStrategy": "UseIP",
+            "servers": [
+                "1.1.1.1",
+                "8.8.8.8"
+            ],
+            "tag": "dns_out"
+        },
+        "routing": {
+            "domainStrategy": "IPIfNonMatch",
+            "rules": [
+                {
+                    "domain": [
+                        "geosite:category-ads-all"
+                    ],
+                    "outboundTag": "block"
+                },
+                {
+                    "domain": [
+                        "regexp:.*\\.ir",
+                        "domain:ir",
+                        "geosite:private"
+                    ],
+                    "outboundTag": "direct"
+                },
+                {
+                    "ip": [
+                        "geoip:ir",
+                        "geoip:private"
+                    ],
+                    "outboundTag": "direct"
+                }
+            ]
+        },
+        "policy": {
+            "system": {
+                "statsOutboundDownlink": true,
+                "statsOutboundUplink": true
+            }
+        },
+        "inbounds": [
+            {
+                "port": 10808,
+                "protocol": "socks",
+                "settings": {
+                    "auth": "noauth",
+                    "udp": true,
+                    "userLevel": 8
+                },
+                "sniffing": {
+                    "destOverride": [
+                        "http",
+                        "tls",
+                        "fakedns"
+                    ],
+                    "enabled": true
+                },
+                "tag": "socks"
+            },
+            {
+                "port": 10809,
+                "protocol": "http",
+                "settings": {
+                    "userLevel": 8
+                },
+                "tag": "http"
+            }
+        ],
+        "outbounds": [
+            {
+                "tag": "Mihomet VLESS Reality",
+                "protocol": "vless",
+                "settings": {
+                    "vnext": [
+                        {
+                            "address": "127.0.0.1",
+                            "port": 10031,
+                            "users": [
+                                {
+                                    "id": "a8dddbaa-2614-451b-a961-a3c1eeede929",
+                                    "encryption": "none",
+                                    "flow": "xtls-rprx-vision"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "streamSettings": {
+                    "network": "tcp",
+                    "tcpSettings": {
+                        "header": {
+                            "type": "none"
+                        }
+                    },
+                    "security": "reality",
+                    "realitySettings": {
+                        "serverName": "www.microsoft.com",
+                        "fingerprint": "chrome",
+                        "show": false,
+                        "publicKey": "Ouz0_jVyBK7prtJPjLWqUc2YjodxneFtt-hMpTvEyUM",
+                        "shortId": "4708c1a6",
+                        "spiderX": ""
+                    }
+                }
+            },
+            {
+                "tag": "direct",
+                "protocol": "freedom"
+            },
+            {
+                "tag": "block",
+                "protocol": "blackhole"
+            }
+        ],
+        "stats": {},
+        "remarks": "Mihomet VLESS Reality"
+    },
+    {
+        "log": {
+            "loglevel": "warning"
+        },
+        "dns": {
+            "queryStrategy": "UseIP",
+            "servers": [
+                "1.1.1.1",
+                "8.8.8.8"
+            ],
+            "tag": "dns_out"
+        },
+        "routing": {
+            "domainStrategy": "IPIfNonMatch",
+            "rules": [
+                {
+                    "domain": [
+                        "geosite:category-ads-all"
+                    ],
+                    "outboundTag": "block"
+                },
+                {
+                    "domain": [
+                        "regexp:.*\\.ir",
+                        "domain:ir",
+                        "geosite:private"
+                    ],
+                    "outboundTag": "direct"
+                },
+                {
+                    "ip": [
+                        "geoip:ir",
+                        "geoip:private"
+                    ],
+                    "outboundTag": "direct"
+                }
+            ]
+        },
+        "policy": {
+            "system": {
+                "statsOutboundDownlink": true,
+                "statsOutboundUplink": true
+            }
+        },
+        "inbounds": [
+            {
+                "port": 10808,
+                "protocol": "socks",
+                "settings": {
+                    "auth": "noauth",
+                    "udp": true,
+                    "userLevel": 8
+                },
+                "sniffing": {
+                    "destOverride": [
+                        "http",
+                        "tls",
+                        "fakedns"
+                    ],
+                    "enabled": true
+                },
+                "tag": "socks"
+            },
+            {
+                "port": 10809,
+                "protocol": "http",
+                "settings": {
+                    "userLevel": 8
+                },
+                "tag": "http"
+            }
+        ],
+        "outbounds": [
+            {
+                "tag": "Mihomet VMess WS",
+                "protocol": "vmess",
+                "settings": {
+                    "vnext": [
+                        {
+                            "address": "127.0.0.1",
+                            "port": 10032,
+                            "users": [
+                                {
+                                    "id": "a8dddbaa-2614-451b-a961-a3c1eeede929",
+                                    "security": "auto"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "streamSettings": {
+                    "network": "ws",
+                    "wsSettings": {
+                        "headers": {},
+                        "path": "/mws"
+                    },
+                    "security": "none"
+                }
+            },
+            {
+                "tag": "direct",
+                "protocol": "freedom"
+            },
+            {
+                "tag": "block",
+                "protocol": "blackhole"
+            }
+        ],
+        "stats": {},
+        "remarks": "Mihomet VMess WS"
+    },
+    {
+        "log": {
+            "loglevel": "warning"
+        },
+        "dns": {
+            "queryStrategy": "UseIP",
+            "servers": [
+                "1.1.1.1",
+                "8.8.8.8"
+            ],
+            "tag": "dns_out"
+        },
+        "routing": {
+            "domainStrategy": "IPIfNonMatch",
+            "rules": [
+                {
+                    "domain": [
+                        "geosite:category-ads-all"
+                    ],
+                    "outboundTag": "block"
+                },
+                {
+                    "domain": [
+                        "regexp:.*\\.ir",
+                        "domain:ir",
+                        "geosite:private"
+                    ],
+                    "outboundTag": "direct"
+                },
+                {
+                    "ip": [
+                        "geoip:ir",
+                        "geoip:private"
+                    ],
+                    "outboundTag": "direct"
+                }
+            ]
+        },
+        "policy": {
+            "system": {
+                "statsOutboundDownlink": true,
+                "statsOutboundUplink": true
+            }
+        },
+        "inbounds": [
+            {
+                "port": 10808,
+                "protocol": "socks",
+                "settings": {
+                    "auth": "noauth",
+                    "udp": true,
+                    "userLevel": 8
+                },
+                "sniffing": {
+                    "destOverride": [
+                        "http",
+                        "tls",
+                        "fakedns"
+                    ],
+                    "enabled": true
+                },
+                "tag": "socks"
+            },
+            {
+                "port": 10809,
+                "protocol": "http",
+                "settings": {
+                    "userLevel": 8
+                },
+                "tag": "http"
+            }
+        ],
+        "outbounds": [
+            {
+                "tag": "Mihomet SS2022",
+                "protocol": "shadowsocks",
+                "settings": {
+                    "servers": [
+                        {
+                            "address": "127.0.0.1",
+                            "port": 10033,
+                            "password": "a8dddbaa2614451ba961a3c1eeede929",
+                            "email": "kiomars",
+                            "method": "2022-blake3-aes-256-gcm",
+                            "uot": false
+                        }
+                    ]
+                },
+                "streamSettings": {
+                    "network": null
+                }
+            },
+            {
+                "tag": "direct",
+                "protocol": "freedom"
+            },
+            {
+                "tag": "block",
+                "protocol": "blackhole"
+            }
+        ],
+        "stats": {},
+        "remarks": "Mihomet SS2022"
+    }
+]
