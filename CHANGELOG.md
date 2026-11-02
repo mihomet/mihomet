@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.3.3
+
+### Panel-format conversion — full coverage
+- Xray JSON: flat vless/vmess settings (3x-ui export) now parse (were silently
+  dropped); two-level vnext[i].users[0].id structure respected; hysteria v1 kept
+  as hysteria (not mislabeled hysteria2); http/socks outbounds mapped; TCP+http
+  obfs → http-opts; httpupgrade-opts; kcp-opts (mtu/seed/header); grpc
+  multi-mode; WS early-data + all headers; TUIC v5 full params
+- sing-box: httpupgrade is its own network (was folded into ws); multiplex →
+  smux; anytls/shadowtls/http outbounds; hysteria v1 password + bandwidth;
+  TUIC both congestion field spellings; ss plugin_opts parsed into
+  plugin-opts map
+- URI list: xhttp/httpupgrade/kcp/tcp-obfs params; vmess scy cipher;
+  ss2022 SIP002; hysteria2 mport/obfs; snell obfs-host; SIP003 plugins
+  (simple-obfs, v2ray-plugin)
+- Content-aware UA fallback: the chain keeps walking while responses come back
+  without proxy-groups and prefers the first grouped response — panels that
+  serve bare URI lists to unknown clients (Remnawave-type) now yield their
+  groups without any panel-side changes
+- Dropped outbounds always warn (no silent losses); PanelConversionCoverageTest
+  walks 32 fresh fixtures from all 7 bench panels
+
+### UI
+- Servers screen: expressive empty state (icon + hint, both locales)
+- Brand palette is the default again — Material You wallpaper tones were hiding
+  the designed identity on Android 12+ (toggle stays for Material You fans)
+
 ## 1.3.2
 
 - Notification layout: active profile name in title, duration timer in native header subText, live speed (↓ / ↑) on a dedicated line with non-breaking spaces preventing mid-unit wrapping
