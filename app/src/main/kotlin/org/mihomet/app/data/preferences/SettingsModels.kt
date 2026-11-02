@@ -89,7 +89,9 @@ data class AppSettings(
     val dnsPort: Int = CoreConstants.DEFAULT_DNS_PORT,
     val controllerPort: Int = CoreConstants.DEFAULT_CONTROLLER_PORT,
     val ipv6Enabled: Boolean = false,
-    val dynamicColor: Boolean = true,
+    // Brand palette (violet/teal/rose) is the designed identity — Material You
+    // wallpaper tones are opt-in. Default ON hid the brand design on Android 12+.
+    val dynamicColor: Boolean = false,
     val darkTheme: Boolean = true,
     val amoledBlack: Boolean = false,
     val showSpeedInNotification: Boolean = true,
