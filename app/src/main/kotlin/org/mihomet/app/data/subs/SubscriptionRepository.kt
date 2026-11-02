@@ -33,7 +33,6 @@ import org.mihomet.app.ui.screens.profiles.SubscriptionUserinfo
 import org.mihomet.app.ui.screens.profiles.SubscriptionUserinfoParser
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.util.Base64
 
 /**
  * Result of a subscription download + conversion: mihomo YAML (with converter
