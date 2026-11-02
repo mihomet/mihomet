@@ -13,13 +13,13 @@ class NodePingTesterTest {
             proxies:
               - name: "🇱🇻 Латвия ⚡️"
                 type: vless
-                server: lv-03d69266.meow.ac
+                server: lv-node.example.com
                 port: 443
                 uuid: f3d1cdd7-3b9e-4d98-aaa9-b11a28a01984
                 tls: true
               - name: "🇫🇮 Финляндия ⚡️"
                 type: vless
-                server: fi-03d69266.meow.ac
+                server: fi-node.example.com
                 port: 443
                 reality-opts:
                   public-key: "xyz"
@@ -30,7 +30,7 @@ class NodePingTesterTest {
         val nodes = NodePingTester.parseNodesFromYaml(yaml)
         assertEquals(2, nodes.size)
         assertEquals("🇱🇻 Латвия ⚡️", nodes[0].name)
-        assertEquals("lv-03d69266.meow.ac", nodes[0].server)
+        assertEquals("lv-node.example.com", nodes[0].server)
         assertEquals(443, nodes[0].port)
         assertEquals("vless", nodes[0].type)
         assertEquals("tls", nodes[0].network)

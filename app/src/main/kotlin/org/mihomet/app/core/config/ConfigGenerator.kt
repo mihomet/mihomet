@@ -241,7 +241,7 @@ object ConfigGenerator {
         //    from Russia — foreign plain DNS (1.1.1.1 / 8.8.8.8) is blocked by TSPU.
         existingDns["default-nameserver"] = DnsPresets.BOOTSTRAP_RU_PLAIN
 
-        // 2. proxy-server-nameserver: Resolves proxy server hostnames (e.g. lv-*.meow.ac)
+        // 2. proxy-server-nameserver: Resolves proxy server hostnames (e.g. lv-*.example.com)
         //    directly from Russia. Encryption is pointless here (proxy traffic is already
         //    encrypted) and foreign encrypted resolvers are blocked by TSPU — so only the
         //    plain Russian resolvers are used. Without this, Mihomo falls back to
