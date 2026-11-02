@@ -168,6 +168,44 @@ class UriMatrixTest {
         assertEquals(mapOf("mode" to "http", "host" to "sn.example.com"), p["obfs-opts"])
     }
 
+    // ---- SIP003 plugins ----
+
+    @Test
+    fun `ss uri with simple-obfs plugin maps to mihomo obfs`() {
+        val userinfo = java.util.Base64.getEncoder().encodeToString(
+            "aes-256-gcm:ObfsPass".toByteArray())
+        val p = parse("ss://$userinfo@s.example.com:8388" +
+                "?plugin=obfs-local%3Bobfs%3Dhttp%3Bobfs-host%3Dcdn.example.com#SS-OBFS")
+        assertNotNull(p)
+        assertEquals("obfs", p!!["plugin"])
+        val opts = p["plugin-opts"] as Map<String, Any>
+        assertEquals("http", opts["mode"])
+        assertEquals("cdn.example.com", opts["host"])
+    }
+
+    @Test
+    fun `ss uri with v2ray-plugin maps with tls and mode`() {
+        val userinfo = java.util.Base64.getEncoder().encodeToString(
+            "chacha20-ietf-poly1305:V2Pass".toByteArray())
+        val p = parse("ss://$userinfo@v.example.com:8388" +
+                "?plugin=v2ray-plugin%3Bmode%3Dwebsocket%3Btls%3Bhost%3Dv.example.com%3Bpath%3D%2Fvp#SS-V2")
+        assertNotNull(p)
+        assertEquals("v2ray-plugin", p!!["plugin"])
+        val opts = p["plugin-opts"] as Map<String, Any>
+        assertEquals("websocket", opts["mode"])
+        assertEquals(true, opts["tls"])
+        assertEquals("v.example.com", opts["host"])
+        assertEquals("/vp", opts["path"])
+    }
+
+    @Test
+    fun `ss uri without plugin has no plugin key`() {
+        val userinfo = java.util.Base64.getEncoder().encodeToString("aes-256-gcm:P".toByteArray())
+        val p = parse("ss://$userinfo@s.example.com:8388#Plain")
+        assertNotNull(p)
+        assertNull(p!!["plugin"])
+    }
+
     // ---- Unrecognized schemes warn, never vanish ----
 
     @Test

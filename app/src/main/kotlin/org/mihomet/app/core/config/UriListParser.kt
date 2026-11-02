@@ -233,11 +233,10 @@ internal object UriListParser {
             val userinfo = noScheme.substring(0, atIdx)
             val rest = noScheme.substring(atIdx + 1)
             val (method, password) = decodeShadowsocksUserinfo(userinfo) ?: return null
-            // Strip query string (?type=tcp&plugin=...) — SIP003 plugin mapping is not handled yet
             val qIdx = rest.indexOf('?')
             val hostPort = if (qIdx != -1) rest.substring(0, qIdx) else rest
             val (server, rawPort) = parseHostPort(hostPort) ?: return null
-            mutableMapOf(
+            val map = mutableMapOf<String, Any>(
                 "name" to name,
                 "type" to "ss",
                 "server" to server,
@@ -246,6 +245,44 @@ internal object UriListParser {
                 "password" to password,
                 "udp" to true
             )
+            // SIP003 plugin (simple-obfs / v2ray-plugin) -> mihomo plugin + plugin-opts
+            if (qIdx != -1) {
+                val params = parseQueryParams(rest.substring(qIdx + 1))
+                val pluginParam = params["plugin"]
+                if (!pluginParam.isNullOrBlank()) {
+                    val parts = pluginParam.split(";")
+                    when (parts.firstOrNull()) {
+                        "obfs-local", "simple-obfs" -> {
+                            map["plugin"] = "obfs"
+                            val opts = mutableMapOf<String, Any>()
+                            for (part in parts.drop(1)) {
+                                val kv = part.split("=", limit = 2)
+                                when (kv.getOrNull(0)) {
+                                    "obfs" -> opts["mode"] = kv.getOrNull(1) ?: "http"
+                                    "obfs-host" -> kv.getOrNull(1)?.let { opts["host"] = it }
+                                }
+                            }
+                            map["plugin-opts"] = opts
+                        }
+                        "v2ray-plugin" -> {
+                            map["plugin"] = "v2ray-plugin"
+                            val opts = mutableMapOf<String, Any>()
+                            for (part in parts.drop(1)) {
+                                val kv = part.split("=", limit = 2)
+                                when (kv.getOrNull(0)) {
+                                    "mode" -> opts["mode"] = kv.getOrNull(1) ?: "websocket"
+                                    "host" -> kv.getOrNull(1)?.let { opts["host"] = it }
+                                    "path" -> kv.getOrNull(1)?.let { opts["path"] = it }
+                                    "tls" -> opts["tls"] = true
+                                }
+                            }
+                            if (opts["mode"] == null) opts["mode"] = "websocket"
+                            map["plugin-opts"] = opts
+                        }
+                    }
+                }
+            }
+            map
         } else {
             val decoded = ConverterSupport.decodeBase64(noScheme)
             val atIdx = decoded.indexOf('@')
