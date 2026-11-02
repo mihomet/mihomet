@@ -1,10 +1,6 @@
 package org.mihomet.app
 
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
 import io.ktor.client.request.get
-import io.ktor.client.request.header
-import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
 import org.mihomet.app.core.config.ConfigGenerator

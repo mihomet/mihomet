@@ -51,12 +51,12 @@ class UniversalConfigConverterTest {
                     "tag": "TIER1",
                     "protocol": "vless",
                     "settings": {
-                      "vnext": [{ "address": "lv.meow.ac", "port": 443, "users": [{ "id": "uuid1", "flow": "xtls-rprx-vision" }] }]
+                      "vnext": [{ "address": "lv.example.com", "port": 443, "users": [{ "id": "uuid1", "flow": "xtls-rprx-vision" }] }]
                     },
                     "streamSettings": {
                       "network": "tcp",
                       "security": "tls",
-                      "tlsSettings": { "serverName": "lv.meow.ac", "fingerprint": "firefox" }
+                      "tlsSettings": { "serverName": "lv.example.com", "fingerprint": "firefox" }
                     }
                   },
                   {
@@ -81,7 +81,7 @@ class UniversalConfigConverterTest {
                     "tag": "proxy",
                     "protocol": "vless",
                     "settings": {
-                      "vnext": [{ "address": "lv.meow.ac", "port": 443, "users": [{ "id": "uuid1" }] }]
+                      "vnext": [{ "address": "lv.example.com", "port": 443, "users": [{ "id": "uuid1" }] }]
                     }
                   }
                 ]
@@ -116,7 +116,7 @@ class UniversalConfigConverterTest {
         assertEquals(2, proxies.size)
         assertEquals("🇱🇻 Node Latvia", proxies[0]["name"])
         assertEquals("vless", proxies[0]["type"])
-        assertEquals("lv.meow.ac", proxies[0]["server"])
+        assertEquals("lv.example.com", proxies[0]["server"])
 
         assertEquals("🇩🇪 Node Germany", proxies[1]["name"])
         assertEquals("vless", proxies[1]["type"])
