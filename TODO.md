@@ -68,6 +68,13 @@
 
 ---
 
+### Feature ideas (from live bench testing)
+- [ ] Instrumented UI test for the import flow: deep-link → confirmation dialog →
+  Add → assert the profile appears (a night e2e attempt via adb taps failed on
+  Compose dialog/IME/timing flakiness — needs Espresso with precise dialog
+  semantics). Include a MockWebServer-backed variant asserting the content-aware
+  UA fallback end-to-end on-device.
+
 ## 🔍 Security review (31.10.2026, 24 findings) — closure status
 
 > Honest framing: this was an AI-assisted code review, not an independent audit with a named
