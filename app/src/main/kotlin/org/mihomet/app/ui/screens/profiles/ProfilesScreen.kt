@@ -46,7 +46,6 @@ import org.mihomet.app.ui.theme.ExpressiveShapes
 import org.mihomet.app.ui.theme.HapticType
 import org.mihomet.app.ui.theme.PrimaryViolet
 import org.mihomet.app.ui.theme.SecondaryTeal
-import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -593,8 +592,11 @@ fun ExpressiveProfileCard(
     onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
-    val dateFormat = remember { SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()) }
-    val expireDateFormat = remember { SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()) }
+    // Locale-aware: RU shows "01.11.2026, 14:23", EN shows "11/1/26, 2:23 PM".
+    val dateFormat = remember {
+        java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT, Locale.getDefault())
+    }
+    val expireDateFormat = remember { java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, Locale.getDefault()) }
 
     Surface(
         modifier = Modifier

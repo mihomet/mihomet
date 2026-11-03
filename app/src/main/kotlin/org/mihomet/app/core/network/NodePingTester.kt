@@ -315,7 +315,7 @@ object NodePingTester {
                 isSuccess = true,
                 latencyMs = elapsed,
                 ip = ip.ifBlank { "OK" },
-                location = loc.ifBlank { "Подключено" }
+                location = loc.ifBlank { "OK" }
             )
         } catch (e: Exception) {
             // Fallback to simple 204
@@ -332,14 +332,14 @@ object NodePingTester {
                     ConnectionTestResult(
                         isSuccess = true,
                         latencyMs = System.currentTimeMillis() - fbStart,
-                        ip = "Активно",
-                        location = "Доступно"
+                        ip = "OK",
+                        location = "OK"
                     )
                 } else {
                     ConnectionTestResult(isSuccess = false, errorMessage = "HTTP $code")
                 }
             } catch (e2: Exception) {
-                ConnectionTestResult(isSuccess = false, errorMessage = e2.message ?: "Таймаут")
+                ConnectionTestResult(isSuccess = false, errorMessage = e2.message ?: "timeout")
             }
         }
     }
