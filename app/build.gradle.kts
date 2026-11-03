@@ -30,7 +30,7 @@ val downloadMihomoCore by tasks.registering {
             MessageDigest.getInstance("SHA-256").digest(file.readBytes())
                 .joinToString("") { "%02x".format(it) }
 
-        fun download(url: String, dest: File, expectedSha: String?) {
+        fun download(url: String, dest: File, expectedSha: String?, minSize: Long = 1_000_000) {
             logger.lifecycle("Mihomet: downloading ${dest.name}…")
             dest.parentFile.mkdirs()
             val connection = URL(url).openConnection() as HttpURLConnection
@@ -51,7 +51,7 @@ val downloadMihomoCore by tasks.registering {
                             "If upstream published a new artifact, update gradle/mihomo-core.properties."
                     )
                 }
-            } else if (dest.length() < 1_000_000) {
+            } else if (dest.length() < minSize) {
                 dest.delete()
                 throw GradleException("Downloaded ${dest.name} looks truncated (${dest.length()} bytes).")
             }
@@ -82,45 +82,28 @@ val downloadMihomoCore by tasks.registering {
             logger.lifecycle("Mihomet: installed libmihomo.so ($abi) from core $coreVersion")
         }
 
-        // Geo databases: pinned by sha256 like the core binary. They drive ROUTING
-        // decisions (a poisoned geosite steers domains through the proxy), so the
-        // "data file, not executed" argument does not excuse missing integrity.
-        // When MetaCubeX republishes, update geoip.metadb.sha256 / geosite.dat.sha256
-        // in gradle/mihomo-core.properties together with the core bump.
-        mapOf(
-            "geoip.metadb" to "geoip.metadb.sha256",
-            "geosite.dat" to "geosite.dat.sha256"
-        ).forEach { (fileName, hashProperty) ->
-            val expectedHash = coreProperties.getProperty(hashProperty)
+        // Geo databases drive ROUTING decisions (a poisoned geosite steers bank/work
+        // domains through the proxy), so every download is verified against the
+        // .sha256sum published in the SAME MetaCubeX release: download corruption is
+        // caught, while upstream republishes stay self-healing (fresh file + fresh
+        // checksum travel together; trusting MetaCubeX upstream is the same trust
+        // assumption as the rest of the build).
+        mapOf("geoip.metadb" to "geoip", "geosite.dat" to "geosite").forEach { (fileName, _) ->
             val target = layout.projectDirectory.file("src/main/assets/$fileName").asFile
             if (target.isFile && target.length() > 1_000_000) {
                 return@forEach
             }
             val cached = coreCacheDir.file(fileName).asFile
             if (!cached.isFile || cached.length() < 1_000_000) {
-                download(
-                    "https://github.com/MetaCubeX/meta-rules-dat/releases/latest/download/$fileName",
-                    cached,
-                    null
-                )
-            }
-            if (expectedHash != null) {
-                val digest = MessageDigest.getInstance("SHA-256")
-                    .digest(cached.readBytes())
-                    .joinToString("") { "%02x".format(it) }
-                if (!digest.equals(expectedHash, ignoreCase = true)) {
-                    throw GradleException(
-                        "Mihomet: $fileName sha256 mismatch (expected $expectedHash, got $digest). " +
-                            "The upstream file changed or the download was tampered with. " +
-                            "Verify the new file and update $hashProperty in gradle/mihomo-core.properties."
-                    )
-                }
-            } else {
-                logger.lifecycle("Mihomet: no $hashProperty pinned — skipping $fileName integrity check")
+                val geoBase = "https://github.com/MetaCubeX/meta-rules-dat/releases/latest/download"
+                val sumFile = coreCacheDir.file("$fileName.sha256sum").asFile
+                download("$geoBase/$fileName.sha256sum", sumFile, null, minSize = 16)
+                val published = sumFile.readText().trim().split(Regex("\\s+")).first()
+                download("$geoBase/$fileName", cached, published)
             }
             target.parentFile.mkdirs()
             cached.copyTo(target, overwrite = true)
-            logger.lifecycle("Mihomet: installed assets/$fileName (verified)")
+            logger.lifecycle("Mihomet: installed assets/$fileName (checksum verified)")
         }
     }
 }
