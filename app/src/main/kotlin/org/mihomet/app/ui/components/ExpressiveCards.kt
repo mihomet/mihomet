@@ -147,9 +147,10 @@ fun ExpressiveLatencyBadge(
 
     val (dotColor, textColor) = when {
         isTesting -> MaterialTheme.colorScheme.primary to MaterialTheme.colorScheme.primary
-        delayMs > 0 && delayMs < 120 -> AccentGreen to greenText
-        delayMs in 120..280 -> AccentOrange to orangeText
-        delayMs > 280 -> AccentRed to redText
+        // House grading: green ≤200 ms, amber ≤500 ms, red beyond.
+        delayMs in 1..200 -> AccentGreen to greenText
+        delayMs in 201..500 -> AccentOrange to orangeText
+        delayMs > 500 -> AccentRed to redText
         // ICMP capability gap (no ping binary / OS refusal) — not a node failure.
         delayMs == NodePingTester.ICMP_UNAVAILABLE ->
             Color.Gray to MaterialTheme.colorScheme.onSurfaceVariant
