@@ -1,6 +1,7 @@
 package org.mihomet.app.core.config
 
 import kotlinx.serialization.json.JsonArray
+import org.mihomet.app.core.CoreConstants
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -53,7 +54,7 @@ internal object SingBoxConverter {
 
                 when (type) {
                     "urltest" -> {
-                        val url = ob["url"]?.jsonPrimitive?.contentOrNull ?: "http://www.gstatic.com/generate_204"
+                        val url = ob["url"]?.jsonPrimitive?.contentOrNull ?: CoreConstants.AUTO_PROBE_URL
                         val intervalStr = ob["interval"]?.jsonPrimitive?.contentOrNull ?: "300s"
                         val intervalSec = ConverterSupport.parseSeconds(intervalStr, default = 300)
                         val tolerance = ob["tolerance"]?.jsonPrimitive?.intOrNull ?: 50

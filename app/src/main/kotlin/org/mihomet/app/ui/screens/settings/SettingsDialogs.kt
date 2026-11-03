@@ -179,7 +179,7 @@ fun LatencyTestConfigDialog(
                         Text("Google", fontSize = 11.sp)
                     }
                     FilledTonalButton(
-                        onClick = { url = "http://cp.cloudflare.com/generate_204" },
+                        onClick = { url = "https://cp.cloudflare.com/generate_204" },
                         modifier = Modifier.weight(1f),
                         shape = ExpressiveShapes.Small
                     ) {

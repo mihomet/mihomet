@@ -182,9 +182,11 @@ internal fun AdvancedSection(
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(stringResource(R.string.settings_latency), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            val shortUrl = when (settings.testUrl) {
-                                "http://www.gstatic.com/generate_204" -> "Google (204)"
-                                "http://cp.cloudflare.com/generate_204", "https://cp.cloudflare.com/generate_204" -> "Cloudflare (204)"
+                            // Scheme-agnostic display names: recognize well-known probe
+                            // endpoints regardless of http/https (stored legacy values too).
+                            val shortUrl = when {
+                                settings.testUrl.contains("gstatic.com/generate_204") -> "Google (204)"
+                                settings.testUrl.contains("cp.cloudflare.com/generate_204") -> "Cloudflare (204)"
                                 else -> settings.testUrl
                             }
                             Text(

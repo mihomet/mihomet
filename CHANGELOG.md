@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.3.4
+
+### Hardening (external supply-chain review round 2)
+- Zero cleartext probe URLs in the app: latency/probe defaults and fallbacks are
+  https end-to-end; the legacy https→http downgrade for the Cloudflare endpoint
+  and the stored test URL is removed
+- GitHub Actions pinned by commit SHA (workflows + core repo)
+- Release builds without KEYSTORE_* are truly unsigned (were silently debug-signed)
+- Honest provenance: Trust & threat model in README; review reframed as
+  AI-assisted internal, not an independent audit
+- Bench fixtures: real VPS IP replaced with RFC 5737 documentation IP;
+  provenance notice added; mihomet/core gained a LICENSE file and SHA-pinned,
+  manifest-signing CI (CORE_MANIFEST_KEY secret)
+
 ## 1.3.3
 
 ### Panel-format conversion — full coverage

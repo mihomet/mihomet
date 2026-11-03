@@ -107,11 +107,8 @@ class SettingsRepository(
                 showSpeedInNotification = preferences[PreferencesKeys.SHOW_SPEED_NOTIFICATION] ?: true,
                 customDns = preferences[PreferencesKeys.CUSTOM_DNS] ?: "",
                 controllerSecret = resolveControllerSecret(preferences[PreferencesKeys.CONTROLLER_SECRET]),
-                testUrl = preferences[PreferencesKeys.TEST_URL]?.let { stored ->
-                    if (stored.startsWith("https://cp.cloudflare.com")) {
-                        stored.replace("https://", "http://")
-                    } else stored
-                } ?: "https://www.gstatic.com/generate_204",
+                testUrl = preferences[PreferencesKeys.TEST_URL]
+                    ?: "https://www.gstatic.com/generate_204",
                 testTimeoutMs = preferences[PreferencesKeys.TEST_TIMEOUT_MS] ?: 5000,
                 overrideUnifiedDelay = preferences[PreferencesKeys.OVERRIDE_UNIFIED_DELAY] ?: false,
                 overrideTcpConcurrent = preferences[PreferencesKeys.OVERRIDE_TCP_CONCURRENT] ?: true,
@@ -379,10 +376,7 @@ class SettingsRepository(
     }
 
     suspend fun updateTestUrl(url: String) {
-        val sanitized = if (url.startsWith("https://cp.cloudflare.com")) {
-            url.replace("https://", "http://")
-        } else url
-        context.dataStore.edit { it[PreferencesKeys.TEST_URL] = sanitized }
+        context.dataStore.edit { it[PreferencesKeys.TEST_URL] = url }
     }
 
     suspend fun updateTestTimeout(timeoutMs: Int) {

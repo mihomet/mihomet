@@ -1,6 +1,7 @@
 package org.mihomet.app.core.config
 
 import kotlinx.serialization.json.JsonArray
+import org.mihomet.app.core.CoreConstants
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
@@ -154,7 +155,7 @@ internal object XrayJsonConverter {
                         ?: item["observatory"]?.jsonObject?.get("pingConfig")?.jsonObject
 
                     val destUrl = burstPing?.get("destination")?.jsonPrimitive?.contentOrNull
-                        ?: "http://www.gstatic.com/generate_204"
+                        ?: CoreConstants.AUTO_PROBE_URL
 
                     val intervalStr = burstPing?.get("interval")?.jsonPrimitive?.contentOrNull ?: "300s"
                     val intervalSec = ConverterSupport.parseSeconds(intervalStr, default = 300)

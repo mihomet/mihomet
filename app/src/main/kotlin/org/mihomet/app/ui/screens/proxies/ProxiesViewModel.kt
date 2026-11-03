@@ -363,13 +363,11 @@ class ProxiesViewModel(
             _uiState.update { it.copy(testingNodeNames = it.testingNodeNames + node.name) }
             val isCoreOnline = apiClientProvider.current().getVersion().isSuccess || ServiceState.isRunning.value
             val rawTestUrl = if (protocol == PingProtocol.HTTP_HEAD) {
-                "http://cp.cloudflare.com/generate_204"
+                "https://cp.cloudflare.com/generate_204"
             } else {
                 currentTestUrl.ifBlank { "https://www.gstatic.com/generate_204" }
             }
-            val testUrl = if (rawTestUrl.startsWith("https://cp.cloudflare.com")) {
-                rawTestUrl.replace("https://", "http://")
-            } else rawTestUrl
+            val testUrl = rawTestUrl
             val timeout = currentTestTimeoutMs
 
             val delay = when (protocol) {
@@ -447,13 +445,11 @@ class ProxiesViewModel(
         client: MihomoApiClient = apiClientProvider.current()
     ) = withContext(Dispatchers.IO) {
         val rawTestUrl = if (protocol == PingProtocol.HTTP_HEAD) {
-            "http://cp.cloudflare.com/generate_204"
+            "https://cp.cloudflare.com/generate_204"
         } else {
             currentTestUrl.ifBlank { "https://www.gstatic.com/generate_204" }
         }
-        val testUrl = if (rawTestUrl.startsWith("https://cp.cloudflare.com")) {
-            rawTestUrl.replace("https://", "http://")
-        } else rawTestUrl
+        val testUrl = rawTestUrl
         val timeout = currentTestTimeoutMs
 
         val groupResults = java.util.concurrent.ConcurrentHashMap<String, Long>()

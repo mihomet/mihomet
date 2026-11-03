@@ -1,6 +1,7 @@
 package org.mihomet.app.core.network
 
 import kotlinx.coroutines.Dispatchers
+import org.mihomet.app.core.CoreConstants
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.sync.Semaphore
@@ -320,7 +321,7 @@ object NodePingTester {
             // Fallback to simple 204
             try {
                 val fbStart = System.currentTimeMillis()
-                val fbUrl = URL("http://www.gstatic.com/generate_204")
+                val fbUrl = URL(CoreConstants.AUTO_PROBE_URL)
                 val fbConn = (fbUrl.openConnection() as HttpURLConnection).apply {
                     connectTimeout = timeoutMs
                     readTimeout = timeoutMs
