@@ -68,7 +68,11 @@
 
 ---
 
-## 🔍 External audit (31.10.2026, 24 findings) — closure status
+## 🔍 Security review (31.10.2026, 24 findings) — closure status
+
+> Honest framing: this was an AI-assisted code review, not an independent audit with a named
+> auditor. The project is AI-generated end to end with a single contributor who does not vouch
+> for its security; treat it as experimental software (see README → Trust & threat model).
 
 ### Wave 1 — closed (merged in this milestone)
 - [x] **P0.1** Deep-link hardening: unconditional import confirmation dialog (payload + source + name),

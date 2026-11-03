@@ -134,7 +134,8 @@ android {
                 "proguard-rules.pro"
             )
             // CI release signing: provided via KEYSTORE_* environment variables.
-            // Local builds without the variables produce an unsigned release APK.
+            // Local builds without the variables produce an UNSIGNED release APK
+            // (never silently debug-signed — debug keys are public knowledge).
             val keystoreFile = System.getenv("KEYSTORE_FILE")
             if (keystoreFile != null) {
                 signingConfig = signingConfigs.create("ciRelease") {
@@ -143,9 +144,8 @@ android {
                     keyAlias = System.getenv("KEY_ALIAS")
                     keyPassword = System.getenv("KEY_PASSWORD")
                 }
-            } else {
-                signingConfig = signingConfigs.getByName("debug")
             }
+            // else: no signingConfig -> app-release-unsigned.apk
         }
     }
 

@@ -97,7 +97,7 @@ data class AppSettings(
     val showSpeedInNotification: Boolean = true,
     val customDns: String = "",
     val controllerSecret: String = "",
-    val testUrl: String = "http://www.gstatic.com/generate_204",
+    val testUrl: String = "https://www.gstatic.com/generate_204",
     val testTimeoutMs: Int = 5000,
     // Typed profile override layer (applied by ConfigGenerator to any profile):
     val overrideUnifiedDelay: Boolean = false,
