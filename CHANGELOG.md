@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.3.5
+
+### Security (property-based fuzzing)
+- CR/LF injection guard: URL-decoded node names from subscriptions can no longer
+  carry control characters into the YAML config or log lines (found by mutation
+  fuzzing, ParserPropertyTest — 600-iteration no-throw / no-injection / no-silent-
+  loss invariants over every share-link scheme and mutated YAML/JSON payloads)
+- The Hiddify expiry pseudo-link marker is now recognized in any scheme (was
+  trojan-only and leaked through as a garbage node)
+
+### Compatibility
+- Reverse-engineering notes for Happ 4.9.0 and Incy 3.9.8 documented
+  (docs/reverse-happ-incy.md): both are Xray-core clients; deep-link scheme
+  inventory, header inventory, Incy's hwid registration + Appwrite backend
+
+### i18n & docs
+- README is English-primary with a full Russian version (README.ru.md);
+  compatibility research, roadmap and reverse notes translated to English
+  (Russian originals preserved as .ru.md)
+- Locale-aware date formatting; ASCII fallbacks in connection test results
+
+### UI (Material 3 Expressive pass)
+- Dashboard hero: press squeeze + state-differentiated ring motion
+  (connecting pulse / connected breathing / disconnecting spin-down)
+- Servers: unified latency grading (green ≤200 / amber ≤500 / red), animated
+  node selection, expressive empty state
+- Settings: unified section rhythm, translucent theme-tinted accent chips
+  (fixes heavy dark patches in the light theme), whole-row press feedback
+- Brand palette is the default on fresh installs (Material You stays a toggle)
+
+### Build
+- Geo databases verified against the .sha256sum published in the same
+  MetaCubeX release (routing-integrity; corruption caught, upstream
+  republishes self-heal)
+- GitHub Actions pinned by commit SHA
+
 ## 1.3.4
 
 ### Hardening (external supply-chain review round 2)
