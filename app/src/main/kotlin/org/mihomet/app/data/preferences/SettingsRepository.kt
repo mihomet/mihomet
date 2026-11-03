@@ -101,7 +101,7 @@ class SettingsRepository(
                 dnsPort = preferences[PreferencesKeys.DNS_PORT] ?: CoreConstants.DEFAULT_DNS_PORT,
                 controllerPort = preferences[PreferencesKeys.CONTROLLER_PORT] ?: CoreConstants.DEFAULT_CONTROLLER_PORT,
                 ipv6Enabled = preferences[PreferencesKeys.IPV6_ENABLED] ?: false,
-                dynamicColor = preferences[PreferencesKeys.DYNAMIC_COLOR] ?: true,
+                dynamicColor = preferences[PreferencesKeys.DYNAMIC_COLOR] ?: false,
                 darkTheme = preferences[PreferencesKeys.DARK_THEME] ?: true,
                 amoledBlack = preferences[PreferencesKeys.AMOLED_BLACK] ?: false,
                 showSpeedInNotification = preferences[PreferencesKeys.SHOW_SPEED_NOTIFICATION] ?: true,
