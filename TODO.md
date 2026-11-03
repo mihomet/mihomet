@@ -18,17 +18,17 @@
 | Hiddify Panel | ✅ tested | fixture; 96 links incl. ssh/snell/wg, expiry pseudo-link dropped with warning |
 | Sub-Store | ✅ tested | fixture (mihomo/sing-box/v2ray targets); legacy `target=Clash` drops nodes — documented |
 | subconverter | ⏸ skipped | legacy tool, rarely used by RU services in 2026; re-open on demand |
-| behavior-заголовки (subscription-autoconnect / per-app-proxy-mode+list / tun-mode) | Happ zero-touch | ✅ применяются при импорте/обновлении |
-| keyring-UI для crypto-ключей | Настройки → Продвинутые | ✅ |
-| Виджет рабочего стола + тумблер | ✅ MihometWidgetProvider (v1.1.1) |
-| Экспорт/шеринг логов + память ядра на дашборде | ✅ (v1.1.1) |
-| Battery-промпт / allowBypass / HTTP-proxy opt-in | ✅ (v1.1.1) |
-| Автостарт на загрузке (последний успешный режим) | ✅ BootReceiver + настройка |
-| TUN-настройки (stack/MTU/bypass-LAN по CMFA-паттерну) | ✅ Настройки → Продвинутые |
-| QR-код подписки + стриминг-лимит 20 МБ | ✅ zxing + поте чтение |
-| Deep-link импорт (happ/incy/clash/v2rayng/sing-box) | ✅ implemented | `core/DeepLinkParser.kt`, live-tested on emulator |
-| Управление по ссылкам (incy://connect|toggle, mihomet://) | ✅ implemented | MainActivity.handleControlLink |
-| Автообновление подписок (profile-update-interval) | ✅ implemented | WorkManager 6h, Room v3 |
+| Behavior headers (subscription-autoconnect / per-app-proxy-mode+list / tun-mode) | Happ zero-touch | ✅ applied on import/refresh |
+| Keyring UI for crypto keys | Settings → Advanced | ✅ |
+| Desktop widget + toggle | ✅ MihometWidgetProvider (v1.1.1) |
+| Log export/sharing + core memory on the dashboard | ✅ (v1.1.1) |
+| Battery prompt / allowBypass / HTTP-proxy opt-in | ✅ (v1.1.1) |
+| Autostart on boot (last successful mode) | ✅ BootReceiver + setting |
+| TUN settings (stack/MTU/bypass-LAN, CMFA pattern) | ✅ Settings → Advanced |
+| Subscription QR code + 20 MB streaming limit | ✅ zxing + streamed reading |
+| Deep-link import (happ/incy/clash/v2rayng/sing-box) | ✅ implemented | `core/DeepLinkParser.kt`, live-tested on emulator |
+| Link-based control (incy://connect|toggle, mihomet://) | ✅ implemented | MainActivity.handleControlLink |
+| Automatic subscription refresh (profile-update-interval) | ✅ implemented | WorkManager 6h, Room v3 |
 
 ### Phase 1: Docker test bench — ✅ done
 - [x] **1.1–1.6**: all panels deployed live in `/mnt/Data/mihomet-panel-bench/` (kept out of the repo):
@@ -151,9 +151,9 @@ proxy-providers with per-provider auth headers — a separate large feature).
    - `autoBalancerEnabled: Boolean = true`
    - `autoBalancerExcludes: String = ""` (newline-separated substrings)
    - `autoBalancerPreferDefault: Boolean = false`
-7. Settings UI: a card in the Advanced section («Продвинутые») titled «Авто-балансировщик»:
-   enable toggle, excludes multiline field (hint: one substring per line, e.g. `Мост`,
-   `Игровой`), and the prefer-default toggle with an explicit warning-style subtitle that
+7. Settings UI: a card in the Advanced section titled "Auto-balancer" (RU locale: «Авто-балансировщик»):
+   enable toggle, excludes multiline field (hint: one substring per line, e.g. `Мост`
+   ("bridge"), `Игровой` ("gaming")), and the prefer-default toggle with an explicit warning-style subtitle that
    enabling changes the default routing target for panel select-groups. ALL strings in BOTH
    locales via stringResource; follow SubscriptionsSection/AdvancedSection patterns
    (SettingsScreen is split — the card lives in its own file or AdvancedSection).
@@ -227,7 +227,7 @@ Verification: `./gradlew compileDebugKotlin testDebugUnitTest` green; build with
 - [x] Full UI Redesign to Material 3 Expressive (Pills, ExpressiveShapes, Haptics).
 - [x] Pure Carbon Neutral AMOLED theme (zero purple, `R==G==B` containers, white/titanium accents).
 - [x] Smooth disconnect animation with contracting halo and amber spin-down indicator.
-- [x] Removal of intrusive "ядро остановлено" snackbars.
+- [x] Removal of intrusive "core stopped" snackbars.
 - [x] Shared-axis lateral slide navigation transitions (`NavGraph.kt`).
 - [x] Multi-line auto-expanding custom headers field with internal scrolling (`ProfilesScreen.kt`).
 - [x] Brand logo (M-route monogram), adaptive icon with monochrome layer, splash screen.
