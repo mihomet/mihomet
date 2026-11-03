@@ -45,6 +45,7 @@ import org.mihomet.app.core.ServiceState
 import org.mihomet.app.data.preferences.ProxyMode
 import org.mihomet.app.ui.components.ExpressiveLatencyBadge
 import org.mihomet.app.ui.components.PulsingStatusDot
+import org.mihomet.app.ui.components.rememberPressScale
 import org.mihomet.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -312,6 +313,12 @@ fun DashboardScreen(
 
 /**
  * Material 3 Expressive Hero Connect Widget with tactile morphing squircle, dynamic containers, and breathing aura.
+ *
+ * Ring motion is differentiated per state (M3E kinematics):
+ * - connecting: soft emanating pulse (fast grow + fade);
+ * - connected: calm breathing halo (slow gentle swell);
+ * - disconnecting: contracting spin-down (shrink back to rest).
+ * All glow stays within the 165.dp ring bounds — no full-screen glow (OLED efficiency).
  */
 @Composable
 fun ExpressiveHeroConnect(
@@ -322,24 +329,59 @@ fun ExpressiveHeroConnect(
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulseHalo")
 
+    // Pulse tempo: energetic while connecting, slowest while protected.
+    val ringDuration = when {
+        isConnecting -> 900
+        isDisconnecting -> 600
+        else -> 2400
+    }
+    // Emanating / contracting rings restart from their origin; breathing swells back and forth.
+    val ringRepeat = if (isRunning) RepeatMode.Reverse else RepeatMode.Restart
+
     val outerRingScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = if (isRunning || isConnecting) 1.08f else if (isDisconnecting) 1.05f else 1f,
+        initialValue = if (isDisconnecting) 1.08f else 1f,
+        targetValue = when {
+            isConnecting -> 1.12f
+            isDisconnecting -> 1f
+            isRunning -> 1.04f
+            else -> 1f
+        },
         animationSpec = infiniteRepeatable(
-            animation = tween(if (isDisconnecting) 800 else 1600, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
+            animation = tween(ringDuration, easing = FastOutSlowInEasing),
+            repeatMode = ringRepeat
         ),
         label = "outerRingScale"
     )
 
     val innerRingScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = if (isRunning || isConnecting) 1.04f else if (isDisconnecting) 1.02f else 1f,
+        initialValue = if (isDisconnecting) 1.05f else 1f,
+        targetValue = when {
+            isConnecting -> 1.07f
+            isDisconnecting -> 1f
+            isRunning -> 1.02f
+            else -> 1f
+        },
         animationSpec = infiniteRepeatable(
-            animation = tween(if (isDisconnecting) 600 else 1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
+            animation = tween((ringDuration * 0.85f).toInt().coerceAtLeast(200), easing = FastOutSlowInEasing),
+            repeatMode = ringRepeat
         ),
         label = "innerRingScale"
+    )
+
+    // Outer ring breathes its opacity too: prominent while emanating (connecting),
+    // steady and calm while protected.
+    val outerRingAlpha by infiniteTransition.animateFloat(
+        initialValue = if (isConnecting) 0.85f else 0.6f,
+        targetValue = when {
+            isConnecting -> 0.25f
+            isDisconnecting -> 0.2f
+            else -> 1f
+        },
+        animationSpec = infiniteRepeatable(
+            animation = tween(ringDuration, easing = FastOutSlowInEasing),
+            repeatMode = ringRepeat
+        ),
+        label = "outerRingAlpha"
     )
 
     val targetButtonColor = when {
@@ -375,11 +417,13 @@ fun ExpressiveHeroConnect(
         label = "heroGlowColor"
     )
 
-    var isPressed by remember { mutableStateOf(false) }
-    val pressScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh),
-        label = "pressScale"
+    // Tactile press feedback: ripple is disabled (indication = null) on the big
+    // squircle, so the expressive squeeze carries the pressed state instead.
+    val heroInteractionSource = remember { MutableInteractionSource() }
+    val pressScale = rememberPressScale(
+        interactionSource = heroInteractionSource,
+        pressedScale = 0.93f,
+        stiffness = Spring.StiffnessMedium
     )
 
     var uptimeText by remember { mutableStateOf("") }
@@ -404,14 +448,14 @@ fun ExpressiveHeroConnect(
             contentAlignment = Alignment.Center,
             modifier = Modifier.size(175.dp)
         ) {
-            // Outer Ambient Pulse Ring
+            // Outer Ambient Pulse Ring (alpha breathes with the state tempo)
             if (isRunning || isConnecting || isDisconnecting) {
                 Box(
                     modifier = Modifier
                         .size(165.dp)
                         .scale(outerRingScale)
                         .clip(ExpressiveShapes.Hero)
-                        .background(buttonGlowColor.copy(alpha = 0.14f))
+                        .background(buttonGlowColor.copy(alpha = 0.14f * outerRingAlpha))
                 )
 
                 // Inner Ambient Pulse Ring
@@ -441,7 +485,7 @@ fun ExpressiveHeroConnect(
                     .scale(pressScale)
                     .clip(ExpressiveShapes.Hero)
                     .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
+                        interactionSource = heroInteractionSource,
                         indication = null,
                         onClick = onClick
                     )
@@ -520,7 +564,7 @@ fun ExpressiveHeroConnect(
 }
 
 /**
- * Expressive Current Server Card with tactile squircle and ping badge.
+ * Expressive Current Server Card with tactile squircle, press squeeze and ping badge.
  */
 @Composable
 fun CurrentServerHeroCard(
@@ -529,11 +573,17 @@ fun CurrentServerHeroCard(
     delayMs: Long,
     onClick: () -> Unit
 ) {
+    val cardInteractionSource = remember { MutableInteractionSource() }
+    val cardPressScale = rememberPressScale(cardInteractionSource, pressedScale = 0.98f)
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .scale(cardPressScale)
             .clip(ExpressiveShapes.Large)
-            .clickable(onClick = onClick),
+            .clickable(
+                interactionSource = cardInteractionSource,
+                onClick = onClick
+            ),
         shape = ExpressiveShapes.Large,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         tonalElevation = 2.dp,

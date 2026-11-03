@@ -56,15 +56,16 @@ import org.mihomet.app.R
 import org.mihomet.app.core.HappCrypto
 import org.mihomet.app.data.preferences.ProfileOverrides
 import org.mihomet.app.data.preferences.TunOptions
-import org.mihomet.app.ui.theme.AccentGreenContainer
-import org.mihomet.app.ui.theme.AccentGreenLight
+import org.mihomet.app.ui.components.accentContentColor
 import org.mihomet.app.ui.theme.AccentOrange
-import org.mihomet.app.ui.theme.AccentOrangeContainer
+import org.mihomet.app.ui.theme.AccentOrangeDeep
+import org.mihomet.app.ui.theme.AccentGreen
+import org.mihomet.app.ui.theme.AccentGreenDeep
 import org.mihomet.app.ui.theme.AppHaptics
 import org.mihomet.app.ui.theme.ExpressiveShapes
 import org.mihomet.app.ui.theme.HapticType
-import org.mihomet.app.ui.theme.OnSecondaryContainerDark
-import org.mihomet.app.ui.theme.SecondaryContainerDark
+import org.mihomet.app.ui.theme.AccentTealDeep
+import org.mihomet.app.ui.theme.SecondaryTeal
 
 /**
  * "Advanced" expandable card: ports, latency test, custom DNS, IPv6, TUN
@@ -111,14 +112,14 @@ internal fun AdvancedSection(
                     Surface(
                         shape = ExpressiveShapes.Small,
                         color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        modifier = Modifier.size(38.dp)
+                        modifier = Modifier.size(SettingsIconContainerSize)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 Icons.Default.Tune,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(SettingsIconSize)
                             )
                         }
                     }
@@ -136,7 +137,7 @@ internal fun AdvancedSection(
             AnimatedVisibility(visible = isAdvancedExpanded) {
                 Column(
                     modifier = Modifier.padding(top = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(SettingsRowSpacing)
                 ) {
                     // Port Configuration
                     Row(
@@ -347,8 +348,8 @@ internal fun AdvancedSection(
                     // HTTP proxy via VPN (VpnService.setHttpProxy, opt-in)
                     ExpressiveSwitchRow(
                         icon = Icons.Default.Http,
-                        iconBg = AccentGreenContainer,
-                        iconTint = AccentGreenLight,
+                        iconBg = AccentGreen.copy(alpha = 0.16f),
+                        iconTint = accentContentColor(AccentGreen, AccentGreenDeep),
                         title = stringResource(R.string.vpn_httpproxy_title),
                         subtitle = stringResource(R.string.vpn_httpproxy_desc),
                         checked = settings.vpnHttpProxy,
@@ -363,8 +364,8 @@ internal fun AdvancedSection(
                     // Profile override: unified-delay (RTT smoothing)
                     ExpressiveSwitchRow(
                         icon = Icons.Default.HourglassTop,
-                        iconBg = AccentGreenContainer,
-                        iconTint = AccentGreenLight,
+                        iconBg = AccentGreen.copy(alpha = 0.16f),
+                        iconTint = accentContentColor(AccentGreen, AccentGreenDeep),
                         title = stringResource(R.string.settings_override_unified_delay),
                         subtitle = stringResource(R.string.settings_override_unified_delay_desc),
                         checked = settings.overrideUnifiedDelay,
@@ -379,8 +380,8 @@ internal fun AdvancedSection(
                     // Profile override: tcp-concurrent (fast concurrent dial)
                     ExpressiveSwitchRow(
                         icon = Icons.Default.Bolt,
-                        iconBg = AccentOrangeContainer,
-                        iconTint = AccentOrange,
+                        iconBg = AccentOrange.copy(alpha = 0.16f),
+                        iconTint = accentContentColor(AccentOrange, AccentOrangeDeep),
                         title = stringResource(R.string.settings_override_tcp_concurrent),
                         subtitle = stringResource(R.string.settings_override_tcp_concurrent_desc),
                         checked = settings.overrideTcpConcurrent,
@@ -396,8 +397,8 @@ internal fun AdvancedSection(
                     var showAutoBalancerExcludesDialog by remember { mutableStateOf(false) }
                     ExpressiveSwitchRow(
                         icon = Icons.Default.AltRoute,
-                        iconBg = AccentGreenContainer,
-                        iconTint = AccentGreenLight,
+                        iconBg = AccentGreen.copy(alpha = 0.16f),
+                        iconTint = accentContentColor(AccentGreen, AccentGreenDeep),
                         title = stringResource(R.string.settings_auto_balancer),
                         subtitle = stringResource(R.string.settings_auto_balancer_desc),
                         checked = settings.autoBalancerEnabled,
@@ -423,14 +424,15 @@ internal fun AdvancedSection(
                         ) {
                             Surface(
                                 shape = ExpressiveShapes.Small,
-                                color = AccentOrangeContainer,
-                                modifier = Modifier.size(40.dp)
+                                color = AccentOrange.copy(alpha = 0.16f),
+                                modifier = Modifier.size(SettingsIconContainerSize)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         Icons.Default.Edit,
                                         contentDescription = null,
-                                        tint = AccentOrange
+                                        tint = accentContentColor(AccentOrange, AccentOrangeDeep),
+                                        modifier = Modifier.size(SettingsIconSize)
                                     )
                                 }
                             }
@@ -458,8 +460,8 @@ internal fun AdvancedSection(
 
                         ExpressiveSwitchRow(
                             icon = Icons.Default.Bolt,
-                            iconBg = AccentOrangeContainer,
-                            iconTint = AccentOrange,
+                            iconBg = AccentOrange.copy(alpha = 0.16f),
+                            iconTint = accentContentColor(AccentOrange, AccentOrangeDeep),
                             title = stringResource(R.string.settings_auto_balancer_prefer),
                             subtitle = stringResource(R.string.settings_auto_balancer_prefer_desc),
                             checked = settings.autoBalancerPreferDefault,
@@ -486,8 +488,8 @@ internal fun AdvancedSection(
                     // Profile override: domain sniffer
                     ExpressiveSwitchRow(
                         icon = Icons.Default.Search,
-                        iconBg = SecondaryContainerDark,
-                        iconTint = OnSecondaryContainerDark,
+                        iconBg = SecondaryTeal.copy(alpha = 0.16f),
+                        iconTint = accentContentColor(SecondaryTeal, AccentTealDeep),
                         title = stringResource(R.string.settings_override_sniffer),
                         subtitle = stringResource(R.string.settings_override_sniffer_desc),
                         checked = settings.overrideSnifferEnabled,
@@ -535,8 +537,8 @@ internal fun AdvancedSection(
                     // Persistent continuous background logging
                     ExpressiveSwitchRow(
                         icon = Icons.Default.Terminal,
-                        iconBg = SecondaryContainerDark,
-                        iconTint = OnSecondaryContainerDark,
+                        iconBg = SecondaryTeal.copy(alpha = 0.16f),
+                        iconTint = accentContentColor(SecondaryTeal, AccentTealDeep),
                         title = stringResource(R.string.settings_persistent_logging_title),
                         subtitle = stringResource(R.string.settings_persistent_logging_desc),
                         checked = settings.persistentLogging,
@@ -695,14 +697,14 @@ private fun HappCryptoKeysSection(
             Surface(
                 shape = ExpressiveShapes.Small,
                 color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                modifier = Modifier.size(38.dp)
+                modifier = Modifier.size(SettingsIconContainerSize)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         Icons.Default.Key,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(SettingsIconSize)
                     )
                 }
             }

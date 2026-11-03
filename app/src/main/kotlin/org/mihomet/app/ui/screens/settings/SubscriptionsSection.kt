@@ -60,7 +60,7 @@ internal fun SubscriptionsSection(
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(SettingsRowSpacing)
         ) {
             // Subscription User-Agent (blank = built-in default chain)
             Row(

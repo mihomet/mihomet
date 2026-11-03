@@ -25,6 +25,15 @@ import org.mihomet.app.core.network.NodePingTester
 import org.mihomet.app.ui.theme.*
 
 /**
+ * Accent content color that adapts to the hosting surface: vivid accent on
+ * dark/AMOLED surfaces, deep variant on light surfaces (keeps contrast when
+ * the same tinted chip is rendered on light containers).
+ */
+@Composable
+fun accentContentColor(vivid: Color, deep: Color): Color =
+    if (MaterialTheme.colorScheme.surfaceContainerHigh.luminance() > 0.5f) deep else vivid
+
+/**
  * Pulsing live status dot indicating connection or testing health.
  */
 @Composable
@@ -139,17 +148,16 @@ fun ExpressiveLatencyBadge(
     // tones are too pale for text, so switch to their deep variants there.
     // Dark/AMOLED surfaces keep the vivid accents (badge bg stays a neutral
     // theme container, never an opaque dark chunk).
-    val badgeSurfaceLuminance = MaterialTheme.colorScheme.surfaceContainerHighest.luminance()
-    val lightSurface = badgeSurfaceLuminance > 0.5f
-    val greenText = if (lightSurface) AccentGreenDeep else AccentGreenLight
-    val orangeText = if (lightSurface) AccentOrangeDeep else AccentOrange
-    val redText = if (lightSurface) AccentRedDeep else AccentRed
+    val greenText = accentContentColor(AccentGreenLight, AccentGreenDeep)
+    val orangeText = accentContentColor(AccentOrange, AccentOrangeDeep)
+    val redText = accentContentColor(AccentRed, AccentRedDeep)
 
     val (dotColor, textColor) = when {
         isTesting -> MaterialTheme.colorScheme.primary to MaterialTheme.colorScheme.primary
-        delayMs > 0 && delayMs < 120 -> AccentGreen to greenText
-        delayMs in 120..280 -> AccentOrange to orangeText
-        delayMs > 280 -> AccentRed to redText
+        // House grading: green ≤200 ms, amber ≤500 ms, red beyond.
+        delayMs in 1..200 -> AccentGreen to greenText
+        delayMs in 201..500 -> AccentOrange to orangeText
+        delayMs > 500 -> AccentRed to redText
         // ICMP capability gap (no ping binary / OS refusal) — not a node failure.
         delayMs == NodePingTester.ICMP_UNAVAILABLE ->
             Color.Gray to MaterialTheme.colorScheme.onSurfaceVariant

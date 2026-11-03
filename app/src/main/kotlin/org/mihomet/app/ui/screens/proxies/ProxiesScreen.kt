@@ -5,10 +5,14 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.*
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,6 +27,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -42,6 +47,7 @@ import org.mihomet.app.ui.components.ExpressiveLatencyBadge
 import org.mihomet.app.ui.components.ExpressiveSnackbarHost
 import org.mihomet.app.ui.components.ProtocolBadge
 import org.mihomet.app.ui.components.SearchPill
+import org.mihomet.app.ui.components.rememberPressScale
 import org.mihomet.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -392,6 +398,8 @@ fun ProxiesScreen(
 
 /**
  * Expressive Server Card with squircle flag, protocol tag pill, ping capsule, and active indicator.
+ * Selection morphs (animated color/border + spring check) instead of snapping; pressing
+ * squeezes the card subtly on top of the ripple state layer.
  */
 @Composable
 fun ExpressiveServerNodeCard(
@@ -401,25 +409,56 @@ fun ExpressiveServerNodeCard(
     onSelect: () -> Unit,
     onPingClick: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(ExpressiveShapes.Medium)
-            .clickable(onClick = onSelect),
-        shape = ExpressiveShapes.Medium,
-        color = if (isSelected) {
+    val cardInteractionSource = remember { MutableInteractionSource() }
+    val cardPressScale = rememberPressScale(cardInteractionSource, pressedScale = 0.98f)
+
+    val cardColor by animateColorAsState(
+        targetValue = if (isSelected) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
         } else {
             MaterialTheme.colorScheme.surfaceContainerHigh
         },
-        border = BorderStroke(
-            1.dp,
-            if (isSelected) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-            } else {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-            }
-        )
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+        label = "nodeCardColor"
+    )
+    val cardBorderColor by animateColorAsState(
+        targetValue = if (isSelected) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+        } else {
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+        },
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+        label = "nodeCardBorder"
+    )
+    // Selection indicator: one circle that fills and springs its check in.
+    val indicatorColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+        label = "nodeIndicatorColor"
+    )
+    val indicatorBorderColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+        label = "nodeIndicatorBorder"
+    )
+    val checkScale by animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        label = "nodeCheckScale"
+    )
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(cardPressScale)
+            .clip(ExpressiveShapes.Medium)
+            .clickable(
+                interactionSource = cardInteractionSource,
+                onClick = onSelect
+            ),
+        shape = ExpressiveShapes.Medium,
+        color = cardColor,
+        border = BorderStroke(1.dp, cardBorderColor)
     ) {
         Row(
             modifier = Modifier
@@ -509,29 +548,23 @@ fun ExpressiveServerNodeCard(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Selection indicator
-            if (isSelected) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.Check,
-                            contentDescription = stringResource(R.string.cd_selected),
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
+            // Selection indicator (animated fill + spring check)
+            Surface(
+                shape = CircleShape,
+                color = indicatorColor,
+                border = BorderStroke(1.5.dp, indicatorBorderColor),
+                modifier = Modifier.size(22.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = stringResource(R.string.cd_selected),
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier
+                            .size(14.dp)
+                            .scale(checkScale)
+                    )
                 }
-            } else {
-                Surface(
-                    shape = CircleShape,
-                    color = Color.Transparent,
-                    border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.size(20.dp)
-                ) {}
             }
         }
     }

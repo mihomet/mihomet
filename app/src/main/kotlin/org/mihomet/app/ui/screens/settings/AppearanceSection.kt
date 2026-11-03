@@ -25,7 +25,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -34,12 +33,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.mihomet.app.R
 import org.mihomet.app.data.preferences.AppSettings
+import org.mihomet.app.ui.components.accentContentColor
+import org.mihomet.app.ui.theme.AccentTealDeep
 import org.mihomet.app.ui.theme.AppHaptics
-import org.mihomet.app.ui.theme.DarkSurfaceContainerHighest
 import org.mihomet.app.ui.theme.ExpressiveShapes
 import org.mihomet.app.ui.theme.HapticType
-import org.mihomet.app.ui.theme.SecondaryContainerDark
-import org.mihomet.app.ui.theme.SecondaryDark
+import org.mihomet.app.ui.theme.SecondaryTeal
 
 /** "Appearance" card: dynamic colors, dark theme, AMOLED, per-app language. */
 @Composable
@@ -80,8 +79,8 @@ internal fun AppearanceSection(
 
             ExpressiveSwitchRow(
                 icon = Icons.Default.DarkMode,
-                iconBg = SecondaryContainerDark,
-                iconTint = SecondaryDark,
+                iconBg = SecondaryTeal.copy(alpha = 0.16f),
+                iconTint = accentContentColor(SecondaryTeal, AccentTealDeep),
                 title = stringResource(R.string.settings_dark_theme),
                 subtitle = stringResource(R.string.settings_dark_theme_desc),
                 checked = settings.darkTheme,
@@ -96,8 +95,8 @@ internal fun AppearanceSection(
 
                 ExpressiveSwitchRow(
                     icon = Icons.Default.Brightness2,
-                    iconBg = DarkSurfaceContainerHighest,
-                    iconTint = Color.White,
+                    iconBg = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
                     title = stringResource(R.string.settings_amoled),
                     subtitle = stringResource(R.string.settings_amoled_desc),
                     checked = settings.amoledBlack,

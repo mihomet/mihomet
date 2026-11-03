@@ -1,6 +1,7 @@
 package org.mihomet.app.ui.screens.settings
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NotificationsActive
@@ -14,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -22,8 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.mihomet.app.R
 import org.mihomet.app.data.preferences.AppSettings
-import org.mihomet.app.ui.theme.AccentGreenContainer
-import org.mihomet.app.ui.theme.AccentGreenLight
+import org.mihomet.app.ui.components.accentContentColor
+import org.mihomet.app.ui.theme.AccentGreen
+import org.mihomet.app.ui.theme.AccentGreenDeep
 import org.mihomet.app.ui.theme.AppHaptics
 import org.mihomet.app.ui.theme.ExpressiveShapes
 import org.mihomet.app.ui.theme.HapticType
@@ -47,10 +50,16 @@ internal fun NotificationsSection(
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(SettingsRowSpacing)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(ExpressiveShapes.Medium)
+                    .clickable {
+                        AppHaptics.perform(context, HapticType.CLICK, view)
+                        viewModel.updateShowSpeedInNotification(!settings.showSpeedInNotification)
+                    },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -60,15 +69,15 @@ internal fun NotificationsSection(
                 ) {
                     Surface(
                         shape = ExpressiveShapes.Small,
-                        color = AccentGreenContainer,
-                        modifier = Modifier.size(38.dp)
+                        color = AccentGreen.copy(alpha = 0.16f),
+                        modifier = Modifier.size(SettingsIconContainerSize)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 Icons.Default.NotificationsActive,
                                 contentDescription = null,
-                                tint = AccentGreenLight,
-                                modifier = Modifier.size(20.dp)
+                                tint = accentContentColor(AccentGreen, AccentGreenDeep),
+                                modifier = Modifier.size(SettingsIconSize)
                             )
                         }
                     }
