@@ -22,10 +22,18 @@ internal object UriListParser {
             // Hiddify embeds an "expiry date" pseudo-link (trojan://…--YYYY.MM.DD.time:<port>) that is
             // client-side display metadata, not a proxy node — reported as unrecognized below
             val isExpiryPseudoLink =
-                Regex("^trojan://.*--\\d{4}\\.\\d{2}\\.\\d{2}\\.time:\\d+").containsMatchIn(uri)
+                Regex("^[a-z0-9]+://.*--\\d{4}\\.\\d{2}\\.\\d{2}\\.time:\\d+")
+                    .containsMatchIn(uri)
             val hashIdx = uri.indexOf('#')
             val rawRemarks = if (hashIdx != -1) uri.substring(hashIdx + 1) else ""
-            val remarks = runCatching { URLDecoder.decode(rawRemarks, "UTF-8") }.getOrDefault(rawRemarks).ifBlank { "Node" }
+            // URL-decoded remarks may carry CR/LF from a hostile subscription —
+            // a node name lands inside the YAML config and log lines, so control
+            // characters must never survive (YAML/header injection guard).
+            val remarks = runCatching { URLDecoder.decode(rawRemarks, "UTF-8") }
+                .getOrDefault(rawRemarks)
+                .replace(Regex("[\\r\\n\u0000-\u001f]+"), " ")
+                .trim()
+                .ifBlank { "Node" }
             val cleanUri = if (hashIdx != -1) uri.substring(0, hashIdx) else uri
 
             var recognized = true
