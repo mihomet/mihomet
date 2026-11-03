@@ -83,7 +83,7 @@ class ProxiesViewModel(
     val uiState: StateFlow<ProxiesUiState> = _uiState.asStateFlow()
 
     private var parsedNodes: List<ProxyNodeInfo> = emptyList()
-    private var currentTestUrl = "http://www.gstatic.com/generate_204"
+    private var currentTestUrl = "https://www.gstatic.com/generate_204"
     private var currentTestTimeoutMs = 5000
 
     init {
@@ -365,7 +365,7 @@ class ProxiesViewModel(
             val rawTestUrl = if (protocol == PingProtocol.HTTP_HEAD) {
                 "http://cp.cloudflare.com/generate_204"
             } else {
-                currentTestUrl.ifBlank { "http://www.gstatic.com/generate_204" }
+                currentTestUrl.ifBlank { "https://www.gstatic.com/generate_204" }
             }
             val testUrl = if (rawTestUrl.startsWith("https://cp.cloudflare.com")) {
                 rawTestUrl.replace("https://", "http://")
@@ -449,7 +449,7 @@ class ProxiesViewModel(
         val rawTestUrl = if (protocol == PingProtocol.HTTP_HEAD) {
             "http://cp.cloudflare.com/generate_204"
         } else {
-            currentTestUrl.ifBlank { "http://www.gstatic.com/generate_204" }
+            currentTestUrl.ifBlank { "https://www.gstatic.com/generate_204" }
         }
         val testUrl = if (rawTestUrl.startsWith("https://cp.cloudflare.com")) {
             rawTestUrl.replace("https://", "http://")

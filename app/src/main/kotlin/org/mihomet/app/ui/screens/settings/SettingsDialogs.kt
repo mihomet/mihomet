@@ -152,7 +152,7 @@ fun LatencyTestConfigDialog(
                     value = url,
                     onValueChange = { url = it },
                     label = { Text(stringResource(R.string.settings_latency_url_label)) },
-                    placeholder = { Text("http://www.gstatic.com/generate_204") },
+                    placeholder = { Text("https://www.gstatic.com/generate_204") },
                     shape = ExpressiveShapes.Small,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -172,7 +172,7 @@ fun LatencyTestConfigDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilledTonalButton(
-                        onClick = { url = "http://www.gstatic.com/generate_204" },
+                        onClick = { url = "https://www.gstatic.com/generate_204" },
                         modifier = Modifier.weight(1f),
                         shape = ExpressiveShapes.Small
                     ) {

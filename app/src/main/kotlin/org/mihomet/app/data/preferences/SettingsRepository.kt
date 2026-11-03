@@ -111,7 +111,7 @@ class SettingsRepository(
                     if (stored.startsWith("https://cp.cloudflare.com")) {
                         stored.replace("https://", "http://")
                     } else stored
-                } ?: "http://www.gstatic.com/generate_204",
+                } ?: "https://www.gstatic.com/generate_204",
                 testTimeoutMs = preferences[PreferencesKeys.TEST_TIMEOUT_MS] ?: 5000,
                 overrideUnifiedDelay = preferences[PreferencesKeys.OVERRIDE_UNIFIED_DELAY] ?: false,
                 overrideTcpConcurrent = preferences[PreferencesKeys.OVERRIDE_TCP_CONCURRENT] ?: true,

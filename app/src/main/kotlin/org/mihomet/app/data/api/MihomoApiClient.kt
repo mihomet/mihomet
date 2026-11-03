@@ -95,7 +95,7 @@ class MihomoApiClient(
 
     suspend fun testGroupDelay(
         groupName: String,
-        testUrl: String = "http://www.gstatic.com/generate_204",
+        testUrl: String = "https://www.gstatic.com/generate_204",
         timeoutMs: Int = 5000
     ): Result<Map<String, Int>> = runCatching {
         val encodedGroup = groupName.encodeURLPathPart()
@@ -113,7 +113,7 @@ class MihomoApiClient(
 
     suspend fun testNodeDelay(
         nodeName: String,
-        testUrl: String = "http://www.gstatic.com/generate_204",
+        testUrl: String = "https://www.gstatic.com/generate_204",
         timeoutMs: Int = 5000
     ): Result<Int> = runCatching {
         val encodedNode = nodeName.encodeURLPathPart()
