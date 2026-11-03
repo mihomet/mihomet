@@ -1,6 +1,6 @@
 import java.net.HttpURLConnection
-import java.net.URL
 import java.security.MessageDigest
+import java.net.URL
 import java.util.Properties
 
 plugins {
@@ -82,10 +82,16 @@ val downloadMihomoCore by tasks.registering {
             logger.lifecycle("Mihomet: installed libmihomo.so ($abi) from core $coreVersion")
         }
 
-        // Geo databases: rolling latest, downloaded only when missing, sanity-checked by size.
-        // (Data files consumed by the core — not executed — so no checksum pinning; keeps builds
-        //  self-healing while the core binary above stays strictly pinned.)
-        mapOf("geoip.metadb" to "geoip", "geosite.dat" to "geosite").forEach { (fileName, _) ->
+        // Geo databases: pinned by sha256 like the core binary. They drive ROUTING
+        // decisions (a poisoned geosite steers domains through the proxy), so the
+        // "data file, not executed" argument does not excuse missing integrity.
+        // When MetaCubeX republishes, update geoip.metadb.sha256 / geosite.dat.sha256
+        // in gradle/mihomo-core.properties together with the core bump.
+        mapOf(
+            "geoip.metadb" to "geoip.metadb.sha256",
+            "geosite.dat" to "geosite.dat.sha256"
+        ).forEach { (fileName, hashProperty) ->
+            val expectedHash = coreProperties.getProperty(hashProperty)
             val target = layout.projectDirectory.file("src/main/assets/$fileName").asFile
             if (target.isFile && target.length() > 1_000_000) {
                 return@forEach
@@ -98,9 +104,23 @@ val downloadMihomoCore by tasks.registering {
                     null
                 )
             }
+            if (expectedHash != null) {
+                val digest = MessageDigest.getInstance("SHA-256")
+                    .digest(cached.readBytes())
+                    .joinToString("") { "%02x".format(it) }
+                if (!digest.equals(expectedHash, ignoreCase = true)) {
+                    throw GradleException(
+                        "Mihomet: $fileName sha256 mismatch (expected $expectedHash, got $digest). " +
+                            "The upstream file changed or the download was tampered with. " +
+                            "Verify the new file and update $hashProperty in gradle/mihomo-core.properties."
+                    )
+                }
+            } else {
+                logger.lifecycle("Mihomet: no $hashProperty pinned — skipping $fileName integrity check")
+            }
             target.parentFile.mkdirs()
             cached.copyTo(target, overwrite = true)
-            logger.lifecycle("Mihomet: updated assets/$fileName")
+            logger.lifecycle("Mihomet: installed assets/$fileName (verified)")
         }
     }
 }
