@@ -294,6 +294,12 @@ object ConfigGenerator {
             ?.map {
                 val p = it.toMutableMap()
                 p["udp"] = true // Force UDP enabled for Telegram MTProto, gaming, and QUIC
+                // Mihomo strictly requires up and down fields for Hysteria v1.
+                // If omitted in subscription/profile, set safe defaults to prevent fatal parse crash.
+                if (p["type"]?.toString()?.equals("hysteria", ignoreCase = true) == true) {
+                    if (p["up"] == null || p["up"].toString().isBlank()) p["up"] = "50 Mbps"
+                    if (p["down"] == null || p["down"].toString().isBlank()) p["down"] = "100 Mbps"
+                }
                 p
             }?.toMutableList() ?: mutableListOf()
         configMap["proxies"] = proxiesList

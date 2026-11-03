@@ -420,8 +420,10 @@ internal object UriListParser {
             "udp" to true
         )
         if (auth.isNotBlank()) map["auth-str"] = auth
-        params["upmbps"]?.toIntOrNull()?.let { map["up"] = it }
-        params["downmbps"]?.toIntOrNull()?.let { map["down"] = it }
+        val up = params["upmbps"]?.toIntOrNull() ?: params["up"]?.toIntOrNull() ?: 50
+        val down = params["downmbps"]?.toIntOrNull() ?: params["down"]?.toIntOrNull() ?: 100
+        map["up"] = up
+        map["down"] = down
 
         val sni = params["peer"]?.takeIf { it.isNotBlank() } ?: params["sni"]?.takeIf { it.isNotBlank() }
         if (sni != null) map["sni"] = sni

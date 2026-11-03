@@ -368,8 +368,10 @@ internal object XrayJsonConverter {
                     ?: ""
                 val up = settings["up"]?.jsonPrimitive?.contentOrNull
                     ?: settings["up_mbps"]?.jsonPrimitive?.intOrNull?.let { "$it Mbps" }
+                    ?: "50 Mbps"
                 val down = settings["down"]?.jsonPrimitive?.contentOrNull
                     ?: settings["down_mbps"]?.jsonPrimitive?.intOrNull?.let { "$it Mbps" }
+                    ?: "100 Mbps"
                 val tlsSettings = streamSettings["tlsSettings"] as? JsonObject ?: JsonObject(emptyMap())
 
                 val map = mutableMapOf<String, Any>(
@@ -377,11 +379,11 @@ internal object XrayJsonConverter {
                     "type" to "hysteria",
                     "server" to address,
                     "port" to port,
-                    "udp" to true
+                    "udp" to true,
+                    "up" to up,
+                    "down" to down
                 )
                 if (auth.isNotBlank()) map["password"] = auth
-                if (up != null) map["up"] = up
-                if (down != null) map["down"] = down
                 val sni = tlsSettings["serverName"]?.jsonPrimitive?.contentOrNull ?: address
                 if (sni.isNotBlank() && !sni.matches(Regex("^[0-9.]+$"))) map["sni"] = sni
                 map["alpn"] = listOf("h3")

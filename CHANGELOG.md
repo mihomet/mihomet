@@ -21,6 +21,9 @@
   groups without any panel-side changes
 - Dropped outbounds always warn (no silent losses); PanelConversionCoverageTest
   walks 32 fresh fixtures from all 7 bench panels
+- Hysteria v1 bandwidth fallbacks: automatic `50 Mbps` upload / `100 Mbps` download
+  defaults across runtime config generator and converters (SingBox, Xray, URI list)
+  when panel templates omit `up`/`down`, preventing fatal Mihomo core parse crashes
 
 ### UI
 - Servers screen: expressive empty state (icon + hint, both locales)

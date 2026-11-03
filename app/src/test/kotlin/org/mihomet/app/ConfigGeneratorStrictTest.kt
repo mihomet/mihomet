@@ -628,4 +628,32 @@ class ConfigGeneratorStrictTest {
         )
         assertNull("Root mode must never expose mixed-port, even on opt-in", parsed["mixed-port"])
     }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test hysteria proxy missing bandwidth receives default up and down`() {
+        val profileWithHysteria = """
+            proxies:
+              - name: "Hy-Game"
+                type: hysteria
+                server: 1.2.3.4
+                port: 443
+                auth-str: "pass"
+            proxy-groups:
+              - name: "AUTO"
+                type: select
+                proxies: ["Hy-Game"]
+        """.trimIndent()
+        val parsed = Yaml().load<Map<String, Any>>(
+            ConfigGenerator.generateRuntimeConfig(
+                profileYamlContent = profileWithHysteria,
+                settings = AppSettings(),
+                tunFd = 42
+            )
+        )
+        val proxies = parsed["proxies"] as List<Map<String, Any>>
+        val hy = proxies.first { it["name"] == "Hy-Game" }
+        assertEquals("50 Mbps", hy["up"])
+        assertEquals("100 Mbps", hy["down"])
+    }
 }

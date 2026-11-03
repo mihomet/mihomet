@@ -259,8 +259,14 @@ internal object SingBoxConverter {
                         ?: ob["password"]?.jsonPrimitive?.contentOrNull ?: ""),
                     "udp" to true
                 )
-                ob["up_mbps"]?.jsonPrimitive?.intOrNull?.let { map["up"] = "$it Mbps" }
-                ob["down_mbps"]?.jsonPrimitive?.intOrNull?.let { map["down"] = "$it Mbps" }
+                val up = ob["up_mbps"]?.jsonPrimitive?.intOrNull?.let { "$it Mbps" }
+                    ?: ob["up"]?.jsonPrimitive?.contentOrNull
+                    ?: "50 Mbps"
+                val down = ob["down_mbps"]?.jsonPrimitive?.intOrNull?.let { "$it Mbps" }
+                    ?: ob["down"]?.jsonPrimitive?.contentOrNull
+                    ?: "100 Mbps"
+                map["up"] = up
+                map["down"] = down
                 val sni = ob["tls"]?.jsonObject?.get("server_name")?.jsonPrimitive?.contentOrNull
                 if (!sni.isNullOrBlank()) map["sni"] = sni
                 map
