@@ -92,7 +92,7 @@ internal fun AboutSection(viewModel: AppUpdateViewModel = koinViewModel()) {
                 Surface(
                     shape = ExpressiveShapes.Small,
                     color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(SettingsIconContainerSize)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(

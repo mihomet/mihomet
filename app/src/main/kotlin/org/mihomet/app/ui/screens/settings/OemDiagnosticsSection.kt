@@ -22,8 +22,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.mihomet.app.R
 import org.mihomet.app.core.OemHints
+import org.mihomet.app.ui.components.accentContentColor
 import org.mihomet.app.ui.theme.AccentOrange
-import org.mihomet.app.ui.theme.AccentOrangeContainer
+import org.mihomet.app.ui.theme.AccentOrangeDeep
 import org.mihomet.app.ui.theme.AppHaptics
 import org.mihomet.app.ui.theme.ExpressiveShapes
 import org.mihomet.app.ui.theme.HapticType
@@ -55,15 +56,15 @@ internal fun OemDiagnosticsSection(
             ) {
                 Surface(
                     shape = ExpressiveShapes.Small,
-                    color = AccentOrangeContainer,
-                    modifier = Modifier.size(36.dp)
+                    color = AccentOrange.copy(alpha = 0.16f),
+                    modifier = Modifier.size(SettingsIconContainerSize)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             Icons.Default.BatteryAlert,
                             contentDescription = null,
-                            tint = AccentOrange,
-                            modifier = Modifier.size(20.dp)
+                            tint = accentContentColor(AccentOrange, AccentOrangeDeep),
+                            modifier = Modifier.size(SettingsIconSize)
                         )
                     }
                 }

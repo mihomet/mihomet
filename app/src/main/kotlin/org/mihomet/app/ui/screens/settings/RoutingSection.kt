@@ -51,7 +51,7 @@ internal fun RoutingSection(
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(SettingsRowSpacing)
         ) {
             Text(
                 text = stringResource(R.string.settings_proxy_mode),
@@ -114,14 +114,14 @@ internal fun RoutingSection(
                     Surface(
                         shape = ExpressiveShapes.Small,
                         color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(38.dp)
+                        modifier = Modifier.size(SettingsIconContainerSize)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 Icons.Default.Apps,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(SettingsIconSize)
                             )
                         }
                     }

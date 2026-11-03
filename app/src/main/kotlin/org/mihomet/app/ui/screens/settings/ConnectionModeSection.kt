@@ -17,8 +17,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.mihomet.app.R
 import org.mihomet.app.data.preferences.AppSettings
+import org.mihomet.app.ui.components.accentContentColor
 import org.mihomet.app.ui.theme.AccentOrange
-import org.mihomet.app.ui.theme.AccentOrangeContainer
+import org.mihomet.app.ui.theme.AccentOrangeDeep
 import org.mihomet.app.ui.theme.AppHaptics
 import org.mihomet.app.ui.theme.ExpressiveShapes
 import org.mihomet.app.ui.theme.HapticType
@@ -61,8 +62,8 @@ internal fun ConnectionModeSection(
 
             ExpressiveModeSelectRow(
                 icon = Icons.Default.AdminPanelSettings,
-                iconBg = AccentOrangeContainer,
-                iconTint = AccentOrange,
+                iconBg = AccentOrange.copy(alpha = 0.16f),
+                iconTint = accentContentColor(AccentOrange, AccentOrangeDeep),
                 title = stringResource(R.string.settings_mode_root_title),
                 description = stringResource(R.string.settings_mode_root_desc),
                 selected = settings.isRootMode,
