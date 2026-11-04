@@ -46,6 +46,7 @@ object UniversalConfigConverter {
         val yaml = when {
             HappRoutingConverter.isHappRouting(trimmed) -> HappRoutingConverter.convertHappRoutingToMihomoYaml(trimmed)
             HappRoutingConverter.isHappRouting(decoded) -> HappRoutingConverter.convertHappRoutingToMihomoYaml(decoded)
+            WireGuardConfParser.isWireGuardConf(decoded) -> org.yaml.snakeyaml.Yaml().dump(WireGuardConfParser.parse(decoded, "WireGuard"))
             ClashYamlConverter.isClashYaml(decoded) -> ClashYamlConverter.validateAndNormalizeYaml(decoded, warnings)
             SingBoxConverter.isSingBoxJson(decoded) -> SingBoxConverter.convertSingBoxJsonToMihomoYaml(decoded, warnings)
             XrayJsonConverter.isXrayJson(decoded) -> XrayJsonConverter.convertXrayJsonToMihomoYaml(decoded, warnings)

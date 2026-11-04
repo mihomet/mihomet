@@ -49,6 +49,7 @@ internal object UriListParser {
                 cleanUri.startsWith("ssh://") -> parseSshUri(cleanUri, remarks)
                 cleanUri.startsWith("snell://") -> parseSnellUri(cleanUri, remarks)
                 cleanUri.startsWith("wg://") -> parseWireguardUri(cleanUri, remarks)
+                cleanUri.startsWith("awg://") -> parseAwgUri(cleanUri, remarks)
                 else -> {
                     recognized = false
                     null
@@ -551,6 +552,7 @@ internal object UriListParser {
         params["dns"]?.takeIf { it.isNotBlank() }?.let { map["dns"] = listOf(it) }
         params["mtu"]?.toIntOrNull()?.let { map["mtu"] = it }
         return map
+
     }
 
     /**
@@ -623,4 +625,20 @@ internal object UriListParser {
             if (p.size == 2) p[0] to URLDecoder.decode(p[1], "UTF-8") else null
         }.toMap()
     }
+
+    /** AmneziaWG URI: same as wg:// but with obfuscation params (Jc/Jmin/Jmax/S1/S2/H1-H4). */
+    private fun parseAwgUri(uri: String, name: String): Map<String, Any>? {
+        val base = parseWireguardUri(uri.replaceFirst("awg://", "wg://"), name)?.toMutableMap() ?: return null
+        val params = parseQueryParams(uri.substringAfter('?', ""))
+        params["jc"]?.toIntOrNull()?.let { base["junk-packet-count"] = it }
+        params["jmin"]?.toIntOrNull()?.let { base["junk-packet-min-size"] = it }
+        params["jmax"]?.toIntOrNull()?.let { base["junk-packet-max-size"] = it }
+        params["s1"]?.toIntOrNull()?.let { base["init-packet-junk-size"] = it }
+        params["s2"]?.toIntOrNull()?.let { base["response-packet-junk-size"] = it }
+        params["h1"]?.toLongOrNull()?.let { base["init-packet-magic-header"] = it }
+        params["h2"]?.toLongOrNull()?.let { base["response-packet-magic-header"] = it }
+        params["h3"]?.toLongOrNull()?.let { base["transport-packet-magic-header"] = it }
+        params["h4"]?.toLongOrNull()?.let { base["under-load-packet-magic-header"] = it }
+        return base
+}
 }
