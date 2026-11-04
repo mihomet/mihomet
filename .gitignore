@@ -35,3 +35,4 @@ core-build/dist/
 AUDIT.md
 *.local.md
 
+.playwright-mcp/
