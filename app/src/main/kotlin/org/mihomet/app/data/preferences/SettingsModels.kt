@@ -82,6 +82,9 @@ data class AppSettings(
     val firewallEngine: FirewallEngineType = FirewallEngineType.AUTO,
     val perAppMode: PerAppMode = PerAppMode.ALL,
     val selectedAppUids: Set<Int> = emptySet(),
+    // User-defined always-direct domains (Routing screen). Bare TLDs allowed
+    // ("ru" directs the whole zone); applied as prepended DOMAIN-SUFFIX rules.
+    val userDirectDomains: Set<String> = emptySet(),
     val proxyMode: ProxyMode = ProxyMode.RULE,
     val selectedNodeName: String = "",
     val mixedPort: Int = CoreConstants.DEFAULT_MIXED_PORT,

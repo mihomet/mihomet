@@ -106,6 +106,19 @@ class RoutingViewModel(
         }
     }
 
+    /** Adds an always-direct domain; `false` → invalid input (UI shows a hint). */
+    fun addDirectDomain(raw: String, onInvalid: () -> Unit = {}) {
+        viewModelScope.launch {
+            if (!settingsRepository.addUserDirectDomain(raw)) onInvalid()
+        }
+    }
+
+    fun removeDirectDomain(domain: String) {
+        viewModelScope.launch {
+            settingsRepository.removeUserDirectDomain(domain)
+        }
+    }
+
     fun selectAllApps() {
         viewModelScope.launch {
             val visibleApps = _uiState.value.installedApps.filter {

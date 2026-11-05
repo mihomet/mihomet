@@ -15,6 +15,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.mihomet.app.core.CoreConstants
+import org.mihomet.app.core.config.UserRules
 import org.mihomet.app.data.crypto.SecretsCipher
 import org.mihomet.app.data.db.AppDatabase
 import org.mihomet.app.data.db.ProfileDao
@@ -36,6 +37,7 @@ class SettingsRepository(
         val IS_ROOT_MODE = booleanPreferencesKey("is_root_mode")
         val FIREWALL_ENGINE = stringPreferencesKey("firewall_engine")
         val PER_APP_MODE = stringPreferencesKey("per_app_mode")
+        val USER_DIRECT_DOMAINS = stringSetPreferencesKey("user_direct_domains")
         val SELECTED_APP_UIDS = stringSetPreferencesKey("selected_app_uids")
         val PROXY_MODE = stringPreferencesKey("proxy_mode")
         val MIXED_PORT = intPreferencesKey("mixed_port")
@@ -93,6 +95,10 @@ class SettingsRepository(
                     PerAppMode.valueOf(preferences[PreferencesKeys.PER_APP_MODE] ?: PerAppMode.ALL.name)
                 }.getOrDefault(PerAppMode.ALL),
                 selectedAppUids = preferences[PreferencesKeys.SELECTED_APP_UIDS]?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet(),
+                // Cap + charset-guard: user-typed domains only (see UserRules regex)
+                userDirectDomains = (preferences[PreferencesKeys.USER_DIRECT_DOMAINS] ?: emptySet())
+                    .filter { it.length in 1..253 && it.matches(Regex("[a-z0-9.-]+")) }
+                    .toSet(),
                 proxyMode = runCatching {
                     ProxyMode.valueOf(preferences[PreferencesKeys.PROXY_MODE] ?: ProxyMode.RULE.name)
                 }.getOrDefault(ProxyMode.RULE),
@@ -360,6 +366,23 @@ class SettingsRepository(
                 ?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
             val next = if (uid in current) current - uid else current + uid
             prefs[PreferencesKeys.SELECTED_APP_UIDS] = next.map { it.toString() }.toSet()
+        }
+    }
+
+    /** Adds a sanitized always-direct domain; returns false when invalid (no write). */
+    suspend fun addUserDirectDomain(raw: String): Boolean {
+        val domain = UserRules.sanitizeDomain(raw) ?: return false
+        context.dataStore.edit { prefs ->
+            prefs[PreferencesKeys.USER_DIRECT_DOMAINS] =
+                (prefs[PreferencesKeys.USER_DIRECT_DOMAINS] ?: emptySet()) + domain
+        }
+        return true
+    }
+
+    suspend fun removeUserDirectDomain(domain: String) {
+        context.dataStore.edit { prefs ->
+            prefs[PreferencesKeys.USER_DIRECT_DOMAINS] =
+                (prefs[PreferencesKeys.USER_DIRECT_DOMAINS] ?: emptySet()) - domain
         }
     }
 

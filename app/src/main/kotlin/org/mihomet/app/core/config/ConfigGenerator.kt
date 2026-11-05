@@ -218,6 +218,16 @@ object ConfigGenerator {
         // groups) to its first entry whenever the service restarts — user picks "lost".
         configMap["profile"] = mapOf("store-selected" to true)
 
+        // User-defined always-direct domains (Routing screen) are PREPENDED so they
+        // beat panel rules (mihomo matches top-down). Only meaningful in rule mode —
+        // global mode bypasses rules entirely (documented in the UI).
+        val userDirectRules = UserRules.directRules(settings.userDirectDomains)
+        if (userDirectRules.isNotEmpty()) {
+            val existingRules = (configMap["rules"] as? List<*>)
+                ?.filterNotNull()?.map { it.toString() } ?: emptyList()
+            configMap["rules"] = userDirectRules + existingRules
+        }
+
         // Typed performance override layer: these keys are app-managed and are written
         // unconditionally so they always WIN over the same keys in the user's profile
         // (minimal CMFA-style ConfigurationOverride subset).

@@ -15,6 +15,7 @@
     <string name="clipboard_empty">Clipboard is empty</string>
     <string name="common_not_found">Nothing found</string>
     <string name="cd_back">Back</string>
+    <string name="cd_delete">Delete</string>
     <string name="cd_clear">Clear</string>
     <string name="cd_paste">Paste</string>
     <string name="cd_menu">Menu</string>
@@ -346,6 +347,12 @@
     <string name="routing_selected_count">Selected: %1$d of %2$d</string>
     <string name="routing_system_apps">System</string>
     <string name="routing_reset">Reset</string>
+    <string name="routing_user_rules_title">Site rules</string>
+    <string name="routing_user_rules_desc">Domains in this list always connect directly, bypassing the proxy — they win over subscription rules. Add a bare TLD (e.g. ru) to direct every site in that zone. Applies in Smart mode; All-sites mode ignores rules.</string>
+    <string name="routing_user_rules_add_hint">example.com or ru</string>
+    <string name="routing_user_rules_add">Add</string>
+    <string name="routing_user_rules_invalid">Invalid domain</string>
+    <string name="routing_user_rules_empty">No direct domains yet</string>
     <string name="routing_empty">No apps found</string>
     <string name="routing_system_badge">System</string>
     <string name="perapp_empty_whitelist">Whitelist is empty — all traffic is proxied. Select apps or switch mode.</string>

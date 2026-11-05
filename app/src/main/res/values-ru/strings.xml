@@ -15,6 +15,7 @@
     <string name="clipboard_empty">Буфер обмена пуст</string>
     <string name="common_not_found">Ничего не найдено</string>
     <string name="cd_back">Назад</string>
+    <string name="cd_delete">Удалить</string>
     <string name="cd_clear">Очистить</string>
     <string name="cd_paste">Вставить</string>
     <string name="cd_menu">Меню</string>
@@ -348,6 +349,12 @@
     <string name="routing_selected_count">Выбрано: %1$d из %2$d</string>
     <string name="routing_system_apps">Системные</string>
     <string name="routing_reset">Сброс</string>
+    <string name="routing_user_rules_title">Правила для сайтов</string>
+    <string name="routing_user_rules_desc">Домены из этого списка всегда идут напрямую, минуя прокси — важнее правил подписки. Добавьте голый TLD (например ru), чтобы пустить всю зону напрямую. Работает в режиме «Умный»; режим «Все сайты» правила игнорирует.</string>
+    <string name="routing_user_rules_add_hint">example.com или ru</string>
+    <string name="routing_user_rules_add">Добавить</string>
+    <string name="routing_user_rules_invalid">Некорректный домен</string>
+    <string name="routing_user_rules_empty">Пока нет доменов</string>
     <string name="routing_empty">Приложения не найдены</string>
     <string name="routing_system_badge">Система</string>
     <string name="perapp_empty_whitelist">Белый список пуст — проксируется весь трафик. Выбери приложения или смени режим.</string>

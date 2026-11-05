@@ -161,7 +161,10 @@ fun ExpressiveLatencyBadge(
         // ICMP capability gap (no ping binary / OS refusal) — not a node failure.
         delayMs == NodePingTester.ICMP_UNAVAILABLE ->
             Color.Gray to MaterialTheme.colorScheme.onSurfaceVariant
-        delayMs < 0 -> AccentRed to redText
+        // Timeout is neutral gray, not red: with an unreachable test URL every
+        // badge would otherwise scream red (user feedback 05.11) while the info
+        // content ("no measurement") is identical to the untested dash.
+        delayMs < 0 -> Color.Gray to MaterialTheme.colorScheme.onSurfaceVariant
         else -> Color.Gray to MaterialTheme.colorScheme.onSurfaceVariant
     }
     val text = when {
