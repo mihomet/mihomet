@@ -26,10 +26,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -417,6 +421,13 @@ fun ExpressiveHeroConnect(
         label = "heroGlowColor"
     )
 
+    // M3E signature "cookie morph": rounded square at rest, 12-lobed cookie while
+    // the VPN protects the device. Drawn through graphics-shapes Morph paths —
+    // Surface shapes cannot morph, and a draw-phase re-read keeps it frame-exact.
+    val heroMorph = remember { ExpressiveMorph.morphFor(ExpressiveMorph.SQUARE, ExpressiveMorph.COOKIE_12) }
+    val heroMorphProgress by ExpressiveMorph.progress(if (isRunning) 1f else 0f)
+    val heroMorphPath = remember { Path() }
+
     // Tactile press feedback: ripple is disabled (indication = null) on the big
     // squircle, so the expressive squeeze carries the pressed state instead.
     val heroInteractionSource = remember { MutableInteractionSource() }
@@ -468,27 +479,52 @@ fun ExpressiveHeroConnect(
                 )
             }
 
-            // Main Tactile Squircle Button
-            Surface(
-                shape = ExpressiveShapes.Hero,
-                color = buttonColor,
-                border = if (!isRunning && !isConnecting && !isDisconnecting) {
-                    BorderStroke(1.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-                } else null,
-                shadowElevation = when {
-                    isRunning -> 14.dp
-                    isConnecting || isDisconnecting -> 8.dp
-                    else -> 4.dp
-                },
+            // Main Tactile Morph Button — a plain Box because Surface cannot render
+            // a morphing shape: the outline comes from graphicsLayer (fresh morph
+            // wrapper per frame over a cached Morph), the fill from background()
+            // (clipped by the same layer), and the rest-state border is stroked
+            // over the drawn content.
+            val morphOutlineColor =
+                if (!isRunning && !isConnecting && !isDisconnecting) {
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                } else {
+                    Color.Transparent
+                }
+            val morphShadowElevation = when {
+                isRunning -> 14.dp
+                isConnecting || isDisconnecting -> 8.dp
+                else -> 4.dp
+            }
+            Box(
                 modifier = Modifier
                     .size(138.dp)
                     .scale(pressScale)
-                    .clip(ExpressiveShapes.Hero)
+                    .graphicsLayer {
+                        shape = ExpressiveMorph.shape(
+                            ExpressiveMorph.SQUARE,
+                            ExpressiveMorph.COOKIE_12
+                        ) { heroMorphProgress }
+                        clip = true
+                        shadowElevation = morphShadowElevation.toPx()
+                    }
+                    .background(buttonColor)
                     .clickable(
                         interactionSource = heroInteractionSource,
                         indication = null,
                         onClick = onClick
                     )
+                    .drawWithContent {
+                        drawContent()
+                        if (morphOutlineColor != Color.Transparent) {
+                            drawPath(
+                                ExpressiveMorph.path(
+                                    heroMorph, heroMorphProgress, size, heroMorphPath
+                                ),
+                                morphOutlineColor,
+                                style = Stroke(width = 1.5.dp.toPx())
+                            )
+                        }
+                    }
             ) {
                 Box(
                     contentAlignment = Alignment.Center,

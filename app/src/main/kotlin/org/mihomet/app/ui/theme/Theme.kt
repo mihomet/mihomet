@@ -137,6 +137,9 @@ fun MihometTheme(
         )
     } ?: baseScheme
 
+    // Note: material3 1.4.0 ships MotionScheme/MaterialExpressiveTheme as internal —
+    // the expressive motionScheme parameter arrives with the 1.5/AGP-9.1 upgrade.
+    // The Expressive feel comes from our own morphs/transitions meanwhile.
     MaterialTheme(
         colorScheme = finalColorScheme,
         typography = Typography,

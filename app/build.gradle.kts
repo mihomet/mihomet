@@ -159,6 +159,11 @@ android {
 
     kotlinOptions {
         jvmTarget = "21"
+        // M3 Expressive components (material3 1.5.0-beta02) are gated behind the
+        // experimental opt-in; the app adopts them app-wide (MD3E redesign).
+        freeCompilerArgs += listOf(
+            "-opt-in=androidx.compose.material3.ExperimentalMaterial3ExpressiveApi"
+        )
     }
 
     buildFeatures {
@@ -238,6 +243,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.graphics.shapes)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
 

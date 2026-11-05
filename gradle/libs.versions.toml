@@ -37,7 +37,12 @@ androidx-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
 androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+# NOTE: the material3 1.5.x line (full Expressive components) requires AGP 9.1 +
+# compose 1.12-alpha transitives — revisit after the AGP/Kotlin upgrade. For now the
+# Expressive look is built on material3 1.4.0 (MaterialExpressiveTheme + MotionScheme)
+# plus a standalone graphics-shapes cookie-morph (see ui/theme/ExpressiveMorph.kt).
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-graphics-shapes = { group = "androidx.graphics", name = "graphics-shapes", version = "1.1.0" }
 androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 

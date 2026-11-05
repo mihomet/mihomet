@@ -1074,6 +1074,7 @@ fun SubscriptionQrDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddProfileDialog(
     onDismiss: () -> Unit,
@@ -1118,14 +1119,27 @@ fun AddProfileDialog(
         }
     }
 
-    AlertDialog(
+    // M3E form container: bottom sheet (expressive motion via the theme motion
+    // scheme) instead of a centered dialog — matches PixelPlayer's sheet-first UX.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.profiles_add_title), fontWeight = FontWeight.Black) },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
+        sheetState = sheetState,
+        shape = ExpressiveShapes.Large,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 6.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+                Text(
+                    text = stringResource(R.string.profiles_add_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Black
+                )
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         selected = isRemote,
@@ -1275,33 +1289,33 @@ fun AddProfileDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (name.isNotBlank()) {
-                        if (isRemote && url.isNotBlank()) {
-                            val headers = customHeaders.ifBlank { "{}" }
-                            onAddRemote(name, url, headers)
-                        } else if (!isRemote) {
-                            val content = localContent
-                            if (content != null) {
-                                onAddLocal(name, content)
-                            } else {
-                                onAddBlank(name)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+                Button(
+                    onClick = {
+                        if (name.isNotBlank()) {
+                            if (isRemote && url.isNotBlank()) {
+                                val headers = customHeaders.ifBlank { "{}" }
+                                onAddRemote(name, url, headers)
+                            } else if (!isRemote) {
+                                val content = localContent
+                                if (content != null) {
+                                    onAddLocal(name, content)
+                                } else {
+                                    onAddBlank(name)
+                                }
                             }
                         }
-                    }
-                },
-                shape = ExpressiveShapes.Small
-            ) {
-                Text(stringResource(R.string.action_add), fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel))
+                    },
+                    shape = ExpressiveShapes.Small
+                ) {
+                    Text(stringResource(R.string.action_add), fontWeight = FontWeight.Bold)
+                }
             }
         }
-    )
-}
+    }

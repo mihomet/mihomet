@@ -1,9 +1,6 @@
 package org.mihomet.app.ui.navigation
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -54,91 +51,43 @@ fun AppNavGraph(
         startDestination = Screen.Dashboard.route,
         modifier = Modifier.padding(paddingValues),
         enterTransition = {
-            val initialRoute = initialState.destination.route
             val targetRoute = targetState.destination.route
-            if (isDetailRoute(targetRoute)) {
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(350, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(250))
-            } else {
-                val fromIndex = getNavTabOrder(initialRoute)
-                val toIndex = getNavTabOrder(targetRoute)
-                if (fromIndex == toIndex && fromIndex != -1) {
-                    EnterTransition.None
-                } else {
-                    val forward = toIndex >= fromIndex
-                    slideInHorizontally(
-                        initialOffsetX = { fullWidth -> if (forward) fullWidth / 4 else -fullWidth / 4 },
-                        animationSpec = tween(350, easing = FastOutSlowInEasing)
-                    ) + fadeIn(animationSpec = tween(250))
-                }
+            val fromIndex = getNavTabOrder(initialState.destination.route)
+            val toIndex = getNavTabOrder(targetRoute)
+            when {
+                isDetailRoute(targetRoute) -> AppTransitions.detailEnter()
+                fromIndex == toIndex && fromIndex != -1 -> EnterTransition.None
+                else -> AppTransitions.tabEnter(toIndex >= fromIndex)
             }
         },
         exitTransition = {
-            val initialRoute = initialState.destination.route
             val targetRoute = targetState.destination.route
-            if (isDetailRoute(targetRoute)) {
-                slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> (-fullWidth * 0.25f).toInt() },
-                    animationSpec = tween(350, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing))
-            } else {
-                val fromIndex = getNavTabOrder(initialRoute)
-                val toIndex = getNavTabOrder(targetRoute)
-                if (fromIndex == toIndex && fromIndex != -1) {
-                    ExitTransition.None
-                } else {
-                    val forward = toIndex >= fromIndex
-                    slideOutHorizontally(
-                        targetOffsetX = { fullWidth -> if (forward) -fullWidth / 4 else fullWidth / 4 },
-                        animationSpec = tween(350, easing = FastOutSlowInEasing)
-                    ) + fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing))
-                }
+            val fromIndex = getNavTabOrder(initialState.destination.route)
+            val toIndex = getNavTabOrder(targetRoute)
+            when {
+                isDetailRoute(targetRoute) -> AppTransitions.detailExit()
+                fromIndex == toIndex && fromIndex != -1 -> ExitTransition.None
+                else -> AppTransitions.tabExit(toIndex >= fromIndex)
             }
         },
         popEnterTransition = {
             val initialRoute = initialState.destination.route
-            val targetRoute = targetState.destination.route
-            if (isDetailRoute(initialRoute)) {
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> (-fullWidth * 0.25f).toInt() },
-                    animationSpec = tween(350, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(250))
-            } else {
-                val fromIndex = getNavTabOrder(initialRoute)
-                val toIndex = getNavTabOrder(targetRoute)
-                if (fromIndex == toIndex && fromIndex != -1) {
-                    EnterTransition.None
-                } else {
-                    val forward = toIndex >= fromIndex
-                    slideInHorizontally(
-                        initialOffsetX = { fullWidth -> if (forward) fullWidth / 4 else -fullWidth / 4 },
-                        animationSpec = tween(350, easing = FastOutSlowInEasing)
-                    ) + fadeIn(animationSpec = tween(250))
-                }
+            val fromIndex = getNavTabOrder(initialRoute)
+            val toIndex = getNavTabOrder(targetState.destination.route)
+            when {
+                isDetailRoute(initialRoute) -> AppTransitions.detailPopEnter()
+                fromIndex == toIndex && fromIndex != -1 -> EnterTransition.None
+                else -> AppTransitions.tabEnter(fromIndex > toIndex)
             }
         },
         popExitTransition = {
             val initialRoute = initialState.destination.route
-            val targetRoute = targetState.destination.route
-            if (isDetailRoute(initialRoute)) {
-                slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(350, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(250))
-            } else {
-                val fromIndex = getNavTabOrder(initialRoute)
-                val toIndex = getNavTabOrder(targetRoute)
-                if (fromIndex == toIndex && fromIndex != -1) {
-                    ExitTransition.None
-                } else {
-                    val forward = toIndex >= fromIndex
-                    slideOutHorizontally(
-                        targetOffsetX = { fullWidth -> if (forward) -fullWidth / 4 else fullWidth / 4 },
-                        animationSpec = tween(350, easing = FastOutSlowInEasing)
-                    ) + fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing))
-                }
+            val fromIndex = getNavTabOrder(initialRoute)
+            val toIndex = getNavTabOrder(targetState.destination.route)
+            when {
+                isDetailRoute(initialRoute) -> AppTransitions.detailPopExit()
+                fromIndex == toIndex && fromIndex != -1 -> ExitTransition.None
+                else -> AppTransitions.tabExit(fromIndex > toIndex)
             }
         }
     ) {
