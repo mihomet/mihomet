@@ -209,6 +209,12 @@ class SettingsViewModel(
         }
     }
 
+    fun updateAccentColor(colorId: String) {
+        viewModelScope.launch {
+            settingsRepository.updateAccentColor(colorId)
+        }
+    }
+
     fun updateAutoBalancerEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.updateAutoBalancerEnabled(enabled)

@@ -2,6 +2,7 @@ package org.mihomet.app.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import org.mihomet.app.ui.theme.AccentPresets
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -114,11 +115,12 @@ fun MihometTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
     amoledBlack: Boolean = false,
+    accentColorId: String = "",
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
 
-    val finalColorScheme = when {
+    val baseScheme = when {
         darkTheme && amoledBlack -> ExpressiveAmoledColorScheme
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -126,6 +128,15 @@ fun MihometTheme(
         darkTheme -> ExpressiveDarkColorScheme
         else -> ExpressiveLightColorScheme
     }
+    val finalColorScheme = AccentPresets.byId(accentColorId)?.let { preset ->
+        val accent = if (darkTheme) preset.dark else preset.light
+        baseScheme.copy(
+            primary = accent.primary,
+            onPrimary = accent.onPrimary,
+            primaryContainer = accent.primaryContainer,
+            onPrimaryContainer = accent.onPrimaryContainer
+        )
+    } ?: baseScheme
 
     MaterialTheme(
         colorScheme = finalColorScheme,

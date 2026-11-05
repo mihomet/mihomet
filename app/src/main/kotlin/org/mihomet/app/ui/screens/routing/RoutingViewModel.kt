@@ -84,13 +84,7 @@ class RoutingViewModel(
 
     fun toggleAppUid(uid: Int) {
         viewModelScope.launch {
-            val currentUids = _uiState.value.settings.selectedAppUids.toMutableSet()
-            if (currentUids.contains(uid)) {
-                currentUids.remove(uid)
-            } else {
-                currentUids.add(uid)
-            }
-            settingsRepository.updateSelectedAppUids(currentUids)
+            settingsRepository.toggleAppUidAtomic(uid)
         }
     }
 

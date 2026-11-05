@@ -60,6 +60,7 @@ class SettingsRepository(
         val AUTO_BALANCER_ENABLED = booleanPreferencesKey("auto_balancer_enabled")
         val AUTO_BALANCER_EXCLUDES = stringPreferencesKey("auto_balancer_excludes")
         val AUTO_BALANCER_PREFER_DEFAULT = booleanPreferencesKey("auto_balancer_prefer_default")
+        val THEME_ACCENT = stringPreferencesKey("theme_accent")
         val AUTO_START_ON_BOOT = booleanPreferencesKey("auto_start_on_boot")
         val LAST_MODE = stringPreferencesKey("last_mode")
         val TUN_STACK = stringPreferencesKey("tun_stack")
@@ -118,6 +119,8 @@ class SettingsRepository(
                 persistentLogging = preferences[PreferencesKeys.PERSISTENT_LOGGING] ?: false,
                 overrideSnifferEnabled = preferences[PreferencesKeys.OVERRIDE_SNIFFER_ENABLED] ?: true,
                 autoBalancerEnabled = preferences[PreferencesKeys.AUTO_BALANCER_ENABLED] ?: true,
+                accentColor = (preferences[PreferencesKeys.THEME_ACCENT] ?: "")
+                    .take(16).replace(Regex("[^a-z_]"), ""),
                 autoBalancerExcludes = (preferences[PreferencesKeys.AUTO_BALANCER_EXCLUDES] ?: "")
                     .replace(Regex("[\\p{Cntrl}]"), " ").take(2000),
                 autoBalancerPreferDefault = preferences[PreferencesKeys.AUTO_BALANCER_PREFER_DEFAULT] ?: false,
@@ -350,6 +353,16 @@ class SettingsRepository(
         context.dataStore.edit { it[PreferencesKeys.SELECTED_APP_UIDS] = uids.map { uid -> uid.toString() }.toSet() }
     }
 
+    /** Atomic read-modify-write for a single UID toggle — prevents race on rapid taps. */
+    suspend fun toggleAppUidAtomic(uid: Int) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[PreferencesKeys.SELECTED_APP_UIDS]
+                ?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
+            val next = if (uid in current) current - uid else current + uid
+            prefs[PreferencesKeys.SELECTED_APP_UIDS] = next.map { it.toString() }.toSet()
+        }
+    }
+
     suspend fun updateProxyMode(mode: ProxyMode) {
         context.dataStore.edit { it[PreferencesKeys.PROXY_MODE] = mode.name }
     }
@@ -389,6 +402,10 @@ class SettingsRepository(
 
     suspend fun updateOverrideUnifiedDelay(enabled: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.OVERRIDE_UNIFIED_DELAY] = enabled }
+    }
+
+    suspend fun updateAccentColor(colorId: String) {
+        context.dataStore.edit { it[PreferencesKeys.THEME_ACCENT] = colorId.take(16) }
     }
 
     suspend fun updateAutoBalancerEnabled(enabled: Boolean) {

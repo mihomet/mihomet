@@ -94,6 +94,8 @@ data class AppSettings(
     val dynamicColor: Boolean = false,
     val darkTheme: Boolean = true,
     val amoledBlack: Boolean = false,
+    // Theme accent color preset ID ("" = brand violet, "blue"/"teal"/etc)
+    val accentColor: String = "",
     val showSpeedInNotification: Boolean = true,
     val customDns: String = "",
     val controllerSecret: String = "",

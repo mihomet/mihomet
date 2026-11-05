@@ -186,7 +186,8 @@ class MainActivity : ComponentActivity() {
             MihometTheme(
                 darkTheme = settings.darkTheme,
                 dynamicColor = settings.dynamicColor,
-                amoledBlack = settings.amoledBlack
+                amoledBlack = settings.amoledBlack,
+                accentColorId = settings.accentColor
             ) {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
