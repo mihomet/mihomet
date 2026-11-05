@@ -2,7 +2,6 @@ package org.mihomet.app.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import org.mihomet.app.ui.theme.AccentPresets
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
