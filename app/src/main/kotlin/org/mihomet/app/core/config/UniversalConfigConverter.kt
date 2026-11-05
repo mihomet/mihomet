@@ -46,7 +46,13 @@ object UniversalConfigConverter {
         val yaml = when {
             HappRoutingConverter.isHappRouting(trimmed) -> HappRoutingConverter.convertHappRoutingToMihomoYaml(trimmed)
             HappRoutingConverter.isHappRouting(decoded) -> HappRoutingConverter.convertHappRoutingToMihomoYaml(decoded)
-            WireGuardConfParser.isWireGuardConf(decoded) -> org.yaml.snakeyaml.Yaml().dump(WireGuardConfParser.parse(decoded, "WireGuard"))
+            WireGuardConfParser.isWireGuardConf(decoded) -> {
+                // Wrap in a full config shape ("proxies: [ ... ]"): the bare proxy
+                // map would fail ProfileValidation (no proxies/rules keys) and the
+                // whitelist sanitizer would strip every field at generation time.
+                val proxy = WireGuardConfParser.parse(decoded, "WireGuard")
+                org.yaml.snakeyaml.Yaml().dump(mapOf("proxies" to listOf(proxy)))
+            }
             ClashYamlConverter.isClashYaml(decoded) -> ClashYamlConverter.validateAndNormalizeYaml(decoded, warnings)
             SingBoxConverter.isSingBoxJson(decoded) -> SingBoxConverter.convertSingBoxJsonToMihomoYaml(decoded, warnings)
             XrayJsonConverter.isXrayJson(decoded) -> XrayJsonConverter.convertXrayJsonToMihomoYaml(decoded, warnings)
