@@ -29,6 +29,10 @@
 | Deep-link import (happ/incy/clash/v2rayng/sing-box) | ✅ implemented | `core/DeepLinkParser.kt`, live-tested on emulator |
 | Link-based control (incy://connect|toggle, mihomet://) | ✅ implemented | MainActivity.handleControlLink |
 | Automatic subscription refresh (profile-update-interval) | ✅ implemented | WorkManager 6h, Room v3 |
+| M3 Expressive wave 1 (cookie-morph hero, parallax transitions, sheet forms) | ✅ (0a626e0) | `ui/theme/ExpressiveMorph.kt`, `ui/navigation/Transitions.kt`; PixelPlayer study patterns |
+| Generated color schemes: accent picker + Material You palette styles | ✅ (0331f5a) | material-kolor; whole scheme from the accent seed |
+| Full material3 1.5.x Expressive components (LoadingIndicator, FloatingToolbar, FlexibleBottomSheet, ButtonGroup, wavy progress) | ⏸ blocked | requires AGP 9.1 + compose 1.12-alpha transitives; do together with the AGP/Kotlin upgrade (material3 aar-metadata `minAndroidGradlePluginVersion=9.1.0`); `MotionScheme` is also internal in 1.4.0 |
+| ScreenWrapper depth effect (blur/dim on the covered screen) | ⏸ deferred | heavier RenderNode work; see docs note from the PixelPlayer study |
 
 ### Phase 1: Docker test bench — ✅ done
 - [x] **1.1–1.6**: all panels deployed live in `/mnt/Data/mihomet-panel-bench/` (kept out of the repo):
