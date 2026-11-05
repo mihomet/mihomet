@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -36,7 +37,8 @@ import org.mihomet.app.ui.theme.HapticType
 internal fun RoutingSection(
     settings: AppSettings,
     viewModel: SettingsViewModel,
-    onNavigateToRouting: () -> Unit
+    onNavigateToRouting: () -> Unit,
+    onNavigateToSiteRules: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -136,6 +138,63 @@ internal fun RoutingSection(
                         )
                         Text(
                             text = stringResource(R.string.settings_app_exclusions_desc),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+            // Site rules (always-direct domains) — dedicated screen
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(ExpressiveShapes.Medium)
+                    .clickable {
+                        AppHaptics.perform(context, HapticType.CLICK, view)
+                        onNavigateToSiteRules()
+                    }
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = ExpressiveShapes.Small,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(SettingsIconContainerSize)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.Language,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(SettingsIconSize)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column {
+                        Text(
+                            text = stringResource(R.string.nav_site_rules),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_site_rules_desc),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

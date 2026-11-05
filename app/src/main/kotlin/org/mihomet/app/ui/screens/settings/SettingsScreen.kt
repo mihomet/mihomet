@@ -38,6 +38,7 @@ import org.mihomet.app.ui.components.ExpressiveSnackbarHost
 @Composable
 fun SettingsScreen(
     onNavigateToRouting: () -> Unit,
+    onNavigateToSiteRules: () -> Unit = {},
     onNavigateToLogs: () -> Unit,
     onNavigateToConnections: () -> Unit,
     viewModel: SettingsViewModel = koinViewModel()
@@ -106,7 +107,7 @@ fun SettingsScreen(
 
             // 2. Routing & App Rules Card
             item {
-                RoutingSection(settings, viewModel, onNavigateToRouting)
+                RoutingSection(settings, viewModel, onNavigateToRouting, onNavigateToSiteRules)
             }
 
             // 3. Subscriptions identity card (global UA / x-hwid merge defaults;

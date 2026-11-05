@@ -22,6 +22,7 @@ import org.mihomet.app.ui.screens.profiles.ProfilesScreen
 import org.mihomet.app.ui.screens.profiles.YamlEditorScreen
 import org.mihomet.app.ui.screens.proxies.ProxiesScreen
 import org.mihomet.app.ui.screens.routing.RoutingScreen
+import org.mihomet.app.ui.screens.routing.SiteRulesScreen
 import org.mihomet.app.ui.screens.settings.SettingsScreen
 
 private fun getNavTabOrder(route: String?): Int {
@@ -178,8 +179,15 @@ fun AppNavGraph(
         composable(Screen.Settings.route) {
             SettingsScreen(
                 onNavigateToRouting = { navController.navigate(Screen.Routing.route) },
+                onNavigateToSiteRules = { navController.navigate(Screen.SiteRules.route) },
                 onNavigateToLogs = { navController.navigate(Screen.Logs.route) },
                 onNavigateToConnections = { navController.navigate(Screen.Connections.route) }
+            )
+        }
+
+        composable(Screen.SiteRules.route) {
+            SiteRulesScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

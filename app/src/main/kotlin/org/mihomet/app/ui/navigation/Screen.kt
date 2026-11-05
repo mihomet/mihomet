@@ -19,6 +19,8 @@ sealed class Screen(val route: String, @StringRes val titleRes: Int, val icon: I
     data object YamlEditor : Screen("yaml_editor/{profileId}", R.string.nav_yaml_editor, Icons.Default.Edit) {
         fun createRoute(profileId: Long): String = "yaml_editor/$profileId"
     }
+
+    data object SiteRules : Screen("site_rules", R.string.nav_site_rules, Icons.Default.Language)
 }
 
 val bottomNavItems = listOf(

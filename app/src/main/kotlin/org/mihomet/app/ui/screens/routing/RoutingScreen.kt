@@ -9,14 +9,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,7 +28,6 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.R
-import org.mihomet.app.core.config.UserRules
 import org.mihomet.app.data.preferences.PerAppMode
 import org.mihomet.app.ui.components.SearchPill
 import org.mihomet.app.ui.theme.AppHaptics
@@ -426,125 +422,6 @@ fun RoutingScreen(
                                         viewModel.toggleAppUid(app.uid)
                                     }
                                 )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Site rules: user-defined always-direct domains (RU zones, banks, …).
-            // Beats panel rules (prepended); only applies in "Smart" mode.
-            item {
-                var newDomain by remember { mutableStateOf("") }
-                var showInvalid by remember { mutableStateOf(false) }
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = ExpressiveShapes.Large,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.routing_user_rules_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = stringResource(R.string.routing_user_rules_desc),
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = newDomain,
-                                onValueChange = { newDomain = it; showInvalid = false },
-                                placeholder = {
-                                    Text(
-                                        stringResource(R.string.routing_user_rules_add_hint),
-                                        fontSize = 13.sp
-                                    )
-                                },
-                                isError = showInvalid,
-                                supportingText = if (showInvalid) {
-                                    {
-                                        Text(
-                                            stringResource(R.string.routing_user_rules_invalid),
-                                            fontSize = 11.sp
-                                        )
-                                    }
-                                } else null,
-                                singleLine = true,
-                                shape = ExpressiveShapes.Small,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Surface(
-                                shape = ExpressiveShapes.Small,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .clip(ExpressiveShapes.Small)
-                                    .clickable {
-                                        AppHaptics.perform(context, HapticType.CLICK, view)
-                                        if (newDomain.isNotBlank()) {
-                                            // Local sanitize for synchronous feedback;
-                                            // the repository re-validates on write.
-                                            if (UserRules.sanitizeDomain(newDomain) == null) {
-                                                showInvalid = true
-                                            } else {
-                                                viewModel.addDirectDomain(newDomain)
-                                                newDomain = ""
-                                            }
-                                        }
-                                    }
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.routing_user_rules_add),
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
-                                )
-                            }
-                        }
-                        if (settings.userDirectDomains.isEmpty()) {
-                            Text(
-                                text = stringResource(R.string.routing_user_rules_empty),
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            settings.userDirectDomains.sorted().forEach { domain ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = domain,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    IconButton(
-                                        onClick = { viewModel.removeDirectDomain(domain) },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Close,
-                                            contentDescription = stringResource(R.string.cd_delete),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
                             }
                         }
                     }

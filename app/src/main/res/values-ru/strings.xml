@@ -52,6 +52,7 @@
     <string name="nav_logs">Журнал</string>
     <string name="nav_settings">Настройки</string>
     <string name="nav_yaml_editor">Редактор YAML</string>
+    <string name="nav_site_rules">Правила для сайтов</string>
 
     <!-- Dashboard -->
     <string name="dashboard_mode_root_tproxy">Root TProxy</string>
@@ -127,6 +128,10 @@
     <string name="profiles_add_title">Добавить подписку</string>
     <string name="profiles_type_url">Ссылка (URL)</string>
     <string name="profiles_type_local_file">Локальный файл</string>
+    <string name="profiles_pick_file">Выбрать файл</string>
+    <string name="profiles_pick_file_desc">WireGuard .conf, ссылки, JSON или YAML</string>
+    <string name="profiles_pick_failed">Не удалось прочитать файл</string>
+    <string name="profiles_file_loaded">Загружено, %1$s символов</string>
     <string name="profiles_name_label">Название подписки</string>
     <string name="profiles_name_placeholder">Мой VPN</string>
     <string name="profiles_url_label">Ссылка на подписку (URL)</string>
@@ -218,6 +223,7 @@
     <string name="settings_proxy_mode">Режим проксирования</string>
     <string name="settings_app_exclusions">Исключения приложений</string>
     <string name="settings_app_exclusions_desc">Выбрать приложения в обход прокси (банки, Госуслуги)</string>
+    <string name="settings_site_rules_desc">Домены, которые всегда идут напрямую, минуя прокси</string>
     <string name="settings_notifications">Уведомления</string>
     <string name="settings_speed_notification">Скорость в уведомлении</string>
     <string name="settings_speed_notification_desc">Отображать текущую скорость передачи данных</string>
@@ -349,7 +355,6 @@
     <string name="routing_selected_count">Выбрано: %1$d из %2$d</string>
     <string name="routing_system_apps">Системные</string>
     <string name="routing_reset">Сброс</string>
-    <string name="routing_user_rules_title">Правила для сайтов</string>
     <string name="routing_user_rules_desc">Домены из этого списка всегда идут напрямую, минуя прокси — важнее правил подписки. Добавьте голый TLD (например ru), чтобы пустить всю зону напрямую. Работает в режиме «Умный»; режим «Все сайты» правила игнорирует.</string>
     <string name="routing_user_rules_add_hint">example.com или ru</string>
     <string name="routing_user_rules_add">Добавить</string>

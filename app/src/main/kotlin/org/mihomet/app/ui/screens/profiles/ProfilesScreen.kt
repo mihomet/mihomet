@@ -1,5 +1,8 @@
 package org.mihomet.app.ui.screens.profiles
 
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
@@ -48,6 +51,9 @@ import org.mihomet.app.ui.theme.PrimaryViolet
 import org.mihomet.app.ui.theme.SecondaryTeal
 import java.util.*
 import java.util.concurrent.TimeUnit
+
+/** Hard cap for text read from a picked local profile file (matches subscription byte cap spirit). */
+private const val MAX_LOCAL_IMPORT_CHARS = 1_000_000
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -315,6 +321,10 @@ fun ProfilesScreen(
                 },
                 onAddBlank = { name ->
                     viewModel.addBlankProfile(name)
+                    showAddDialog = false
+                },
+                onAddLocal = { name, content ->
+                    viewModel.addLocalProfile(name, content)
                     showAddDialog = false
                 }
             )
@@ -1068,14 +1078,45 @@ fun SubscriptionQrDialog(
 fun AddProfileDialog(
     onDismiss: () -> Unit,
     onAddRemote: (String, String, String) -> Unit,
-    onAddBlank: (String) -> Unit
+    onAddBlank: (String) -> Unit,
+    onAddLocal: (String, String) -> Unit = { _, _ -> }
 ) {
     var isRemote by remember { mutableStateOf(true) }
     var name by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("") }
     var customHeaders by remember { mutableStateOf("") }
+    // Picked-file state for the local branch (WireGuard .conf, share links, JSON, YAML)
+    var localContent by remember { mutableStateOf<String?>(null) }
+    var localFileName by remember { mutableStateOf("") }
+    var pickFailed by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
+    val view = LocalView.current
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val picked = runCatching {
+            val text = context.contentResolver.openInputStream(uri)
+                ?.bufferedReader()?.use { it.readText() } ?: ""
+            val fileName = context.contentResolver
+                .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                ?.use { c -> if (c.moveToFirst()) c.getString(0) ?: "" else "" } ?: ""
+            text to fileName
+        }.getOrNull()
+        if (picked == null || picked.first.isBlank()) {
+            pickFailed = true
+        } else {
+            pickFailed = false
+            // Hard cap: subscriptions are capped too; a multi-MB file is a mistake.
+            localContent = picked.first.take(MAX_LOCAL_IMPORT_CHARS)
+            localFileName = picked.second
+            if (name.isBlank()) {
+                name = picked.second.substringBeforeLast('.')
+            }
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1159,6 +1200,79 @@ fun AddProfileDialog(
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
+                } else {
+                    // Pick a file from disk: .conf (WireGuard/AmneziaWG), share-link
+                    // list, Xray/sing-box JSON or Clash YAML — content is converted
+                    // on import (addLocalProfile), not stored raw.
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(ExpressiveShapes.Small)
+                            .clickable {
+                                AppHaptics.perform(context, HapticType.CLICK, view)
+                                pickFailed = false
+                                filePickerLauncher.launch(arrayOf("*/*"))
+                            },
+                        shape = ExpressiveShapes.Small,
+                        color = if (localContent != null) {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerHighest
+                        },
+                        border = BorderStroke(
+                            1.dp,
+                            if (localContent != null) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.FolderOpen,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = localFileName.ifBlank {
+                                        stringResource(R.string.profiles_pick_file)
+                                    },
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (localContent != null) {
+                                    val loaded = localContent.orEmpty()
+                                    Text(
+                                        text = stringResource(
+                                            R.string.profiles_file_loaded,
+                                            loaded.length
+                                        ),
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else {
+                                    Text(
+                                        text = stringResource(R.string.profiles_pick_file_desc),
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (pickFailed) {
+                        Text(
+                            text = stringResource(R.string.profiles_pick_failed),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         },
@@ -1170,7 +1284,12 @@ fun AddProfileDialog(
                             val headers = customHeaders.ifBlank { "{}" }
                             onAddRemote(name, url, headers)
                         } else if (!isRemote) {
-                            onAddBlank(name)
+                            val content = localContent
+                            if (content != null) {
+                                onAddLocal(name, content)
+                            } else {
+                                onAddBlank(name)
+                            }
                         }
                     }
                 },

@@ -273,6 +273,49 @@ class ProfilesViewModel(
         }
     }
 
+    /**
+     * Local profile from a picked file (WireGuard/AmneziaWG .conf, share-link
+     * list, Xray/sing-box JSON, Clash YAML — the converter dispatches by
+     * content). Same fail-closed gate as clipboard import: an import that
+     * yields no proxies/rules is rejected, nothing is persisted.
+     */
+    fun addLocalProfile(name: String, fileContent: String) {
+        viewModelScope.launch {
+            try {
+                val outcome = withProfileKeyWarnings(
+                    UniversalConfigConverter.convertToMihomoYamlWithOutcome(fileContent)
+                )
+                if (!isValidGeneratedConfig(outcome.yaml)) {
+                    errorMessageFlow.value = context.getString(R.string.profiles_invalid_result)
+                    return@launch
+                }
+                val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
+                val file = File(profileDir, "profile_${System.currentTimeMillis()}.yaml")
+                file.writeText(outcome.yaml)
+
+                val isFirst = profileDao.getSelectedProfile() == null
+                val entity = ProfileEntity(
+                    name = name,
+                    type = ProfileType.LOCAL,
+                    filePath = file.absolutePath,
+                    isSelected = isFirst
+                )
+                val newId = profileDao.insertProfile(entity)
+                if (isFirst) {
+                    profileDao.selectProfile(newId)
+                }
+                errorMessageFlow.value = null
+                successMessageFlow.value =
+                    appendWarnings(context.getString(R.string.profiles_added, name), outcome)
+            } catch (e: Exception) {
+                errorMessageFlow.value = context.getString(
+                    R.string.profiles_add_failed,
+                    e.message ?: context.getString(R.string.profiles_unknown_error)
+                )
+            }
+        }
+    }
+
     fun importFromClipboard(
         text: String,
         onSuccess: (String) -> Unit,
