@@ -147,7 +147,10 @@ class MihometVpnService : VpnService(), KoinComponent, CoreWatchdog.Hooks {
 
     override fun onRevoke() {
         // VPN revoked by the user/system (Always-on off, another VPN chosen):
-        // stop cleanly instead of leaving a zombie foreground state
+        // stop cleanly instead of leaving a zombie foreground state. Tell the
+        // user WHY the tunnel dropped — the common case is a second VPN client
+        // (Happ et al.) connecting, which silently kills our tunnel otherwise.
+        runCatching { notifications.showRevoked() }
         isStopping = true
         serviceScope.launch {
             vpnMutex.withLock {

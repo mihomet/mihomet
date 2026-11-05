@@ -395,6 +395,8 @@
     <string name="vpn_channel_name">Mihomet VPN Service</string>
     <string name="vpn_notification_title">Mihomet VPN</string>
     <string name="vpn_notification_starting">Запуск VPN...</string>
+    <string name="vpn_revoked_title">Туннель перехвачен</string>
+    <string name="vpn_revoked_text">Другое VPN-приложение заняло туннель, поэтому Mihomet отключился. Android держит только один активный VPN — остановите другое приложение и подключитесь заново.</string>
     <string name="vpn_connected">Подключено (%1$s)</string>
     <string name="vpn_error_core">Ошибка ядра (%1$d)</string>
     <string name="vpn_error">Ошибка VPN: %1$s</string>

@@ -38,6 +38,7 @@ class VpnNotificationController(
     companion object {
         const val CHANNEL_ID = "mihomet_vpn_channel"
         const val NOTIFICATION_ID = 1002
+        const val REVOKED_NOTIFICATION_ID = 1003
     }
 
     private var speedJob: Job? = null
@@ -101,6 +102,33 @@ class VpnNotificationController(
         }
 
         return builder.build()
+    }
+
+    /**
+     * One-shot notice when the tunnel was revoked externally (another VPN app
+     * connected, Always-on switched away, …). Without it the disconnect looks
+     * like a random drop: users running a second VPN client (Happ et al.) saw
+     * the tunnel "reset" with no explanation.
+     */
+    fun showRevoked() {
+        val text = context.getString(R.string.vpn_revoked_text)
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setContentTitle(context.getString(R.string.vpn_revoked_title))
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setSmallIcon(R.drawable.ic_proxy_tile)
+            .setContentIntent(pendingIntent)
+            .setOngoing(false)
+            .setAutoCancel(true)
+            .build()
+        androidx.core.app.NotificationManagerCompat.from(context)
+            .notify(REVOKED_NOTIFICATION_ID, notification)
     }
 
     fun update(

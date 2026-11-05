@@ -393,6 +393,8 @@
     <string name="vpn_channel_name">Mihomet VPN Service</string>
     <string name="vpn_notification_title">Mihomet VPN</string>
     <string name="vpn_notification_starting">Starting VPN...</string>
+    <string name="vpn_revoked_title">Tunnel taken over</string>
+    <string name="vpn_revoked_text">Another VPN app took over the tunnel, so Mihomet disconnected. Android allows only one active VPN — stop the other app and reconnect.</string>
     <string name="vpn_connected">Connected (%1$s)</string>
     <string name="vpn_error_core">Core error (%1$d)</string>
     <string name="vpn_error">VPN error: %1$s</string>
