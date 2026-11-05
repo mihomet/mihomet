@@ -25,6 +25,7 @@ import org.mihomet.app.core.network.ProxyNodeInfo
 import org.mihomet.app.data.api.MihomoApiClient
 import org.mihomet.app.data.api.MihomoApiClientProvider
 import org.mihomet.app.data.db.ProfileDao
+import org.mihomet.app.data.preferences.ProxyMode
 import org.mihomet.app.data.preferences.SettingsRepository
 import org.yaml.snakeyaml.Yaml
 import java.io.File
@@ -334,6 +335,18 @@ class ProxiesViewModel(
                 apiClientProvider.current().selectProxyNode(targetGroup, node.name).onFailure { e ->
                     android.util.Log.e("ProxiesVM", "Failed to select node ${node.name} in group $targetGroup", e)
                 }
+            }
+
+            // In global mode rules are bypassed and traffic follows the GLOBAL
+            // selector: keep it on the node the user just picked (unless the tap
+            // was inside GLOBAL itself — it is already the target above).
+            if (settingsRepository.settingsFlow.first().proxyMode == ProxyMode.GLOBAL &&
+                !targetGroup.equals("GLOBAL", ignoreCase = true)
+            ) {
+                apiClientProvider.current().selectProxyNode("GLOBAL", node.name)
+                    .onFailure { e ->
+                        android.util.Log.e("ProxiesVM", "Failed to sync GLOBAL selection to ${node.name}", e)
+                    }
             }
 
             // Immediately close all connections so active traffic switches to new proxy without delay

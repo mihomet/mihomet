@@ -3,6 +3,7 @@ package org.mihomet.app
 import org.junit.Assert.*
 import org.junit.Test
 import org.mihomet.app.core.config.ConfigGenerator
+import org.mihomet.app.core.config.ConversionWarning
 import org.mihomet.app.data.preferences.AppSettings
 import org.mihomet.app.data.preferences.ProxyMode
 import org.yaml.snakeyaml.Yaml
@@ -171,5 +172,33 @@ class ConfigGeneratorTest {
 
         val parsed = Yaml().load<Map<String, Any>>(output)
         assertNull("tun block must be removed in root mode", parsed["tun"])
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `test config generator enables store-selected so node picks survive restarts`() {
+        val settings = AppSettings(controllerSecret = "test_secret")
+
+        val output = ConfigGenerator.generateRuntimeConfig(
+            profileYamlContent = sampleYaml,
+            settings = settings,
+            tunFd = null
+        )
+
+        val parsed = Yaml().load<Map<String, Any>>(output)
+        val profile = parsed["profile"] as Map<String, Any>
+        assertEquals(true, profile["store-selected"])
+    }
+
+    @Test
+    fun `profile key from subscription is silently dropped as app-managed`() {
+        val warnings = ConfigGenerator.profileKeyWarnings(
+            """
+            profile:
+              store-selected: true
+            $sampleYaml
+            """.trimIndent()
+        )
+        assertFalse("profile drop must be silent (app-managed)", warnings.any { it is ConversionWarning.ProfileKeyDropped && it.key == "profile" })
     }
 }

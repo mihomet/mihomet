@@ -49,7 +49,8 @@ object ConfigGenerator {
         "allow-lan", "bind-address",
         "mixed-port", "port", "socks-port", "tproxy-port", "redir-port", "routing-mark",
         "external-controller", "secret",
-        "mode", "log-level", "ipv6", "unified-delay", "tcp-concurrent"
+        "mode", "log-level", "ipv6", "unified-delay", "tcp-concurrent",
+        "profile"
     )
 
     /**
@@ -211,6 +212,11 @@ object ConfigGenerator {
         configMap["mode"] = settings.proxyMode.apiValue
         configMap["log-level"] = settings.overrideLogLevel.takeIf { ProfileOverrides.isValidLogLevel(it) }
             ?: ProfileOverrides.DEFAULT_LOG_LEVEL
+
+        // Persist selector choices across core restarts (Clash for Android parity):
+        // without store-selected mihomo resets every selector (incl. GLOBAL and panel
+        // groups) to its first entry whenever the service restarts — user picks "lost".
+        configMap["profile"] = mapOf("store-selected" to true)
 
         // Typed performance override layer: these keys are app-managed and are written
         // unconditionally so they always WIN over the same keys in the user's profile

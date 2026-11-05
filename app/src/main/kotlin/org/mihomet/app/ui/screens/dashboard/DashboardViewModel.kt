@@ -191,7 +191,35 @@ class DashboardViewModel(
     fun setMode(mode: ProxyMode) {
         viewModelScope.launch {
             settingsRepository.updateProxyMode(mode)
-            apiClientProvider.current().updateMode(mode.apiValue)
+            val api = apiClientProvider.current()
+            api.updateMode(mode.apiValue).onSuccess {
+                if (mode == ProxyMode.GLOBAL) syncGlobalSelection(api)
+            }
+        }
+    }
+
+    /**
+     * In mihomo global mode all traffic bypasses rules and follows the GLOBAL
+     * selector, whose choice is independent of the panel group the user picked
+     * a node in. Left alone, GLOBAL stays on its default (the first proxy in
+     * the config — frequently a dead node), so "All sites" looks broken while
+     * "Smart" (rule) mode works. Point GLOBAL at the user's effective node.
+     */
+    private suspend fun syncGlobalSelection(api: org.mihomet.app.data.api.MihomoApiClient) {
+        val proxies = api.getProxies().getOrElse { return }
+        val global = proxies.proxies["GLOBAL"] ?: return
+        val persisted = settingsRepository.settingsFlow.first().selectedNodeName
+        val primary = proxies.proxies.values.firstOrNull {
+            (it.type.equals("Selector", true) || it.type.equals("select", true)) &&
+                    !it.name.equals("GLOBAL", true)
+        }
+        val target = listOfNotNull(
+            persisted.takeIf { it.isNotBlank() },
+            primary?.now,
+            primary?.all?.firstOrNull()
+        ).firstOrNull { global.all?.contains(it) == true } ?: return
+        if (!global.now.equals(target, ignoreCase = true)) {
+            api.selectProxyNode("GLOBAL", target)
         }
     }
 
@@ -287,7 +315,8 @@ class DashboardViewModel(
                     // first start the settingsFlow collector may not have emitted yet,
                     // so _uiState.value.selectedNode can still be blank and the default
                     // node would be applied instead of the user's choice.
-                    val currentSelected = settingsRepository.settingsFlow.first().selectedNodeName
+                    val persistedSettings = settingsRepository.settingsFlow.first()
+                    val currentSelected = persistedSettings.selectedNodeName
 
                     // Apply preselected node only if user selected one that belongs to this group
                     val targetNode = if (currentSelected.isNotBlank() && primaryGroup.all?.contains(currentSelected) == true) {
@@ -297,6 +326,13 @@ class DashboardViewModel(
                         currentSelected
                     } else {
                         primaryGroup.now ?: primaryGroup.all?.firstOrNull() ?: ""
+                    }
+
+                    // Started in global mode: rules are bypassed, so the GLOBAL selector
+                    // must be pointed at the same node or traffic black-holes on its
+                    // default (first-proxy) choice.
+                    if (persistedSettings.proxyMode == ProxyMode.GLOBAL) {
+                        syncGlobalSelection(apiClientProvider.current())
                     }
 
                     val targetProxy = response.proxies[targetNode]
