@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- "All sites" (global) mode: the GLOBAL selector is now pointed at the user's
+  node when switching to global, when starting already in global, and when
+  picking a node in global mode — previously it stayed on the first config
+  proxy (often dead), so global mode looked broken while "Smart" worked
+- Node selections now survive service restarts (profile.store-selected)
+- Local profile import: WireGuard/AmneziaWG .conf files (and share-link/JSON
+  files) are converted on import and actually added — the converter previously
+  emitted a bare proxy map that failed validation, so the profile silently
+  never appeared
+- "Tunnel taken over" notification when another VPN app revokes our tunnel
+  (users running a second client saw a silent disconnect)
+
+### Added
+- User site rules: a dedicated "Site rules" screen (Settings → Routing) —
+  domains (or a bare TLD like `ru`) that always connect directly, winning over
+  subscription rules in Smart mode
+- Add-profile "Local file" now opens a file picker and imports WireGuard/
+  AmneziaWG .conf, share-link lists, Xray/sing-box JSON or Clash YAML
+- Custom color schemes: accent picker (Settings → Appearance) + Material You
+  palette styles (TonalSpot, Vibrant, Expressive, FruitSalad, Neutral, Rainbow,
+  Fidelity, Content, Monochrome) — the whole scheme is generated from the
+  picked tone (material-kolor)
+
+### UI (M3 Expressive)
+- Cookie-morph hero button: rounded square at rest, 12-lobed cookie while
+  protected (graphics-shapes morph, no Surface-shape limits)
+- Screen motion rewritten to M3E kinematics: asymmetric parallax push for
+  detail screens (half-duration fade behind the slide), tab switches as
+  parallax without scale
+- Add-profile form is a bottom sheet now; ping badge timeout state is neutral
+
 ## 1.3.5
 
 ### Security (property-based fuzzing)
