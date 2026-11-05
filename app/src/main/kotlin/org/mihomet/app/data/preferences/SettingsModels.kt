@@ -71,6 +71,22 @@ object TunOptions {
     fun sanitizeMtu(mtu: Int?): Int = (mtu ?: DEFAULT_MTU).coerceIn(MIN_MTU, MAX_MTU)
 }
 
+/**
+ * Material You palette styles for accent-driven scheme generation
+ * (material-kolor). Kept as strings in settings; sanitized on read.
+ */
+object PaletteStyles {
+    const val DEFAULT = "TonalSpot"
+    val ALL = listOf(
+        "TonalSpot", "Vibrant", "Expressive", "FruitSalad", "Neutral",
+        "Rainbow", "Fidelity", "Content", "Monochrome"
+    )
+
+    /** Unknown/garbage styles fall back to [DEFAULT]. */
+    fun sanitize(raw: String?): String =
+        raw?.takeIf { it in ALL } ?: DEFAULT
+}
+
 /** Persisted marker of the last successfully started service mode (autostart signal). */
 object LastRunMode {
     const val VPN = "vpn"
@@ -99,6 +115,9 @@ data class AppSettings(
     val amoledBlack: Boolean = false,
     // Theme accent color preset ID ("" = brand violet, "blue"/"teal"/etc)
     val accentColor: String = "",
+    // Material You palette style used to generate the whole scheme from the
+    // accent seed when system dynamic colors are off (see AccentPresets).
+    val paletteStyle: String = PaletteStyles.DEFAULT,
     val showSpeedInNotification: Boolean = true,
     val customDns: String = "",
     val controllerSecret: String = "",

@@ -231,6 +231,11 @@
     <string name="settings_dynamic_colors_desc">Colors adapt to your wallpaper</string>
     <string name="settings_dark_theme">Dark theme</string>
     <string name="settings_dark_theme_desc">Comfortable mode for nighttime</string>
+    <string name="settings_accent_color">Accent color</string>
+    <string name="settings_accent_color_desc">The whole color scheme is generated from the picked tone</string>
+    <string name="settings_accent_brand">Brand</string>
+    <string name="settings_palette_style">Palette style</string>
+    <string name="settings_palette_style_desc">How the scheme is built from the accent — Material You styles</string>
     <string name="settings_amoled">Pure black (AMOLED)</string>
     <string name="settings_amoled_desc">True black color and battery savings</string>
     <string name="settings_advanced">Advanced settings</string>

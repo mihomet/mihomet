@@ -233,6 +233,11 @@
     <string name="settings_dynamic_colors_desc">Цвета адаптируются под обои рабочего стола</string>
     <string name="settings_dark_theme">Темная тема</string>
     <string name="settings_dark_theme_desc">Комфортный режим для темного времени суток</string>
+    <string name="settings_accent_color">Цвет акцента</string>
+    <string name="settings_accent_color_desc">Вся цветовая схема генерируется из выбранного тона</string>
+    <string name="settings_accent_brand">Бренд</string>
+    <string name="settings_palette_style">Стиль палитры</string>
+    <string name="settings_palette_style_desc">Как схема строится из акцента — стили Material You</string>
     <string name="settings_amoled">Глубокий черный (AMOLED)</string>
     <string name="settings_amoled_desc">Идеальный черный цвет и экономия батареи</string>
     <string name="settings_advanced">Продвинутые настройки</string>
