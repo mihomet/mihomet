@@ -139,7 +139,7 @@ class SubscriptionRepository(
             // proxy-groups beats a group-less one (panels that serve a bare URI
             // list to unknown User-Agents). A group-less success is kept as a
             // fallback while the chain still has entries to try.
-            var sawGroups = false
+            var sawQuality = SubscriptionContentChoice.ChannelQuality.PLAIN
 
             for (ua in userAgentsToTry) {
                 try {
@@ -195,7 +195,7 @@ class SubscriptionRepository(
                     if (attempt != null) {
                         val decision = SubscriptionContentChoice.evaluate(
                             currentHasResponse = responseText.isNotEmpty(),
-                            currentSawGroups = sawGroups,
+                            currentSawQuality = sawQuality,
                             attemptEncrypted = attempt.encryptTag != null,
                             attemptText = attempt.text
                         )
@@ -204,7 +204,7 @@ class SubscriptionRepository(
                             encryptTag = attempt.encryptTag
                             userinfo = attempt.userinfo
                             meta = attempt.meta
-                            sawGroups = decision.sawGroups
+                            sawQuality = decision.sawQuality
                         }
                         if (decision.stop) break
                     }
