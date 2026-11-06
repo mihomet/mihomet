@@ -1,7 +1,6 @@
 package org.mihomet.app.ui.components
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,8 +28,10 @@ import androidx.compose.ui.unit.sp
 import org.mihomet.app.R
 
 /**
- * Expressive capsule search field: pill surface with a search icon, transparent
- * single-line [TextField] and a clear button when the query is not blank.
+ * Expressive capsule search field: filled tonal pill (Edition 2 — no outline,
+ * ever; focus is carried by the cursor and the platform ripple) with a search
+ * icon, transparent single-line [TextField] and a clear button when the query
+ * is not blank.
  */
 @Composable
 fun SearchPill(
@@ -42,10 +43,6 @@ fun SearchPill(
     Surface(
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-        ),
         modifier = modifier
     ) {
         Row(

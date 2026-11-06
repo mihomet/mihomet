@@ -48,8 +48,20 @@ import org.mihomet.app.ui.components.ExpressiveSnackbarHost
 import org.mihomet.app.ui.components.ProtocolBadge
 import org.mihomet.app.ui.components.SearchPill
 import org.mihomet.app.ui.components.rememberPressScale
+import org.mihomet.app.ui.design2.D2
+import org.mihomet.app.ui.design2.D2IconAction
+import org.mihomet.app.ui.design2.D2Panel
+import org.mihomet.app.ui.design2.D2ScreenTitle
+import org.mihomet.app.ui.design2.D2SectionLabel
+import org.mihomet.app.ui.design2.D2SegmentOption
+import org.mihomet.app.ui.design2.D2Segmented
 import org.mihomet.app.ui.theme.*
 
+/**
+ * Servers screen on the "Edition 2" language: big display title with round
+ * tonal quick actions, filled tonal node panels (selection = primaryContainer
+ * tint, the only state allowed a border), no outlined cards anywhere.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProxiesScreen(
@@ -58,7 +70,6 @@ fun ProxiesScreen(
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val view = LocalView.current
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
 
     var showToolsSheet by remember { mutableStateOf(false) }
     var showConfigDialog by remember { mutableStateOf(false) }
@@ -122,123 +133,69 @@ fun ProxiesScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { ExpressiveSnackbarHost(hostState = snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.nav_proxies),
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Black
-                        )
-                        if (sortedServers.isNotEmpty()) {
-                            CountBadge(count = sortedServers.size)
-                        }
-                    }
-                },
-                actions = {
-                    // Expressive Pill "Тест всех"
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier
-                            .padding(end = 8.dp)
-                            .clip(CircleShape)
-                            .clickable(enabled = !state.isTestingAll && state.allServers.isNotEmpty()) {
-                                AppHaptics.perform(context, HapticType.CLICK, view)
-                                viewModel.testAllServers()
-                            }
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
-                        ) {
-                            if (state.isTestingAll) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(14.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = stringResource(R.string.proxies_pinging),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            } else {
-                                Icon(
-                                    Icons.Default.Bolt,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = stringResource(R.string.proxies_test_all),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                        }
-                    }
-
-                    // Expressive Tune Button
-                    Surface(
-                        shape = ExpressiveShapes.Small,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.padding(end = 12.dp)
-                    ) {
-                        IconButton(
-                            onClick = {
-                                AppHaptics.perform(context, HapticType.CLICK, view)
-                                showToolsSheet = true
-                            },
-                            modifier = Modifier.size(38.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Tune,
-                                contentDescription = stringResource(R.string.cd_proxies_tools),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
-            )
-        }
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = { ExpressiveSnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp)
+                .statusBarsPadding()
+                .padding(horizontal = D2.ScreenH)
         ) {
-            // Group Selection Pills (if subscription has multiple selector groups)
+            // ── Header: big display title + round tonal quick actions ────────
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 12.dp)
+            ) {
+                D2ScreenTitle(
+                    text = stringResource(R.string.nav_proxies),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (sortedServers.isNotEmpty()) {
+                        CountBadge(count = sortedServers.size)
+                        Spacer(modifier = Modifier.width(10.dp))
+                    }
+                    TestAllPill(
+                        isTestingAll = state.isTestingAll,
+                        enabled = !state.isTestingAll && state.allServers.isNotEmpty(),
+                        onClick = {
+                            AppHaptics.perform(context, HapticType.CLICK, view)
+                            viewModel.testAllServers()
+                        }
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    D2IconAction(
+                        icon = Icons.Default.Tune,
+                        contentDescription = stringResource(R.string.cd_proxies_tools),
+                        onClick = {
+                            AppHaptics.perform(context, HapticType.CLICK, view)
+                            showToolsSheet = true
+                        }
+                    )
+                }
+            }
+
+            // ── Group selection pills (if subscription has multiple groups) ──
             if (selectorGroups.size > 1) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState())
-                        .padding(bottom = 10.dp),
+                        .padding(top = 14.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     selectorGroups.forEach { group ->
                         val isGroupSelected = (currentGroup?.name ?: state.selectedGroupName) == group.name
                         Surface(
-                            shape = CircleShape,
-                            color = if (isGroupSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            border = BorderStroke(
-                                1.dp,
-                                if (isGroupSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                            ),
+                            shape = D2.Pill,
+                            color = if (isGroupSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerHigh
+                            },
                             modifier = Modifier
-                                .clip(CircleShape)
+                                .clip(D2.Pill)
                                 .clickable {
                                     AppHaptics.perform(context, HapticType.CLICK, view)
                                     viewModel.selectGroup(group.name)
@@ -248,7 +205,11 @@ fun ProxiesScreen(
                                 text = group.name,
                                 fontSize = 12.sp,
                                 fontWeight = if (isGroupSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                                color = if (isGroupSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = if (isGroupSelected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
                             )
                         }
@@ -256,24 +217,24 @@ fun ProxiesScreen(
                 }
             }
 
-            // Expressive Search Pill
+            // ── Search ───────────────────────────────────────────────────────
             SearchPill(
                 value = state.searchQuery,
                 onValueChange = { viewModel.updateSearchQuery(it) },
                 placeholderRes = R.string.proxies_search_hint,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp)
+                    .padding(top = 14.dp)
             )
 
-            // Current Connection Live Diagnostics Card (if tested)
+            // ── Current connection live diagnostics panel (if tested) ────────
             state.currentConnectionResult?.let { result ->
                 CurrentConnectionCard(
                     result = result,
                     onDismiss = { /* keep state or re-test */ },
-                    onRetest = { viewModel.testCurrentConnection() }
+                    onRetest = { viewModel.testCurrentConnection() },
+                    modifier = Modifier.padding(top = 14.dp)
                 )
-                Spacer(modifier = Modifier.height(10.dp))
             }
 
             // Loading state
@@ -282,54 +243,61 @@ fun ProxiesScreen(
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             } else if (sortedServers.isEmpty()) {
-                // Expressive empty state (mirrors the Profiles pattern): icon
-                // container + title + hint, not bare floating text.
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                // Edition 2 empty state: one filled panel with icon + title + hint.
+                D2Panel(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(28.dp)
+                        .fillMaxWidth()
+                        .padding(top = 14.dp)
                 ) {
-                    Surface(
-                        shape = ExpressiveShapes.Medium,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(64.dp)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 18.dp)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Default.Dns,
-                                contentDescription = null,
-                                modifier = Modifier.size(32.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        Surface(
+                            shape = D2.Inner,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.size(64.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.Dns,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(32.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = if (state.searchQuery.isNotBlank()) {
+                                stringResource(R.string.common_not_found)
+                            } else {
+                                stringResource(R.string.proxies_empty)
+                            },
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+
+                        if (state.searchQuery.isBlank()) {
+                            Text(
+                                text = stringResource(R.string.proxies_empty_hint),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 13.sp,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 18.sp
                             )
                         }
-                    }
-
-                    Text(
-                        text = if (state.searchQuery.isNotBlank()) {
-                            stringResource(R.string.common_not_found)
-                        } else {
-                            stringResource(R.string.proxies_empty)
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-
-                    if (state.searchQuery.isBlank()) {
-                        Text(
-                            text = stringResource(R.string.proxies_empty_hint),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 13.sp,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 18.sp
-                        )
                     }
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(bottom = 12.dp)
                 ) {
@@ -355,12 +323,12 @@ fun ProxiesScreen(
         }
     }
 
-    // Incy-style Expressive Tools & Settings Bottom Sheet
+    // Expressive Tools & Settings Bottom Sheet
     if (showToolsSheet) {
         ModalBottomSheet(
             onDismissRequest = { showToolsSheet = false },
-            shape = ExpressiveShapes.Hero,
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            shape = D2.Hero,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ) {
             ExpressiveToolsSheetContent(
                 state = state,
@@ -396,10 +364,63 @@ fun ProxiesScreen(
     }
 }
 
+/** Filled "test all" pill for the title row: primaryContainer, springy squeeze. */
+@Composable
+private fun TestAllPill(
+    isTestingAll: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressScale = rememberPressScale(interaction, pressedScale = 0.9f)
+    Surface(
+        shape = D2.Pill,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        modifier = Modifier
+            .scale(pressScale)
+            .clip(D2.Pill)
+            .clickable(interactionSource = interaction, enabled = enabled) { onClick() }
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
+        ) {
+            if (isTestingAll) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(14.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.proxies_pinging),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            } else {
+                Icon(
+                    Icons.Default.Bolt,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = stringResource(R.string.proxies_test_all),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+    }
+}
+
 /**
- * Expressive Server Card with squircle flag, protocol tag pill, ping capsule, and active indicator.
- * Selection morphs (animated color/border + spring check) instead of snapping; pressing
- * squeezes the card subtly on top of the ripple state layer.
+ * Server node panel on the Edition 2 language: filled tonal container
+ * (selection morphs to a primaryContainer tint — the only state allowed a
+ * border), squircle flag, protocol tag pill, ping capsule, spring check.
  */
 @Composable
 fun ExpressiveServerNodeCard(
@@ -414,18 +435,19 @@ fun ExpressiveServerNodeCard(
 
     val cardColor by animateColorAsState(
         targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+            MaterialTheme.colorScheme.primaryContainer
         } else {
-            MaterialTheme.colorScheme.surfaceContainerHigh
+            MaterialTheme.colorScheme.surfaceContainerLow
         },
         animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
         label = "nodeCardColor"
     )
+    // Border is reserved for the selected state; it fades out otherwise.
     val cardBorderColor by animateColorAsState(
         targetValue = if (isSelected) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
         } else {
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+            Color.Transparent
         },
         animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
         label = "nodeCardBorder"
@@ -451,24 +473,24 @@ fun ExpressiveServerNodeCard(
         modifier = Modifier
             .fillMaxWidth()
             .scale(cardPressScale)
-            .clip(ExpressiveShapes.Medium)
+            .clip(D2.Container)
             .clickable(
                 interactionSource = cardInteractionSource,
                 onClick = onSelect
             ),
-        shape = ExpressiveShapes.Medium,
+        shape = D2.Container,
         color = cardColor,
         border = BorderStroke(1.dp, cardBorderColor)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Flag or Auto-select squircle icon
             Surface(
-                shape = ExpressiveShapes.Small,
+                shape = D2.Inner,
                 color = if (node.isAutoSelect) {
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
                 } else {
@@ -570,33 +592,29 @@ fun ExpressiveServerNodeCard(
     }
 }
 
+/** Current-connection diagnostics panel: accent tint carries the verdict, no border. */
 @Composable
 fun CurrentConnectionCard(
     result: ConnectionTestResult,
     onDismiss: () -> Unit,
-    onRetest: () -> Unit
+    onRetest: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = ExpressiveShapes.Medium,
+    D2Panel(
+        modifier = modifier.fillMaxWidth(),
         color = if (result.isSuccess) {
             AccentGreen.copy(alpha = 0.14f)
         } else {
             AccentRed.copy(alpha = 0.14f)
         },
-        border = BorderStroke(
-            1.dp,
-            if (result.isSuccess) AccentGreen.copy(alpha = 0.4f) else AccentRed.copy(alpha = 0.4f)
-        )
+        contentPadding = PaddingValues(14.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                shape = ExpressiveShapes.Small,
+                shape = D2.Inner,
                 color = if (result.isSuccess) AccentGreen.copy(alpha = 0.2f) else AccentRed.copy(alpha = 0.2f),
                 modifier = Modifier.size(36.dp)
             ) {
@@ -629,9 +647,11 @@ fun CurrentConnectionCard(
                 )
             }
 
-            IconButton(onClick = onRetest) {
-                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_retry))
-            }
+            D2IconAction(
+                icon = Icons.Default.Refresh,
+                contentDescription = stringResource(R.string.cd_retry),
+                onClick = onRetest
+            )
         }
     }
 }
@@ -645,14 +665,15 @@ fun ExpressiveToolsSheetContent(
     onSelectSortOrder: (ServerSortOrder) -> Unit,
     onOpenConfigViewer: () -> Unit
 ) {
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val context = LocalContext.current
+    val view = LocalView.current
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
             .padding(bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text(
             text = stringResource(R.string.proxies_tools_title),
@@ -667,11 +688,11 @@ fun ExpressiveToolsSheetContent(
         ) {
             Button(
                 onClick = {
-                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                    AppHaptics.perform(context, HapticType.CLICK, view)
                     onTestAll()
                 },
                 modifier = Modifier.weight(1f),
-                shape = ExpressiveShapes.Medium
+                shape = D2.Container
             ) {
                 Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
@@ -680,11 +701,11 @@ fun ExpressiveToolsSheetContent(
 
             FilledTonalButton(
                 onClick = {
-                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                    AppHaptics.perform(context, HapticType.CLICK, view)
                     onTestCurrentConnection()
                 },
                 modifier = Modifier.weight(1f),
-                shape = ExpressiveShapes.Medium
+                shape = D2.Container
             ) {
                 if (state.isTestingCurrentConnection) {
                     CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
@@ -708,71 +729,44 @@ fun ExpressiveToolsSheetContent(
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
         // Ping Protocol Selector
-        Text(
-            text = stringResource(R.string.proxies_ping_method),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold
-        )
+        D2SectionLabel(text = stringResource(R.string.proxies_ping_method))
 
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            PingProtocol.values().forEachIndexed { index, proto ->
-                SegmentedButton(
-                    selected = state.pingProtocol == proto,
-                    onClick = {
-                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
-                        onSelectPingProtocol(proto)
-                    },
-                    shape = SegmentedButtonDefaults.itemShape(index, PingProtocol.values().size)
-                ) {
-                    Text(proto.shortName, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
+        D2Segmented(
+            options = PingProtocol.values().map { proto ->
+                D2SegmentOption(proto, proto.shortName)
+            },
+            selected = state.pingProtocol,
+            onOptionSelected = { proto ->
+                AppHaptics.perform(context, HapticType.CLICK, view)
+                onSelectPingProtocol(proto)
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
         // Sort Order
-        Text(
-            text = stringResource(R.string.proxies_sort_title),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold
-        )
+        D2SectionLabel(text = stringResource(R.string.proxies_sort_title))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            ServerSortOrder.values().forEach { order ->
-                val isSelected = state.sortOrder == order
-                Surface(
-                    shape = CircleShape,
-                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
-                    border = BorderStroke(
-                        1.dp,
-                        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                    ),
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .clickable { onSelectSortOrder(order) }
-                ) {
-                    Text(
-                        text = stringResource(order.titleRes),
-                        fontSize = 12.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
-                }
-            }
-        }
+        D2Segmented(
+            options = ServerSortOrder.values().map { order ->
+                D2SegmentOption(order, stringResource(order.titleRes))
+            },
+            selected = state.sortOrder,
+            onOptionSelected = { order ->
+                AppHaptics.perform(context, HapticType.CLICK, view)
+                onSelectSortOrder(order)
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
         // View Config Action
-        OutlinedButton(
+        FilledTonalButton(
             onClick = onOpenConfigViewer,
             modifier = Modifier.fillMaxWidth(),
-            shape = ExpressiveShapes.Medium
+            shape = D2.Container
         ) {
             Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
@@ -823,7 +817,7 @@ fun ConfigViewerDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(350.dp)
-                    .clip(ExpressiveShapes.Small)
+                    .clip(D2.Inner)
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                     .padding(10.dp)
                     .verticalScroll(rememberScrollState())
@@ -840,7 +834,7 @@ fun ConfigViewerDialog(
         confirmButton = {
             Button(
                 onClick = { onCopy(displayContent) },
-                shape = ExpressiveShapes.Small
+                shape = D2.Inner
             ) {
                 Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
