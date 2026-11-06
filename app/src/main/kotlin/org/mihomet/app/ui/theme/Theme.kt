@@ -3,12 +3,9 @@ package org.mihomet.app.ui.theme
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
-import com.materialkolor.PaletteStyle
-import com.materialkolor.dynamicColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import org.mihomet.app.data.preferences.PaletteStyles
 
 private val ExpressiveDarkColorScheme = darkColorScheme(
     primary = PrimaryDark,
@@ -118,46 +115,27 @@ fun MihometTheme(
     dynamicColor: Boolean = true,
     amoledBlack: Boolean = false,
     accentColorId: String = "",
-    paletteStyleId: String = PaletteStyles.DEFAULT,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
 
-    // Material You palette styles (PixelPlayer pattern): when system dynamic
-    // colors are off, the whole scheme is GENERATED from the accent seed using
-    // the chosen palette style — not just the 4 hand-picked primary roles.
-    val style = runCatching { PaletteStyle.valueOf(paletteStyleId) }
-        .getOrDefault(PaletteStyle.TonalSpot)
-
-    val finalColorScheme = when {
+    val baseScheme = when {
+        darkTheme && amoledBlack -> ExpressiveAmoledColorScheme
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val systemScheme =
-                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-            AccentPresets.byId(accentColorId)?.let { preset ->
-                val accent = if (darkTheme) preset.dark else preset.light
-                systemScheme.copy(
-                    primary = accent.primary,
-                    onPrimary = accent.onPrimary,
-                    primaryContainer = accent.primaryContainer,
-                    onPrimaryContainer = accent.onPrimaryContainer
-                )
-            } ?: systemScheme
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        else -> {
-            val preset = AccentPresets.byId(accentColorId)
-            val seed = when {
-                preset != null -> if (darkTheme) preset.dark.primary else preset.light.primary
-                darkTheme -> PrimaryDark
-                else -> PrimaryVioletLight
-            }
-            dynamicColorScheme(
-                seedColor = seed,
-                isDark = darkTheme,
-                isAmoled = darkTheme && amoledBlack,
-                style = style
-            )
-        }
+        darkTheme -> ExpressiveDarkColorScheme
+        else -> ExpressiveLightColorScheme
     }
+    val finalColorScheme = AccentPresets.byId(accentColorId)?.let { preset ->
+        val accent = if (darkTheme) preset.dark else preset.light
+        baseScheme.copy(
+            primary = accent.primary,
+            onPrimary = accent.onPrimary,
+            primaryContainer = accent.primaryContainer,
+            onPrimaryContainer = accent.onPrimaryContainer
+        )
+    } ?: baseScheme
 
     // Note: material3 1.4.0 ships MotionScheme/MaterialExpressiveTheme as internal —
     // the expressive motionScheme parameter arrives with the 1.5/AGP-9.1 upgrade.

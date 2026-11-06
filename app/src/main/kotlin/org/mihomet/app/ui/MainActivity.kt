@@ -187,8 +187,7 @@ class MainActivity : ComponentActivity() {
                 darkTheme = settings.darkTheme,
                 dynamicColor = settings.dynamicColor,
                 amoledBlack = settings.amoledBlack,
-                accentColorId = settings.accentColor,
-                paletteStyleId = settings.paletteStyle
+                accentColorId = settings.accentColor
             ) {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),

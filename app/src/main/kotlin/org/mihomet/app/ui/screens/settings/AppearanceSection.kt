@@ -6,8 +6,6 @@ import android.os.LocaleList
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Brightness2
 import androidx.compose.material.icons.filled.CheckCircle
@@ -16,8 +14,6 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -38,12 +34,10 @@ import androidx.compose.ui.unit.sp
 import org.mihomet.app.R
 import org.mihomet.app.data.preferences.AppSettings
 import org.mihomet.app.ui.components.accentContentColor
-import org.mihomet.app.ui.theme.AccentPresets
 import org.mihomet.app.ui.theme.AccentTealDeep
 import org.mihomet.app.ui.theme.AppHaptics
 import org.mihomet.app.ui.theme.ExpressiveShapes
 import org.mihomet.app.ui.theme.HapticType
-import org.mihomet.app.data.preferences.PaletteStyles
 import org.mihomet.app.ui.theme.SecondaryTeal
 
 /** "Appearance" card: dynamic colors, dark theme, AMOLED, per-app language. */
@@ -80,97 +74,6 @@ internal fun AppearanceSection(
                     viewModel.updateTheme(it, settings.darkTheme, settings.amoledBlack)
                 }
             )
-
-            // Accent presets + Material You palette style: the WHOLE color scheme
-            // is generated from the picked tone (only when system dynamic colors
-            // are off — they take precedence by design).
-            if (!settings.dynamicColor) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = stringResource(R.string.settings_accent_color),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_accent_color_desc),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        AccentDot(
-                            color = MaterialTheme.colorScheme.primary,
-                            label = stringResource(R.string.settings_accent_brand),
-                            selected = settings.accentColor.isBlank()
-                        ) {
-                            AppHaptics.perform(context, HapticType.CLICK, view)
-                            viewModel.updateAccentColor("")
-                        }
-                        AccentPresets.all.forEach { preset ->
-                            AccentDot(
-                                color = if (settings.darkTheme) preset.dark.primary else preset.light.primary,
-                                label = preset.label,
-                                selected = settings.accentColor == preset.id
-                            ) {
-                                AppHaptics.perform(context, HapticType.CLICK, view)
-                                viewModel.updateAccentColor(preset.id)
-                            }
-                        }
-                    }
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = stringResource(R.string.settings_palette_style),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_palette_style_desc),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        PaletteStyles.ALL.forEach { styleId ->
-                            AssistChip(
-                                onClick = {
-                                    AppHaptics.perform(context, HapticType.CLICK, view)
-                                    viewModel.updatePaletteStyle(styleId)
-                                },
-                                label = { Text(styleId, fontSize = 11.sp) },
-                                shape = ExpressiveShapes.Pill,
-                                colors = AssistChipDefaults.assistChipColors(
-                                    containerColor = if (settings.paletteStyle == styleId) {
-                                        MaterialTheme.colorScheme.primaryContainer
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceContainerHighest
-                                    },
-                                    labelColor = if (settings.paletteStyle == styleId) {
-                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    }
-                                ),
-                                border = AssistChipDefaults.assistChipBorder(
-                                    enabled = true,
-                                    borderColor = if (settings.paletteStyle == styleId) {
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                                    } else {
-                                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                                    }
-                                )
-                            )
-                        }
-                    }
-                }
-            }
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
@@ -375,38 +278,4 @@ fun LanguageDialog(onDismiss: () -> Unit) {
             }
         }
     )
-}
-
-/** Round accent swatch with a selected ring; onTap reports to the picker. */
-@Composable
-private fun AccentDot(
-    color: androidx.compose.ui.graphics.Color,
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Surface(
-        shape = CircleShape,
-        color = color,
-        border = if (selected) {
-            BorderStroke(3.dp, MaterialTheme.colorScheme.onSurface)
-        } else {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-        },
-        modifier = Modifier
-            .size(38.dp)
-            .clip(CircleShape)
-            .clickable(onClick = onClick)
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            if (selected) {
-                Icon(
-                    Icons.Default.CheckCircle,
-                    contentDescription = label,
-                    tint = androidx.compose.ui.graphics.Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
-    }
 }

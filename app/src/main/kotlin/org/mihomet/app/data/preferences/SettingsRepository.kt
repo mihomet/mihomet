@@ -63,7 +63,6 @@ class SettingsRepository(
         val AUTO_BALANCER_EXCLUDES = stringPreferencesKey("auto_balancer_excludes")
         val AUTO_BALANCER_PREFER_DEFAULT = booleanPreferencesKey("auto_balancer_prefer_default")
         val THEME_ACCENT = stringPreferencesKey("theme_accent")
-        val PALETTE_STYLE = stringPreferencesKey("palette_style")
         val AUTO_START_ON_BOOT = booleanPreferencesKey("auto_start_on_boot")
         val LAST_MODE = stringPreferencesKey("last_mode")
         val TUN_STACK = stringPreferencesKey("tun_stack")
@@ -128,7 +127,6 @@ class SettingsRepository(
                 autoBalancerEnabled = preferences[PreferencesKeys.AUTO_BALANCER_ENABLED] ?: true,
                 accentColor = (preferences[PreferencesKeys.THEME_ACCENT] ?: "")
                     .take(16).replace(Regex("[^a-z_]"), ""),
-                paletteStyle = PaletteStyles.sanitize(preferences[PreferencesKeys.PALETTE_STYLE]),
                 autoBalancerExcludes = (preferences[PreferencesKeys.AUTO_BALANCER_EXCLUDES] ?: "")
                     .replace(Regex("[\\p{Cntrl}]"), " ").take(2000),
                 autoBalancerPreferDefault = preferences[PreferencesKeys.AUTO_BALANCER_PREFER_DEFAULT] ?: false,
@@ -433,9 +431,6 @@ class SettingsRepository(
         context.dataStore.edit { it[PreferencesKeys.THEME_ACCENT] = colorId.take(16) }
     }
 
-    suspend fun updatePaletteStyle(style: String) {
-        context.dataStore.edit { it[PreferencesKeys.PALETTE_STYLE] = PaletteStyles.sanitize(style) }
-    }
 
     suspend fun updateAutoBalancerEnabled(enabled: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.AUTO_BALANCER_ENABLED] = enabled }

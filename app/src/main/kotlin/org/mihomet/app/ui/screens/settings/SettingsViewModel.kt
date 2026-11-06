@@ -209,12 +209,6 @@ class SettingsViewModel(
         }
     }
 
-    fun updatePaletteStyle(style: String) {
-        viewModelScope.launch {
-            settingsRepository.updatePaletteStyle(style)
-        }
-    }
-
     fun updateAccentColor(colorId: String) {
         viewModelScope.launch {
             settingsRepository.updateAccentColor(colorId)
