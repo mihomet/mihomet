@@ -548,7 +548,10 @@ internal object UriListParser {
         )
         params["peer_pk"]?.takeIf { it.isNotBlank() }?.let { map["public-key"] = it }
         params["preshared_key"]?.takeIf { it.isNotBlank() }?.let { map["preshared-key"] = it }
-        params["local_address"]?.takeIf { it.isNotBlank() }?.let { map["ip"] = it }
+        // mihomo wants a bare ip — "10.7.0.2/32" fails netip parsing
+        params["local_address"]?.takeIf { it.isNotBlank() }?.let {
+            map["ip"] = it.substringBefore('/').trim()
+        }
         params["dns"]?.takeIf { it.isNotBlank() }?.let { map["dns"] = listOf(it) }
         params["mtu"]?.toIntOrNull()?.let { map["mtu"] = it }
         return map

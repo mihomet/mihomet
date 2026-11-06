@@ -41,7 +41,7 @@ class WireGuardUriTest {
             "bXlQdWJsaWNLZXlGb3JUZXN0Tm9kZUFhYmJjY2RkZGU9",
             proxy["public-key"]
         )
-        assertEquals("10.7.0.2/32", proxy["ip"])
+        assertEquals("10.7.0.2", proxy["ip"]) // bare ip — mihomo netip cannot parse CIDR
         assertEquals(1420, proxy["mtu"])
     }
 

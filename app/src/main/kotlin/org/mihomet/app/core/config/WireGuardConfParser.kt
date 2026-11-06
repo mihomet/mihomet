@@ -50,10 +50,17 @@ object WireGuardConfParser {
             "port" to 51820
         )
 
-        // Interface fields
+        // Interface fields. mihomo's wireguard outbound takes a BARE ip (the
+        // CIDR form "10.88.0.6/32" fails netip parsing) and has no `dns` field
+        // — DNS stays in the global dns section.
         interface_["PrivateKey"]?.let { map["private-key"] = it }
-        interface_["Address"]?.let { map["ip"] = it.split(",")[0].trim() }
-        interface_["DNS"]?.let { map["dns"] = it.split(",").map { d -> d.trim() } }
+        interface_["Address"]?.let { raw ->
+            val addrs = raw.split(",").map { a -> a.trim() }.filter { it.isNotBlank() }
+            val v4 = addrs.firstOrNull { !it.contains(":") }
+            val v6 = addrs.firstOrNull { it.contains(":") }
+            v4?.let { map["ip"] = it.substringBefore('/') }
+            v6?.let { map["ipv6"] = it.substringBefore('/') }
+        }
         interface_["MTU"]?.toIntOrNull()?.let { map["mtu"] = it }
 
         // AmneziaWG obfuscation parameters (optional)
@@ -78,6 +85,10 @@ object WireGuardConfParser {
                 map["port"] = port
             }
             peer["AllowedIPs"]?.let { map["allowed-ips"] = it.split(",").map { ip -> ip.trim() } }
+            // Keepalive is a PEER setting in the wg file format (often placed after
+            // AllowedIPs, as real panels do) — also accept the Interface form.
+            (peer["PersistentKeepalive"] ?: interface_["PersistentKeepalive"])
+                ?.toIntOrNull()?.let { map["persistent-keepalive"] = it }
         }
 
         return map
