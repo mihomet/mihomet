@@ -5,10 +5,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -22,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -41,7 +45,13 @@ import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.R
 import org.mihomet.app.data.db.ProfileEntity
 import org.mihomet.app.data.db.ProfileType
+import org.mihomet.app.ui.components.CountBadge
 import org.mihomet.app.ui.components.ExpressiveSnackbarHost
+import org.mihomet.app.ui.components.rememberPressScale
+import org.mihomet.app.ui.design2.D2
+import org.mihomet.app.ui.design2.D2IconAction
+import org.mihomet.app.ui.design2.D2Panel
+import org.mihomet.app.ui.design2.D2ScreenTitle
 import org.mihomet.app.ui.theme.AccentOrange
 import org.mihomet.app.ui.theme.AccentRed
 import org.mihomet.app.ui.theme.AppHaptics
@@ -95,88 +105,32 @@ fun ProfilesScreen(
     // parked in state.pendingImport — the dialog below gates the actual import
     // behind an explicit user confirmation (audit P0 §1.1).
 
+    // Clipboard import shared by the header action and the empty state.
+    val importFromClipboard: () -> Unit = {
+        val clip = clipboardManager.getText()?.text ?: ""
+        if (clip.isBlank()) {
+            scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.clipboard_empty)) }
+        } else {
+            AppHaptics.perform(context, HapticType.CLICK, view)
+            viewModel.importFromClipboard(
+                clip,
+                onSuccess = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
+                onError = { err -> scope.launch { snackbarHostState.showSnackbar(err) } }
+            )
+        }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { ExpressiveSnackbarHost(hostState = snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.nav_profiles),
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Black
-                        )
-                        if (state.profiles.isNotEmpty()) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh
-                            ) {
-                                Text(
-                                    text = "${state.profiles.size}",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                    }
-                },
-                actions = {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-                        modifier = Modifier
-                            .padding(end = 12.dp)
-                            .clip(CircleShape)
-                            .clickable {
-                                val clip = clipboardManager.getText()?.text ?: ""
-                                if (clip.isBlank()) {
-                                    scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.clipboard_empty)) }
-                                } else {
-                                    AppHaptics.perform(context, HapticType.CLICK, view)
-                                    viewModel.importFromClipboard(
-                                        clip,
-                                        onSuccess = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
-                                        onError = { err -> scope.launch { snackbarHostState.showSnackbar(err) } }
-                                    )
-                                }
-                            }
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.ContentPaste,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(R.string.profiles_import),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-            )
-        },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
                     AppHaptics.perform(context, HapticType.CLICK, view)
                     showAddDialog = true
                 },
-                shape = ExpressiveShapes.Medium,
+                shape = D2.Container,
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
@@ -184,86 +138,106 @@ fun ProfilesScreen(
             }
         }
     ) { innerPadding ->
-        if (state.profiles.isEmpty()) {
-            Box(
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .statusBarsPadding()
+        ) {
+            // ── Header: big display title + round tonal import action ────────
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
+                    .padding(top = 12.dp)
+                    .padding(horizontal = D2.ScreenH)
             ) {
-                Surface(
-                    shape = ExpressiveShapes.Large,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-                    modifier = Modifier.padding(24.dp)
+                D2ScreenTitle(
+                    text = stringResource(R.string.nav_profiles),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.padding(28.dp)
+                    if (state.profiles.isNotEmpty()) {
+                        CountBadge(count = state.profiles.size)
+                        Spacer(modifier = Modifier.width(10.dp))
+                    }
+                    D2IconAction(
+                        icon = Icons.Default.ContentPaste,
+                        contentDescription = stringResource(R.string.profiles_import),
+                        onClick = importFromClipboard
+                    )
+                }
+            }
+
+            if (state.profiles.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    D2Panel(
+                        modifier = Modifier
+                            .padding(24.dp)
+                            .fillMaxWidth()
                     ) {
-                        Surface(
-                            shape = ExpressiveShapes.Medium,
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(64.dp)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp)
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Default.Bookmarks,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(32.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = stringResource(R.string.profiles_empty_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Text(
-                            text = stringResource(R.string.profiles_empty_subtitle),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 13.sp,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 18.sp
-                        )
-
-                        Button(
-                            onClick = {
-                                val clip = clipboardManager.getText()?.text ?: ""
-                                if (clip.isBlank()) {
-                                    scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.clipboard_empty)) }
-                                } else {
-                                    AppHaptics.perform(context, HapticType.CLICK, view)
-                                    viewModel.importFromClipboard(
-                                        clip,
-                                        onSuccess = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
-                                        onError = { err -> scope.launch { snackbarHostState.showSnackbar(err) } }
+                            Surface(
+                                shape = D2.Inner,
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.size(64.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Default.Bookmarks,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(32.dp),
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                 }
-                            },
-                            shape = ExpressiveShapes.Medium
-                        ) {
-                            Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.profiles_import_clipboard), fontWeight = FontWeight.Bold)
+                            }
+
+                            Text(
+                                text = stringResource(R.string.profiles_empty_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Text(
+                                text = stringResource(R.string.profiles_empty_subtitle),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 13.sp,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 18.sp
+                            )
+
+                            Button(
+                                onClick = importFromClipboard,
+                                shape = D2.Container
+                            ) {
+                                Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(stringResource(R.string.profiles_import_clipboard), fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
-            ) {
-                items(state.profiles, key = { it.id }) { profile ->
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(
+                        start = D2.ScreenH,
+                        end = D2.ScreenH,
+                        top = 14.dp,
+                        bottom = 16.dp
+                    )
+                ) {
+                    items(state.profiles, key = { it.id }) { profile ->
                     ExpressiveProfileCard(
                         profile = profile,
                         onSelect = {
@@ -309,6 +283,7 @@ fun ProfilesScreen(
                         }
                     )
                 }
+            }
             }
         }
 
@@ -608,25 +583,32 @@ fun ExpressiveProfileCard(
     }
     val expireDateFormat = remember { java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, Locale.getDefault()) }
 
+    val cardInteraction = remember { MutableInteractionSource() }
+    val cardPressScale = rememberPressScale(cardInteraction, pressedScale = 0.98f)
+    val cardColor by animateColorAsState(
+        targetValue = if (profile.isSelected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerLow
+        },
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+        label = "profileCardColor"
+    )
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(ExpressiveShapes.Large)
-            .clickable(onClick = onSelect),
-        shape = ExpressiveShapes.Large,
-        color = if (profile.isSelected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            .scale(cardPressScale)
+            .clip(D2.Container)
+            .clickable(interactionSource = cardInteraction, onClick = onSelect),
+        shape = D2.Container,
+        color = cardColor,
+        // Border is reserved for the selected state (Edition 2 rule).
+        border = if (profile.isSelected) {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
         } else {
-            MaterialTheme.colorScheme.surfaceContainerHigh
-        },
-        border = BorderStroke(
-            1.dp,
-            if (profile.isSelected) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-            } else {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-            }
-        )
+            null
+        }
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -1121,13 +1103,13 @@ fun AddProfileDialog(
 
     // M3E form container: bottom sheet (expressive motion via the theme motion
     // scheme) instead of a centered dialog — matches PixelPlayer's sheet-first UX.
+    // Edition 2: filled tonal surface with the big hero radius, no outline.
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = ExpressiveShapes.Large,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 6.dp
+        shape = D2.Hero,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(
             modifier = Modifier
