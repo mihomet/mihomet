@@ -1,13 +1,9 @@
 package org.mihomet.app.ui.screens.connections
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material3.*
@@ -17,7 +13,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -27,12 +22,20 @@ import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.R
 import org.mihomet.app.ui.components.CountBadge
+import org.mihomet.app.ui.components.D2BackHeader
 import org.mihomet.app.ui.components.SearchPill
+import org.mihomet.app.ui.design2.D2
+import org.mihomet.app.ui.design2.D2IconAction
+import org.mihomet.app.ui.design2.D2Panel
+import org.mihomet.app.ui.design2.D2StatBlock
 import org.mihomet.app.ui.theme.AccentBlue
 import org.mihomet.app.ui.theme.AccentGreen
-import org.mihomet.app.ui.theme.ExpressiveShapes
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Connections on the Edition 2 language: big back-title header with round
+ * tonal actions, big-numeral traffic totals (D2StatBlock), filled tonal
+ * connection panels — no outlined cards anywhere.
+ */
 @Composable
 fun ConnectionsScreen(
     onNavigateBack: () -> Unit,
@@ -55,124 +58,77 @@ fun ConnectionsScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.nav_connections),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Black
-                        )
-                        CountBadge(count = filteredConnections.size)
-                    }
-                },
-                navigationIcon = {
-                    Surface(
-                        shape = ExpressiveShapes.Small,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.padding(start = 12.dp, end = 6.dp)
-                    ) {
-                        IconButton(
-                            onClick = onNavigateBack,
-                            modifier = Modifier.size(38.dp)
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.cd_back),
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                },
-                actions = {
-                    Surface(
-                        shape = ExpressiveShapes.Small,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.padding(end = 12.dp)
-                    ) {
-                        IconButton(
-                            onClick = { viewModel.closeAllConnections() },
-                            modifier = Modifier.size(38.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.DeleteSweep,
-                                contentDescription = stringResource(R.string.cd_close_all_connections),
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
-            )
-        }
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp)
+                .statusBarsPadding()
+                .padding(horizontal = D2.ScreenH)
         ) {
-            // Stats banner
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = ExpressiveShapes.Large,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+            // ── Header: big display title + round tonal actions ──────────────
+            D2BackHeader(
+                title = stringResource(R.string.nav_connections),
+                backContentDescription = stringResource(R.string.cd_back),
+                onBack = onNavigateBack,
+                modifier = Modifier.padding(top = 12.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(stringResource(R.string.connections_download_total), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(formatData(state.downloadTotal), fontWeight = FontWeight.Black, fontSize = 16.sp, color = AccentGreen)
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .width(1.dp)
-                            .height(36.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                    )
-
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(stringResource(R.string.connections_upload_total), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(formatData(state.uploadTotal), fontWeight = FontWeight.Black, fontSize = 16.sp, color = AccentBlue)
-                    }
-                }
+                CountBadge(count = filteredConnections.size)
+                Spacer(modifier = Modifier.width(10.dp))
+                D2IconAction(
+                    icon = Icons.Default.DeleteSweep,
+                    contentDescription = stringResource(R.string.cd_close_all_connections),
+                    tint = MaterialTheme.colorScheme.error,
+                    onClick = { viewModel.closeAllConnections() }
+                )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            // ── Traffic totals: two big-numeral stat blocks ──────────────────
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(D2.BlockGap),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp)
+            ) {
+                D2StatBlock(
+                    label = stringResource(R.string.connections_download_total),
+                    value = formatData(state.downloadTotal),
+                    accent = AccentGreen,
+                    modifier = Modifier.weight(1f)
+                )
+                D2StatBlock(
+                    label = stringResource(R.string.connections_upload_total),
+                    value = formatData(state.uploadTotal),
+                    accent = AccentBlue,
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
-            // Capsule Search Bar
+            // ── Search ───────────────────────────────────────────────────────
             SearchPill(
                 value = state.searchQuery,
                 onValueChange = { viewModel.updateSearchQuery(it) },
                 placeholderRes = R.string.connections_search_hint,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 14.dp)
             )
-
-            Spacer(modifier = Modifier.height(12.dp))
 
             if (filteredConnections.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 24.dp),
+                    contentAlignment = Alignment.TopCenter
                 ) {
                     Text(stringResource(R.string.connections_empty), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                 }
             } else {
                 LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 14.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
@@ -188,21 +144,14 @@ fun ConnectionsScreen(
     }
 }
 
+/** One live connection: filled tonal panel, loud host, quiet mono details. */
 @Composable
 fun ExpressiveConnectionCard(
     item: org.mihomet.app.data.api.ConnectionItem,
     onClose: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = ExpressiveShapes.Medium,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-    ) {
+    D2Panel(contentPadding = PaddingValues(14.dp)) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -239,20 +188,11 @@ fun ExpressiveConnectionCard(
                 )
             }
 
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                modifier = Modifier.size(32.dp)
-            ) {
-                IconButton(onClick = onClose) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = stringResource(R.string.cd_close_connection),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
+            D2IconAction(
+                icon = Icons.Default.Close,
+                contentDescription = stringResource(R.string.cd_close_connection),
+                onClick = onClose
+            )
         }
     }
 }
