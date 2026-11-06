@@ -1,12 +1,10 @@
 package org.mihomet.app.ui.screens.routing
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.*
@@ -29,8 +27,10 @@ import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.R
 import org.mihomet.app.core.config.UserRules
+import org.mihomet.app.ui.components.D2BackHeader
+import org.mihomet.app.ui.design2.D2
+import org.mihomet.app.ui.design2.D2Panel
 import org.mihomet.app.ui.theme.AppHaptics
-import org.mihomet.app.ui.theme.ExpressiveShapes
 import org.mihomet.app.ui.theme.HapticType
 
 /**
@@ -39,8 +39,9 @@ import org.mihomet.app.ui.theme.HapticType
  * Lives outside the per-app exclusions screen on purpose — its own
  * menu entry, its own screen (user feedback: the card got lost at the
  * bottom of the app list).
+ *
+ * Edition 2 language: big back-title header, filled tonal panels, no outlines.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SiteRulesScreen(
     onNavigateBack: () -> Unit = {},
@@ -53,59 +54,33 @@ fun SiteRulesScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.nav_site_rules),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Black
-                    )
-                },
-                navigationIcon = {
-                    Surface(
-                        shape = ExpressiveShapes.Small,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.padding(start = 12.dp, end = 6.dp)
-                    ) {
-                        IconButton(
-                            onClick = onNavigateBack,
-                            modifier = Modifier.size(38.dp)
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.cd_back),
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
-            )
-        }
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp)
+                .statusBarsPadding()
+                .padding(horizontal = D2.ScreenH)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(D2.SectionGap)
         ) {
-            // Description card
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = ExpressiveShapes.Large,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-            ) {
+            // ── Header: big display title + round tonal back action ──────────
+            D2BackHeader(
+                title = stringResource(R.string.nav_site_rules),
+                backContentDescription = stringResource(R.string.cd_back),
+                onBack = onNavigateBack,
+                modifier = Modifier.padding(top = 12.dp)
+            )
+
+            // ── Description panel ────────────────────────────────────────────
+            D2Panel(contentPadding = PaddingValues(16.dp)) {
                 Row(
-                    modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Surface(
-                        shape = ExpressiveShapes.Small,
+                        shape = D2.Inner,
                         color = MaterialTheme.colorScheme.primaryContainer,
                         modifier = Modifier.size(40.dp)
                     ) {
@@ -127,19 +102,11 @@ fun SiteRulesScreen(
                 }
             }
 
-            // Add-domain card
+            // ── Add-domain panel ─────────────────────────────────────────────
             var newDomain by remember { mutableStateOf("") }
             var showInvalid by remember { mutableStateOf(false) }
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = ExpressiveShapes.Large,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+            D2Panel(contentPadding = PaddingValues(16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -163,14 +130,14 @@ fun SiteRulesScreen(
                                 }
                             } else null,
                             singleLine = true,
-                            shape = ExpressiveShapes.Small,
+                            shape = D2.Inner,
                             modifier = Modifier.weight(1f)
                         )
                         Surface(
-                            shape = ExpressiveShapes.Small,
+                            shape = D2.Container,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
-                                .clip(ExpressiveShapes.Small)
+                                .clip(D2.Container)
                                 .clickable {
                                     AppHaptics.perform(context, HapticType.CLICK, view)
                                     if (newDomain.isNotBlank()) {
@@ -190,7 +157,7 @@ fun SiteRulesScreen(
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                             )
                         }
                     }
@@ -205,17 +172,13 @@ fun SiteRulesScreen(
                         settings.userDirectDomains.sorted().forEach { domain ->
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = ExpressiveShapes.Medium,
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                border = BorderStroke(
-                                    1.dp,
-                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                                )
+                                shape = D2.Inner,
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest
                             ) {
                                 Row(
                                     modifier = Modifier.padding(
                                         horizontal = 14.dp,
-                                        vertical = 8.dp
+                                        vertical = 4.dp
                                     ),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
