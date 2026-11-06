@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Fixed
+- ANR on real devices: HWUI spot-shadow tessellation of the concave cookie
+  morph path (stitchConcaveRings) wedged the RenderThread for minutes — the
+  UI froze ("Приложение не отвечает") while the VPN itself kept running.
+  Shadow removed from the morph button (depth comes from the pulse rings)
+- A subscription/link list starting with an `awg://` line was not recognized
+  as a URI list (the parser knew the scheme, the detector didn't) and fell
+  through to "unknown format"
 - "All sites" (global) mode: the GLOBAL selector is now pointed at the user's
   node when switching to global, when starting already in global, and when
   picking a node in global mode — previously it stayed on the first config
