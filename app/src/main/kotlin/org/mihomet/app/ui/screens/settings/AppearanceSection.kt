@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import org.mihomet.app.R
 import org.mihomet.app.data.preferences.AppSettings
 import org.mihomet.app.ui.components.accentContentColor
+import org.mihomet.app.ui.design2.D2Panel
 import org.mihomet.app.ui.theme.AccentTealDeep
 import org.mihomet.app.ui.theme.AppHaptics
 import org.mihomet.app.ui.theme.ExpressiveShapes
@@ -52,14 +53,8 @@ internal fun AppearanceSection(
 
     SettingsSectionTitle(stringResource(R.string.settings_appearance))
     Spacer(modifier = Modifier.height(6.dp))
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = ExpressiveShapes.Large,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-    ) {
+    D2Panel {
         Column(
-            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             ExpressiveSwitchRow(

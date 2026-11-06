@@ -1,6 +1,5 @@
 package org.mihomet.app.ui.screens.settings
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -25,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import org.mihomet.app.R
 import org.mihomet.app.data.preferences.AppSettings
 import org.mihomet.app.ui.components.accentContentColor
+import org.mihomet.app.ui.design2.D2Panel
 import org.mihomet.app.ui.theme.AccentGreen
 import org.mihomet.app.ui.theme.AccentGreenDeep
 import org.mihomet.app.ui.theme.AppHaptics
@@ -42,14 +42,8 @@ internal fun NotificationsSection(
 
     SettingsSectionTitle(stringResource(R.string.settings_notifications))
     Spacer(modifier = Modifier.height(6.dp))
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = ExpressiveShapes.Large,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-    ) {
+    D2Panel {
         Column(
-            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(SettingsRowSpacing)
         ) {
             Row(

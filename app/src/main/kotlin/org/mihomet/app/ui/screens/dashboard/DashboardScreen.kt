@@ -4,32 +4,33 @@ import android.app.Activity
 import android.net.VpnService
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -41,18 +42,38 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.mihomet.app.R
-import org.koin.androidx.compose.koinViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import org.koin.androidx.compose.koinViewModel
+import org.mihomet.app.R
 import org.mihomet.app.core.ServiceState
 import org.mihomet.app.data.preferences.ProxyMode
 import org.mihomet.app.ui.components.ExpressiveLatencyBadge
-import org.mihomet.app.ui.components.PulsingStatusDot
 import org.mihomet.app.ui.components.rememberPressScale
-import org.mihomet.app.ui.theme.*
+import org.mihomet.app.ui.design2.D2
+import org.mihomet.app.ui.design2.D2Caption
+import org.mihomet.app.ui.design2.D2Gap
+import org.mihomet.app.ui.design2.D2IconAction
+import org.mihomet.app.ui.design2.D2Panel
+import org.mihomet.app.ui.design2.D2ScreenTitle
+import org.mihomet.app.ui.design2.D2SectionLabel
+import org.mihomet.app.ui.design2.D2SegmentOption
+import org.mihomet.app.ui.design2.D2Segmented
+import org.mihomet.app.ui.design2.D2StatBlock
+import org.mihomet.app.ui.theme.AccentBlue
+import org.mihomet.app.ui.theme.AccentGreen
+import org.mihomet.app.ui.theme.AccentOrange
+import org.mihomet.app.ui.theme.AppHaptics
+import org.mihomet.app.ui.theme.ExpressiveMorph
+import org.mihomet.app.ui.theme.HapticType
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Dashboard on the "Edition 2" language: a full-width hero zone on the plain
+ * background (morph connect button + big status text), a tonal server strip,
+ * two big-numeral traffic blocks, a segmented routing control in a filled
+ * panel, and the traffic chart last. No outlined cards anywhere — separation
+ * by tone steps and spacing.
+ */
 @Composable
 fun DashboardScreen(
     onNavigateToServers: () -> Unit,
@@ -74,107 +95,47 @@ fun DashboardScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.app_name),
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = (-0.5).sp
-                        )
-
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            border = BorderStroke(
-                                1.dp,
-                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                            )
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (state.isRootMode) Icons.Default.AdminPanelSettings else Icons.Default.VpnKey,
-                                    contentDescription = null,
-                                    tint = if (state.isRootMode) AccentOrange else MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = stringResource(
-                                        if (state.isRootMode) R.string.dashboard_mode_root_tproxy else R.string.dashboard_mode_vpn
-                                    ),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
-                },
-                actions = {
-                    Surface(
-                        shape = ExpressiveShapes.Small,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.padding(end = 6.dp)
-                    ) {
-                        IconButton(
-                            onClick = onNavigateToConnections,
-                            modifier = Modifier.size(38.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Hub,
-                                contentDescription = stringResource(R.string.nav_connections),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(19.dp)
-                            )
-                        }
-                    }
-
-                    Surface(
-                        shape = ExpressiveShapes.Small,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.padding(end = 12.dp)
-                    ) {
-                        IconButton(
-                            onClick = onNavigateToLogs,
-                            modifier = Modifier.size(38.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Terminal,
-                                contentDescription = stringResource(R.string.nav_logs),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(19.dp)
-                            )
-                        }
-                    }
-                }
-            )
-        }
-    ) { innerPadding ->
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+    ) { _ ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 18.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = D2.ScreenH),
+            verticalArrangement = Arrangement.spacedBy(D2.SectionGap)
         ) {
-            Spacer(modifier = Modifier.height(4.dp))
+            // ── Header: big brand title + round tonal quick actions ──────────
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 12.dp)
+            ) {
+                D2ScreenTitle(
+                    text = stringResource(R.string.app_name),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    D2IconAction(
+                        icon = Icons.Default.Hub,
+                        contentDescription = stringResource(R.string.nav_connections),
+                        onClick = onNavigateToConnections
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    D2IconAction(
+                        icon = Icons.Default.Terminal,
+                        contentDescription = stringResource(R.string.nav_logs),
+                        onClick = onNavigateToLogs
+                    )
+                }
+            }
 
-            // 1. Hero Connect Button with Expressive Morphing Squircle and Dual Pulse Rings
-            ExpressiveHeroConnect(
+            // ── Hero zone: connect morph + big status text, on background ────
+            HeroZone(
                 isRunning = state.isRunning,
                 isConnecting = state.isConnecting,
                 isDisconnecting = state.isDisconnecting,
+                modeLabel = stringResource(
+                    if (state.isRootMode) R.string.dashboard_mode_root_tproxy else R.string.dashboard_mode_vpn
+                ),
                 onClick = {
                     AppHaptics.perform(context, HapticType.HEAVY, view)
                     if (state.isRunning || state.isDisconnecting) {
@@ -194,152 +155,195 @@ fun DashboardScreen(
                 }
             )
 
-            // 2. Current Server Hero Card
-            CurrentServerHeroCard(
-                serverName = state.selectedNode,
-                profileName = state.activeProfileName.ifBlank { stringResource(R.string.dashboard_default_profile_name) },
-                delayMs = state.selectedNodeDelay,
-                onClick = {
-                    AppHaptics.perform(context, HapticType.CLICK, view)
-                    onNavigateToServers()
-                }
-            )
-
-            // 3. Real-time Traffic Cards (Download & Upload)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                ExpressiveSpeedCard(
-                    title = stringResource(R.string.dashboard_download),
-                    speedText = formatSpeed(state.currentTraffic.down),
-                    icon = Icons.Default.ArrowDownward,
-                    accentColor = AccentGreen,
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier.weight(1f)
-                )
-
-                ExpressiveSpeedCard(
-                    title = stringResource(R.string.dashboard_upload),
-                    speedText = formatSpeed(state.currentTraffic.up),
-                    icon = Icons.Default.ArrowUpward,
-                    accentColor = AccentBlue,
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            // 3b. Compact core status row (connections + core memory) — only while running
-            if (state.isRunning) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = ExpressiveShapes.Small,
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    border = BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            // ── Server strip ─────────────────────────────────────────────────
+            Column(verticalArrangement = Arrangement.spacedBy(D2.LabelGap)) {
+                D2SectionLabel(text = stringResource(R.string.dashboard_active_server))
+                D2Panel(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)) {
+                    D2ServerRow(
+                        serverName = state.selectedNode,
+                        profileName = state.activeProfileName
+                            .ifBlank { stringResource(R.string.dashboard_default_profile_name) },
+                        delayMs = state.selectedNodeDelay,
+                        onClick = {
+                            AppHaptics.perform(context, HapticType.CLICK, view)
+                            onNavigateToServers()
+                        }
                     )
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Memory,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = stringResource(R.string.dash_connections, state.connectionsCount) +
-                                "  ·  " +
-                                stringResource(R.string.dash_memory, formatMemoryMb(state.memoryInuse)),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1
-                        )
-                    }
                 }
             }
 
-            // 4. Routing Mode Segmented Pill Card
-            ExpressiveRoutingModeCard(
-                activeMode = state.activeMode,
-                onModeSelected = { mode ->
-                    AppHaptics.perform(context, HapticType.CLICK, view)
-                    viewModel.setMode(mode)
+            // ── Traffic: two big-numeral stat blocks + live core caption ─────
+            Column(verticalArrangement = Arrangement.spacedBy(D2.LabelGap)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(D2.BlockGap),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    D2StatBlock(
+                        label = stringResource(R.string.dashboard_download),
+                        value = formatSpeed(state.currentTraffic.down),
+                        accent = AccentGreen,
+                        modifier = Modifier.weight(1f)
+                    )
+                    D2StatBlock(
+                        label = stringResource(R.string.dashboard_upload),
+                        value = formatSpeed(state.currentTraffic.up),
+                        accent = AccentBlue,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
-            )
+                if (state.isRunning) {
+                    D2Caption(
+                        text = stringResource(R.string.dash_connections, state.connectionsCount) +
+                            "  ·  " +
+                            stringResource(R.string.dash_memory, formatMemoryMb(state.memoryInuse)),
+                        modifier = Modifier.padding(start = 6.dp)
+                    )
+                }
+            }
 
-            // 5. Traffic Activity Graph Card (always visible; TrafficGraph shows a placeholder when there is no data yet)
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = ExpressiveShapes.Large,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                border = BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                )
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
+            // ── Routing mode: compact segmented control in a filled panel ────
+            Column(verticalArrangement = Arrangement.spacedBy(D2.LabelGap)) {
+                D2SectionLabel(text = stringResource(R.string.dashboard_routing_mode))
+                D2Panel {
+                    val modeOptions = listOf(
+                        D2SegmentOption(ProxyMode.RULE, stringResource(R.string.mode_rule)),
+                        D2SegmentOption(ProxyMode.GLOBAL, stringResource(R.string.mode_global)),
+                        D2SegmentOption(ProxyMode.DIRECT, stringResource(R.string.mode_direct))
+                    )
+                    D2Segmented(
+                        options = modeOptions,
+                        selected = state.activeMode,
+                        onOptionSelected = { mode ->
+                            AppHaptics.perform(context, HapticType.CLICK, view)
+                            viewModel.setMode(mode)
+                        },
                         modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = stringResource(R.string.dashboard_traffic_activity),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    D2Gap()
 
+                    Text(
+                        text = when (state.activeMode) {
+                            ProxyMode.RULE -> stringResource(R.string.dashboard_mode_rule_desc)
+                            ProxyMode.GLOBAL -> stringResource(R.string.dashboard_mode_global_desc)
+                            ProxyMode.DIRECT -> stringResource(R.string.dashboard_mode_direct_desc)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 17.sp
+                    )
+                }
+            }
+
+            // ── Traffic activity chart, last ─────────────────────────────────
+            Column(verticalArrangement = Arrangement.spacedBy(D2.LabelGap)) {
+                D2SectionLabel(text = stringResource(R.string.dashboard_traffic_activity))
+                D2Panel {
                     TrafficGraph(
                         history = state.trafficHistory,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(130.dp)
+                            .height(140.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(D2.SectionGap))
         }
     }
 }
 
+/** Server switcher strip content: squircle icon, loud node name, latency, chevron. */
+@Composable
+private fun D2ServerRow(
+    serverName: String,
+    profileName: String,
+    delayMs: Long,
+    onClick: () -> Unit
+) {
+    val isAuto = serverName.startsWith("⚡") || serverName.contains("Auto", ignoreCase = true)
+    val interaction = remember { MutableInteractionSource() }
+    val pressScale = rememberPressScale(interaction, pressedScale = 0.97f)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(pressScale)
+            .clickable(interactionSource = interaction) { onClick() }
+            .padding(vertical = 6.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(D2.Inner)
+                .background(MaterialTheme.colorScheme.primaryContainer)
+        ) {
+            Icon(
+                imageVector = if (isAuto) Icons.Default.Bolt else Icons.Default.Dns,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(23.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = serverName.ifBlank { stringResource(R.string.dashboard_select_server) },
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = stringResource(R.string.dashboard_subscription_label, profileName),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        if (delayMs > 0 || delayMs == -1L) {
+            ExpressiveLatencyBadge(delayMs = delayMs)
+            Spacer(modifier = Modifier.width(6.dp))
+        }
+        Icon(
+            Icons.Default.ChevronRight,
+            contentDescription = stringResource(R.string.cd_dashboard_change_server),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 /**
- * Material 3 Expressive Hero Connect Widget with tactile morphing squircle, dynamic containers, and breathing aura.
+ * Hero zone: the tactile morph button with its breathing aura, then the
+ * status as a big display line — the visual anchor of the screen sits
+ * directly on the background, not in a card.
  *
- * Ring motion is differentiated per state (M3E kinematics):
- * - connecting: soft emanating pulse (fast grow + fade);
- * - connected: calm breathing halo (slow gentle swell);
- * - disconnecting: contracting spin-down (shrink back to rest).
- * All glow stays within the 165.dp ring bounds — no full-screen glow (OLED efficiency).
+ * Ring motion is differentiated per state (M3E kinematics): emanating pulse
+ * while connecting, calm breathing while protected, contracting spin-down
+ * while disconnecting. All glow stays within the 165.dp ring bounds.
+ * NO shadowElevation on the morph path (concave spot-shadow tessellation
+ * wedges HWUI on real devices — see ExpressiveMorph notes).
  */
 @Composable
-fun ExpressiveHeroConnect(
+private fun HeroZone(
     isRunning: Boolean,
     isConnecting: Boolean,
     isDisconnecting: Boolean,
+    modeLabel: String,
     onClick: () -> Unit
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulseHalo")
+    val infiniteTransition = rememberInfiniteTransition(label = "d2HeroHalo")
 
-    // Pulse tempo: energetic while connecting, slowest while protected.
     val ringDuration = when {
         isConnecting -> 900
         isDisconnecting -> 600
         else -> 2400
     }
-    // Emanating / contracting rings restart from their origin; breathing swells back and forth.
     val ringRepeat = if (isRunning) RepeatMode.Reverse else RepeatMode.Restart
 
     val outerRingScale by infiniteTransition.animateFloat(
@@ -354,7 +358,7 @@ fun ExpressiveHeroConnect(
             animation = tween(ringDuration, easing = FastOutSlowInEasing),
             repeatMode = ringRepeat
         ),
-        label = "outerRingScale"
+        label = "d2OuterRingScale"
     )
 
     val innerRingScale by infiniteTransition.animateFloat(
@@ -369,11 +373,9 @@ fun ExpressiveHeroConnect(
             animation = tween((ringDuration * 0.85f).toInt().coerceAtLeast(200), easing = FastOutSlowInEasing),
             repeatMode = ringRepeat
         ),
-        label = "innerRingScale"
+        label = "d2InnerRingScale"
     )
 
-    // Outer ring breathes its opacity too: prominent while emanating (connecting),
-    // steady and calm while protected.
     val outerRingAlpha by infiniteTransition.animateFloat(
         initialValue = if (isConnecting) 0.85f else 0.6f,
         targetValue = when {
@@ -385,8 +387,10 @@ fun ExpressiveHeroConnect(
             animation = tween(ringDuration, easing = FastOutSlowInEasing),
             repeatMode = ringRepeat
         ),
-        label = "outerRingAlpha"
+        label = "d2OuterRingAlpha"
     )
+
+    val isBusy = isRunning || isConnecting || isDisconnecting
 
     val targetButtonColor = when {
         isRunning -> AccentGreen
@@ -394,19 +398,15 @@ fun ExpressiveHeroConnect(
         isDisconnecting -> Color(0xFFEA580C)
         else -> MaterialTheme.colorScheme.surfaceContainerHighest
     }
-
     val buttonColor by animateColorAsState(
         targetValue = targetButtonColor,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
-        label = "heroButtonColor"
+        label = "d2HeroButtonColor"
     )
 
     val iconTint by animateColorAsState(
-        targetValue = when {
-            isRunning || isConnecting || isDisconnecting -> Color.White
-            else -> MaterialTheme.colorScheme.primary
-        },
-        label = "heroIconTint"
+        targetValue = if (isBusy) Color.White else MaterialTheme.colorScheme.primary,
+        label = "d2HeroIconTint"
     )
 
     val targetGlowColor = when {
@@ -415,21 +415,25 @@ fun ExpressiveHeroConnect(
         isDisconnecting -> Color(0xFFEA580C).copy(alpha = 0.22f)
         else -> Color.Transparent
     }
+    val glowColor by animateColorAsState(targetValue = targetGlowColor, label = "d2HeroGlowColor")
 
-    val buttonGlowColor by animateColorAsState(
-        targetValue = targetGlowColor,
-        label = "heroGlowColor"
+    val statusColor by animateColorAsState(
+        targetValue = when {
+            isRunning -> AccentGreen
+            isConnecting || isDisconnecting -> AccentOrange
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+        label = "d2HeroStatusColor"
     )
 
-    // M3E signature "cookie morph": rounded square at rest, 12-lobed cookie while
-    // the VPN protects the device. Drawn through graphics-shapes Morph paths —
-    // Surface shapes cannot morph, and a draw-phase re-read keeps it frame-exact.
+    // M3E signature "cookie morph": rounded square at rest, 12-lobed cookie
+    // while the VPN protects the device. graphics-shapes Morph, cached, with
+    // a draw-phase re-read so the outline is frame-exact.
     val heroMorph = remember { ExpressiveMorph.morphFor(ExpressiveMorph.SQUARE, ExpressiveMorph.COOKIE_12) }
     val heroMorphProgress by ExpressiveMorph.progress(if (isRunning) 1f else 0f)
     val heroMorphPath = remember { Path() }
 
-    // Tactile press feedback: ripple is disabled (indication = null) on the big
-    // squircle, so the expressive squeeze carries the pressed state instead.
     val heroInteractionSource = remember { MutableInteractionSource() }
     val pressScale = rememberPressScale(
         interactionSource = heroInteractionSource,
@@ -453,50 +457,36 @@ fun ExpressiveHeroConnect(
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 6.dp)
     ) {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.size(175.dp)
+            modifier = Modifier.size(178.dp)
         ) {
-            // Outer Ambient Pulse Ring (alpha breathes with the state tempo)
-            if (isRunning || isConnecting || isDisconnecting) {
+            if (isBusy) {
                 Box(
                     modifier = Modifier
-                        .size(165.dp)
+                        .size(168.dp)
                         .scale(outerRingScale)
-                        .clip(ExpressiveShapes.Hero)
-                        .background(buttonGlowColor.copy(alpha = 0.14f * outerRingAlpha))
+                        .clip(D2.Hero)
+                        .background(glowColor.copy(alpha = 0.14f * outerRingAlpha))
                 )
-
-                // Inner Ambient Pulse Ring
                 Box(
                     modifier = Modifier
-                        .size(150.dp)
+                        .size(152.dp)
                         .scale(innerRingScale)
-                        .clip(ExpressiveShapes.Hero)
-                        .background(buttonGlowColor)
+                        .clip(D2.Hero)
+                        .background(glowColor)
                 )
             }
 
-            // Main Tactile Morph Button — a plain Box because Surface cannot render
-            // a morphing shape: the outline comes from graphicsLayer (fresh morph
-            // wrapper per frame over a cached Morph), the fill from background()
-            // (clipped by the same layer), and the rest-state border is stroked
-            // over the drawn content.
-            // NO shadowElevation here: HWUI spot-shadow tessellation on a concave
-            // 12-lobed morph path (stitchConcaveRings) takes effectively forever on
-            // real devices — the RenderThread wedges and the app ANRs (realme
-            // repro). Depth comes from the pulse rings + glow instead.
             val morphOutlineColor =
-                if (!isRunning && !isConnecting && !isDisconnecting) {
-                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-                } else {
-                    Color.Transparent
-                }
+                if (!isBusy) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f) else Color.Transparent
             Box(
                 modifier = Modifier
-                    .size(138.dp)
+                    .size(140.dp)
                     .scale(pressScale)
                     .graphicsLayer {
                         shape = ExpressiveMorph.shape(
@@ -515,9 +505,7 @@ fun ExpressiveHeroConnect(
                         drawContent()
                         if (morphOutlineColor != Color.Transparent) {
                             drawPath(
-                                ExpressiveMorph.path(
-                                    heroMorph, heroMorphProgress, size, heroMorphPath
-                                ),
+                                ExpressiveMorph.path(heroMorph, heroMorphProgress, size, heroMorphPath),
                                 morphOutlineColor,
                                 style = Stroke(width = 1.5.dp.toPx())
                             )
@@ -546,321 +534,27 @@ fun ExpressiveHeroConnect(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(22.dp))
 
-        // Status Capsule Pill
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            border = BorderStroke(
-                1.dp,
-                if (isRunning) AccentGreen.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-            )
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-            ) {
-                PulsingStatusDot(
-                    color = when {
-                        isRunning -> AccentGreen
-                        isConnecting || isDisconnecting -> AccentOrange
-                        else -> MaterialTheme.colorScheme.outline
-                    },
-                    size = 7.dp,
-                    pulsing = isRunning || isConnecting || isDisconnecting
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Text(
-                    text = when {
-                        isConnecting -> stringResource(R.string.dashboard_status_connecting)
-                        isDisconnecting -> stringResource(R.string.dashboard_status_disconnecting)
-                        isRunning -> {
-                            val base = stringResource(R.string.dashboard_status_protected)
-                            if (uptimeText.isNotBlank()) "$base  ·  $uptimeText" else base
-                        }
-                        else -> stringResource(R.string.dashboard_status_disconnected)
-                    },
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 0.8.sp,
-                    color = when {
-                        isRunning -> AccentGreen
-                        isConnecting || isDisconnecting -> AccentOrange
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                )
-            }
-        }
-    }
-}
-
-/**
- * Expressive Current Server Card with tactile squircle, press squeeze and ping badge.
- */
-@Composable
-fun CurrentServerHeroCard(
-    serverName: String,
-    profileName: String,
-    delayMs: Long,
-    onClick: () -> Unit
-) {
-    val cardInteractionSource = remember { MutableInteractionSource() }
-    val cardPressScale = rememberPressScale(cardInteractionSource, pressedScale = 0.98f)
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(cardPressScale)
-            .clip(ExpressiveShapes.Large)
-            .clickable(
-                interactionSource = cardInteractionSource,
-                onClick = onClick
-            ),
-        shape = ExpressiveShapes.Large,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 2.dp,
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+        // Big status line — the quiet pill from the old design became the voice.
+        Text(
+            text = when {
+                isConnecting -> stringResource(R.string.dashboard_status_connecting)
+                isDisconnecting -> stringResource(R.string.dashboard_status_disconnecting)
+                isRunning -> stringResource(R.string.dashboard_status_protected)
+                else -> stringResource(R.string.dashboard_status_disconnected)
+            },
+            style = MaterialTheme.typography.displaySmall,
+            fontWeight = FontWeight.Black,
+            letterSpacing = (-0.5).sp,
+            color = statusColor
         )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    shape = ExpressiveShapes.Medium,
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    modifier = Modifier.size(46.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (serverName.startsWith("⚡") || serverName.contains("Auto", ignoreCase = true)) Icons.Default.Bolt else Icons.Default.Dns,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
 
-                Spacer(modifier = Modifier.width(14.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.dashboard_active_server),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.SemiBold
-                    )
-
-                    Text(
-                        text = serverName.ifBlank { stringResource(R.string.dashboard_select_server) },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    Text(
-                        text = stringResource(R.string.dashboard_subscription_label, profileName),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (delayMs > 0 || delayMs == -1L) {
-                    ExpressiveLatencyBadge(delayMs = delayMs)
-                    Spacer(modifier = Modifier.width(6.dp))
-                }
-                Icon(
-                    Icons.Default.ChevronRight,
-                    contentDescription = stringResource(R.string.cd_dashboard_change_server),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-/**
- * Expressive Download / Upload Speed Card with bold numeric typography and colored squircle icon.
- */
-@Composable
-fun ExpressiveSpeedCard(
-    title: String,
-    speedText: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    accentColor: Color,
-    containerColor: Color,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier,
-        shape = ExpressiveShapes.Large,
-        color = containerColor,
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+        // Caption: execution mode + live uptime.
+        D2Caption(
+            text = if (isRunning && uptimeText.isNotBlank()) "$modeLabel  ·  $uptimeText" else modeLabel,
+            modifier = Modifier.padding(top = 4.dp)
         )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Surface(
-                    shape = ExpressiveShapes.Small,
-                    color = accentColor.copy(alpha = 0.16f),
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = accentColor,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Text(
-                text = speedText,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Black,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-    }
-}
-
-/**
- * Expressive Routing Mode Card with fluid segmented pill control.
- */
-@Composable
-fun ExpressiveRoutingModeCard(
-    activeMode: ProxyMode,
-    onModeSelected: (ProxyMode) -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = ExpressiveShapes.Large,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = stringResource(R.string.dashboard_routing_mode),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Segmented Pill Container
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    val modes = listOf(
-                        Triple(ProxyMode.RULE, stringResource(R.string.mode_rule), Icons.AutoMirrored.Filled.AltRoute),
-                        Triple(ProxyMode.GLOBAL, stringResource(R.string.mode_global), Icons.Default.Public),
-                        Triple(ProxyMode.DIRECT, stringResource(R.string.mode_direct), Icons.Default.ArrowOutward)
-                    )
-
-                    modes.forEach { (mode, label, icon) ->
-                        val isSelected = activeMode == mode
-
-                        val tabBg by animateColorAsState(
-                            targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
-                            label = "tabBg"
-                        )
-                        val contentColor by animateColorAsState(
-                            targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                            label = "tabContentColor"
-                        )
-
-                        Surface(
-                            shape = CircleShape,
-                            color = tabBg,
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(CircleShape)
-                                .clickable { onModeSelected(mode) }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(vertical = 8.dp),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = null,
-                                    tint = contentColor,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Text(
-                                    text = label,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                                    color = contentColor
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = when (activeMode) {
-                    ProxyMode.RULE -> stringResource(R.string.dashboard_mode_rule_desc)
-                    ProxyMode.GLOBAL -> stringResource(R.string.dashboard_mode_global_desc)
-                    ProxyMode.DIRECT -> stringResource(R.string.dashboard_mode_direct_desc)
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 16.sp
-            )
-        }
     }
 }
 

@@ -1,6 +1,5 @@
 package org.mihomet.app.ui.screens.settings
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -28,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import org.mihomet.app.R
 import org.mihomet.app.data.preferences.AppSettings
 import org.mihomet.app.data.preferences.ProxyMode
+import org.mihomet.app.ui.design2.D2Panel
 import org.mihomet.app.ui.theme.AppHaptics
 import org.mihomet.app.ui.theme.ExpressiveShapes
 import org.mihomet.app.ui.theme.HapticType
@@ -45,14 +45,8 @@ internal fun RoutingSection(
 
     SettingsSectionTitle(stringResource(R.string.settings_routing_section))
     Spacer(modifier = Modifier.height(6.dp))
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = ExpressiveShapes.Large,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-    ) {
+    D2Panel {
         Column(
-            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(SettingsRowSpacing)
         ) {
             Text(

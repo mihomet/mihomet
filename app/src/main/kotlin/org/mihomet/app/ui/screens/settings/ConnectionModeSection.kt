@@ -1,6 +1,5 @@
 package org.mihomet.app.ui.screens.settings
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
@@ -8,7 +7,6 @@ import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -18,10 +16,10 @@ import androidx.compose.ui.unit.dp
 import org.mihomet.app.R
 import org.mihomet.app.data.preferences.AppSettings
 import org.mihomet.app.ui.components.accentContentColor
+import org.mihomet.app.ui.design2.D2Panel
 import org.mihomet.app.ui.theme.AccentOrange
 import org.mihomet.app.ui.theme.AccentOrangeDeep
 import org.mihomet.app.ui.theme.AppHaptics
-import org.mihomet.app.ui.theme.ExpressiveShapes
 import org.mihomet.app.ui.theme.HapticType
 
 /** "Connection mode" card: VPN vs Root selector and the boot autostart toggle. */
@@ -35,15 +33,9 @@ internal fun ConnectionModeSection(
 
     SettingsSectionTitle(stringResource(R.string.settings_connection_mode))
     Spacer(modifier = Modifier.height(6.dp))
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = ExpressiveShapes.Large,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-    ) {
+    D2Panel {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(SettingsRowSpacing)
         ) {
             ExpressiveModeSelectRow(
                 icon = Icons.Default.VpnKey,

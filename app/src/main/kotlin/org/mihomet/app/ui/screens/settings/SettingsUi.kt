@@ -35,15 +35,16 @@ internal val SettingsIconSize: Dp = 20.dp
 /** Shared in-card vertical rhythm for settings rows. */
 internal val SettingsRowSpacing: Dp = 12.dp
 
-/** Section heading above a settings card. */
+/** Section heading above a settings panel — Edition 2 label treatment. */
 @Composable
 fun SettingsSectionTitle(title: String) {
     Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
+        text = title.uppercase(),
+        style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.Black,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+        letterSpacing = 1.6.sp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 6.dp, bottom = 2.dp)
     )
 }
 

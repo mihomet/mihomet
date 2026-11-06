@@ -3,12 +3,9 @@ package org.mihomet.app.ui.screens.settings
 import android.os.Build
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -20,13 +17,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import java.util.Locale
 import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.R
 import org.mihomet.app.core.OemHints
 import org.mihomet.app.ui.components.ExpressiveSnackbarHost
+import org.mihomet.app.ui.design2.D2
+import org.mihomet.app.ui.design2.D2ScreenTitle
 
 /**
  * Settings entry point: hosts the scaffold/snackbar/topbar, the LazyColumn of
@@ -34,7 +32,6 @@ import org.mihomet.app.ui.components.ExpressiveSnackbarHost
  * section dialogs. Pure composition only — every behavior belongs to
  * [SettingsViewModel] or the sections.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onNavigateToRouting: () -> Unit,
@@ -79,27 +76,23 @@ fun SettingsScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { ExpressiveSnackbarHost(hostState = snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.nav_settings),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Black
-                    )
-                }
-            )
-        }
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = { ExpressiveSnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
+                .padding(horizontal = D2.ScreenH),
+            verticalArrangement = Arrangement.spacedBy(D2.SectionGap),
+            contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp)
         ) {
+            // Large-title header on the Edition 2 language.
+            item {
+                D2ScreenTitle(text = stringResource(R.string.nav_settings))
+            }
+
             // 1. Connection Mode Grouped Card
             item {
                 ConnectionModeSection(settings, viewModel)

@@ -1,7 +1,6 @@
 package org.mihomet.app.ui.screens.settings
 
 import android.content.Intent
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryAlert
@@ -23,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import org.mihomet.app.R
 import org.mihomet.app.core.OemHints
 import org.mihomet.app.ui.components.accentContentColor
+import org.mihomet.app.ui.design2.D2Panel
 import org.mihomet.app.ui.theme.AccentOrange
 import org.mihomet.app.ui.theme.AccentOrangeDeep
 import org.mihomet.app.ui.theme.AppHaptics
@@ -43,13 +43,8 @@ internal fun OemDiagnosticsSection(
     val context = LocalContext.current
     val view = LocalView.current
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = ExpressiveShapes.Large,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-    ) {
-        Column(modifier = Modifier.padding(18.dp)) {
+    D2Panel {
+        Column {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)

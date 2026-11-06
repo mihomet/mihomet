@@ -1,6 +1,5 @@
 package org.mihomet.app.ui.screens.settings
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Shield
@@ -38,6 +36,7 @@ import kotlinx.coroutines.flow.StateFlow
 import org.mihomet.app.R
 import org.mihomet.app.data.update.AppUpdateManager
 import org.mihomet.app.data.update.AppUpdateState
+import org.mihomet.app.ui.design2.D2Panel
 import org.mihomet.app.ui.theme.ExpressiveShapes
 
 /**
@@ -78,13 +77,8 @@ class AppUpdateViewModel(private val updater: AppUpdateManager) : ViewModel() {
 /** "About" card: app identity, edition blurb and the self-update version row. */
 @Composable
 internal fun AboutSection(viewModel: AppUpdateViewModel = koinViewModel()) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = ExpressiveShapes.Large,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-    ) {
-        Column(modifier = Modifier.padding(18.dp)) {
+    D2Panel {
+        Column {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)

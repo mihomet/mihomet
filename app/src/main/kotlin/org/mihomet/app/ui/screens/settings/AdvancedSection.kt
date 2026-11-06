@@ -57,6 +57,7 @@ import org.mihomet.app.core.HappCrypto
 import org.mihomet.app.data.preferences.ProfileOverrides
 import org.mihomet.app.data.preferences.TunOptions
 import org.mihomet.app.ui.components.accentContentColor
+import org.mihomet.app.ui.design2.D2Panel
 import org.mihomet.app.ui.theme.AccentOrange
 import org.mihomet.app.ui.theme.AccentOrangeDeep
 import org.mihomet.app.ui.theme.AccentGreen
@@ -89,13 +90,8 @@ internal fun AdvancedSection(
     val view = LocalView.current
     val isAdvancedExpanded = expanded
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = ExpressiveShapes.Large,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    D2Panel {
+        Column {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

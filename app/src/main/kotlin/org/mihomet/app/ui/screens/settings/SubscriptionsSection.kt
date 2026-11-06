@@ -1,6 +1,5 @@
 package org.mihomet.app.ui.screens.settings
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -15,7 +14,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import org.mihomet.app.R
 import org.mihomet.app.data.preferences.AppSettings
 import org.mihomet.app.data.subs.SubscriptionRepository
+import org.mihomet.app.ui.design2.D2Panel
 import org.mihomet.app.ui.theme.AppHaptics
 import org.mihomet.app.ui.theme.ExpressiveShapes
 import org.mihomet.app.ui.theme.HapticType
@@ -52,14 +51,8 @@ internal fun SubscriptionsSection(
 
     SettingsSectionTitle(stringResource(R.string.settings_subs_section))
     Spacer(modifier = Modifier.height(6.dp))
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = ExpressiveShapes.Large,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-    ) {
+    D2Panel {
         Column(
-            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(SettingsRowSpacing)
         ) {
             // Subscription User-Agent (blank = built-in default chain)

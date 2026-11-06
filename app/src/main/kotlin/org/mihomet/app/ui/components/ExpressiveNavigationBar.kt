@@ -2,15 +2,13 @@ package org.mihomet.app.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,12 +27,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.mihomet.app.ui.navigation.Screen
 import org.mihomet.app.ui.theme.AppHaptics
-import org.mihomet.app.ui.theme.ExpressiveShapes
 import org.mihomet.app.ui.theme.HapticType
 
 /**
- * Floating Material 3 Expressive Navigation Bar.
- * Encased in a rounded capsule with spring-animated active indicator pills and tactile haptics.
+ * Floating M3E navigation bar on the "Edition 2" language: a detached stadium
+ * capsule (no border, tone + soft shadow only) where the selected icon sits
+ * inside a springy pill indicator that stretches when chosen. Items keep a
+ * spring press squeeze; haptics stay tactile.
  */
 @Composable
 fun ExpressiveNavigationBar(
@@ -49,39 +48,36 @@ fun ExpressiveNavigationBar(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 6.dp)
+            .padding(start = 24.dp, end = 24.dp, top = 4.dp, bottom = 10.dp)
             .shadow(
-                elevation = 12.dp,
-                shape = ExpressiveShapes.ExtraLarge,
-                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                ambientColor = Color.Black.copy(alpha = 0.35f)
+                elevation = 16.dp,
+                shape = CircleShape,
+                spotColor = Color.Black.copy(alpha = 0.4f),
+                ambientColor = Color.Black.copy(alpha = 0.3f)
             ),
-        shape = ExpressiveShapes.ExtraLarge,
+        shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 6.dp,
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-        )
+        tonalElevation = 3.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             items.forEach { screen ->
                 val isSelected = currentRoute == screen.route
                 val screenTitle = stringResource(screen.titleRes)
 
-                val pillScale by animateFloatAsState(
-                    targetValue = if (isSelected) 1f else 0.85f,
+                // The pill indicator stretches under the selected icon.
+                val indicatorWidth by animateDpAsState(
+                    targetValue = if (isSelected) 58.dp else 40.dp,
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
                         stiffness = Spring.StiffnessMediumLow
                     ),
-                    label = "pillScale"
+                    label = "navIndicatorWidth"
                 )
 
                 val indicatorColor by animateColorAsState(
@@ -94,7 +90,7 @@ fun ExpressiveNavigationBar(
                         dampingRatio = Spring.DampingRatioNoBouncy,
                         stiffness = Spring.StiffnessMedium
                     ),
-                    label = "indicatorColor"
+                    label = "navIndicatorColor"
                 )
 
                 val iconColor by animateColorAsState(
@@ -103,25 +99,28 @@ fun ExpressiveNavigationBar(
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
-                    label = "iconColor"
+                    label = "navIconColor"
                 )
 
-                val textColor by animateColorAsState(
+                val labelColor by animateColorAsState(
                     targetValue = if (isSelected) {
-                        MaterialTheme.colorScheme.primary
+                        MaterialTheme.colorScheme.onSurface
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
-                    label = "textColor"
+                    label = "navLabelColor"
                 )
+
+                val interactionSource = remember { MutableInteractionSource() }
+                val pressScale = rememberPressScale(interactionSource, pressedScale = 0.9f)
 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                     modifier = Modifier
-                        .clip(ExpressiveShapes.Medium)
+                        .scale(pressScale)
                         .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
+                            interactionSource = interactionSource,
                             indication = null
                         ) {
                             if (!isSelected) {
@@ -129,14 +128,13 @@ fun ExpressiveNavigationBar(
                                 onItemSelected(screen)
                             }
                         }
-                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                        .padding(horizontal = 4.dp)
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .scale(pillScale)
-                            .width(54.dp)
-                            .height(30.dp)
+                            .width(indicatorWidth)
+                            .height(34.dp)
                             .clip(CircleShape)
                             .background(indicatorColor)
                     ) {
@@ -144,18 +142,19 @@ fun ExpressiveNavigationBar(
                             imageVector = screen.icon,
                             contentDescription = screenTitle,
                             tint = iconColor,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(21.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
                         text = screenTitle,
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 11.sp,
-                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                        color = textColor
+                        fontWeight = if (isSelected) FontWeight.Black else FontWeight.Medium,
+                        letterSpacing = if (isSelected) 0.4.sp else 0.5.sp,
+                        color = labelColor
                     )
                 }
             }
