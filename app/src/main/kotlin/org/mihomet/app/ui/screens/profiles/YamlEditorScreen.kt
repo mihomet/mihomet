@@ -8,11 +8,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -23,7 +23,10 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.R
+import org.mihomet.app.ui.components.D2BackHeader
 import org.mihomet.app.ui.components.ExpressiveSnackbarHost
+import org.mihomet.app.ui.design2.D2
+import org.mihomet.app.ui.design2.D2IconAction
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,59 +100,79 @@ fun YamlEditorScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.yaml_editor_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { requestExit() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            scope.launch {
-                                viewModel.saveProfileContent(profileId, yamlText)
-                                    .onSuccess {
-                                        savedText = yamlText
-                                        snackbarHostState.showSnackbar(context.getString(R.string.yaml_saved))
-                                    }
-                                    .onFailure {
-                                        snackbarHostState.showSnackbar(context.getString(R.string.yaml_syntax_error, it.message ?: ""))
-                                    }
-                            }
-                        }
-                    ) {
-                        Icon(Icons.Default.Save, contentDescription = stringResource(R.string.cd_save))
-                    }
-                }
-            )
-        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { ExpressiveSnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
-        if (isLoading) {
-            Box(
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .statusBarsPadding()
+                .navigationBarsPadding()
+        ) {
+            // ── Header: big display title + round tonal actions ──────────────
+            D2BackHeader(
+                title = stringResource(R.string.yaml_editor_title),
+                backContentDescription = stringResource(R.string.cd_back),
+                onBack = { requestExit() },
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = androidx.compose.ui.Alignment.Center
+                    .padding(top = 12.dp)
+                    .padding(horizontal = D2.ScreenH)
             ) {
-                CircularProgressIndicator()
+                if (isDirty) {
+                    // Quiet "unsaved changes" dot: tone instead of text.
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(D2.Pill)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                }
+                D2IconAction(
+                    icon = Icons.Default.Save,
+                    contentDescription = stringResource(R.string.cd_save),
+                    tint = if (isDirty) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    onClick = {
+                        scope.launch {
+                            viewModel.saveProfileContent(profileId, yamlText)
+                                .onSuccess {
+                                    savedText = yamlText
+                                    snackbarHostState.showSnackbar(context.getString(R.string.yaml_saved))
+                                }
+                                .onFailure {
+                                    snackbarHostState.showSnackbar(context.getString(R.string.yaml_syntax_error, it.message ?: ""))
+                                }
+                        }
+                    }
+                )
             }
-        } else {
-            val linesCount = yamlText.lines().size.coerceAtLeast(1)
-            val lineNumbers = (1..linesCount).joinToString("\n")
 
-            // A single scroll state drives BOTH the gutter and the text area,
-            // which keeps them pixel-perfectly synchronized.
-            val editorScrollState = rememberScrollState()
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    contentAlignment = androidx.compose.ui.Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                val linesCount = yamlText.lines().size.coerceAtLeast(1)
+                val lineNumbers = (1..linesCount).joinToString("\n")
 
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .background(MaterialTheme.colorScheme.surface)
-            ) {
+                // A single scroll state drives BOTH the gutter and the text area,
+                // which keeps them pixel-perfectly synchronized.
+                val editorScrollState = rememberScrollState()
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surface)
+                ) {
                 // Line numbers gutter (scrolls with the shared state)
                 Text(
                     text = lineNumbers,
@@ -200,6 +223,7 @@ fun YamlEditorScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+            }
             }
         }
     }
