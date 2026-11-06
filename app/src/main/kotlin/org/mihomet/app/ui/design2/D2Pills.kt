@@ -81,6 +81,7 @@ fun <T> D2Segmented(
     thumbColor: Color = MaterialTheme.colorScheme.primaryContainer,
     height: Dp = 46.dp
 ) {
+    if (options.isEmpty()) return
     Surface(shape = D2.Pill, color = trackColor, modifier = modifier) {
         BoxWithConstraints(modifier = Modifier.padding(4.dp).height(height)) {
             val segmentWidth = maxWidth / options.size
