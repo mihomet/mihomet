@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.6
 
 ### Fixed
 - ANR on real devices: HWUI spot-shadow tessellation of the concave cookie
