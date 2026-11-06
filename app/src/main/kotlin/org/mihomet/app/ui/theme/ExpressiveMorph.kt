@@ -106,13 +106,14 @@ object ExpressiveMorph {
      */
     fun shape(start: RoundedPolygon, end: RoundedPolygon, progress: () -> Float): Shape {
         val morph = morphFor(start, end)
-        val scratch = Path()
         return object : Shape {
+            // Fresh scratch per call: createOutline can be invoked from the UI and
+            // render threads — never share a mutable Path across them.
             override fun createOutline(
                 size: Size,
                 layoutDirection: LayoutDirection,
                 density: Density
-            ): Outline = Outline.Generic(path(morph, progress(), size, scratch))
+            ): Outline = Outline.Generic(path(morph, progress(), size, Path()))
         }
     }
 

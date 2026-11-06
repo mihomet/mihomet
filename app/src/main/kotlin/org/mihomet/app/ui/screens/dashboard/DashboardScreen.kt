@@ -484,17 +484,16 @@ fun ExpressiveHeroConnect(
             // wrapper per frame over a cached Morph), the fill from background()
             // (clipped by the same layer), and the rest-state border is stroked
             // over the drawn content.
+            // NO shadowElevation here: HWUI spot-shadow tessellation on a concave
+            // 12-lobed morph path (stitchConcaveRings) takes effectively forever on
+            // real devices — the RenderThread wedges and the app ANRs (realme
+            // repro). Depth comes from the pulse rings + glow instead.
             val morphOutlineColor =
                 if (!isRunning && !isConnecting && !isDisconnecting) {
                     MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
                 } else {
                     Color.Transparent
                 }
-            val morphShadowElevation = when {
-                isRunning -> 14.dp
-                isConnecting || isDisconnecting -> 8.dp
-                else -> 4.dp
-            }
             Box(
                 modifier = Modifier
                     .size(138.dp)
@@ -505,7 +504,6 @@ fun ExpressiveHeroConnect(
                             ExpressiveMorph.COOKIE_12
                         ) { heroMorphProgress }
                         clip = true
-                        shadowElevation = morphShadowElevation.toPx()
                     }
                     .background(buttonColor)
                     .clickable(

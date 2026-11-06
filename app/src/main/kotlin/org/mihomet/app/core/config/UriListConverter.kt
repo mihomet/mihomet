@@ -24,7 +24,8 @@ internal object UriListConverter {
                 firstLine.startsWith("tuic://") ||
                 firstLine.startsWith("ssh://") ||
                 firstLine.startsWith("snell://") ||
-                firstLine.startsWith("wg://")
+                firstLine.startsWith("wg://") ||
+                firstLine.startsWith("awg://")
     }
 
     fun convertUriListToMihomoYaml(uriList: String, warnings: MutableList<ConversionWarning>? = null): String {
