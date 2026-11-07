@@ -68,7 +68,7 @@ internal object XrayJsonConverter {
                             val settings = ob["settings"]?.jsonObject ?: JsonObject(emptyMap())
                             val streamSettings = ob["streamSettings"]?.jsonObject ?: JsonObject(emptyMap())
 
-                            val proxyMap = parseXrayOutboundToMihomo(remarks, protocol, settings, streamSettings)
+                            val proxyMap = parseXrayOutboundToMihomo(remarks, protocol, settings, streamSettings, ob)
                             if (proxyMap == null) {
                                 warnings?.add(
                                     ConversionWarning.ProxyParseError(
@@ -107,7 +107,7 @@ internal object XrayJsonConverter {
                         val settings = ob["settings"]?.jsonObject ?: JsonObject(emptyMap())
                         val streamSettings = ob["streamSettings"]?.jsonObject ?: JsonObject(emptyMap())
 
-                        val proxyMap = parseXrayOutboundToMihomo(tag, protocol, settings, streamSettings)
+                        val proxyMap = parseXrayOutboundToMihomo(tag, protocol, settings, streamSettings, ob)
                         if (proxyMap == null) {
                             warnings?.add(
                                 ConversionWarning.ProxyParseError(
@@ -321,9 +321,17 @@ internal object XrayJsonConverter {
         name: String,
         protocol: String,
         settings: JsonObject,
-        streamSettings: JsonObject
+        streamSettings: JsonObject,
+        outbound: JsonObject = JsonObject(emptyMap())
     ): Map<String, Any>? {
-        val net = streamSettings["network"]?.jsonPrimitive?.contentOrNull ?: "tcp"
+        // Newer Xray (24.x+) renamed network→method and tcp→raw; panels emit both
+        val netRaw = streamSettings["network"]?.jsonPrimitive?.contentOrNull
+            ?: streamSettings["method"]?.jsonPrimitive?.contentOrNull ?: "tcp"
+        val net = when (netRaw) {
+            "raw" -> "tcp"
+            "websocket" -> "ws"
+            else -> netRaw
+        }
         val security = streamSettings["security"]?.jsonPrimitive?.contentOrNull ?: ""
 
         return when (protocol.lowercase()) {
@@ -350,8 +358,8 @@ internal object XrayJsonConverter {
                 val encryption = settings["encryption"]?.jsonPrimitive?.contentOrNull
                 if (encryption != null && encryption != "none") map["encryption"] = encryption
                 if (flow.isNotBlank()) map["flow"] = flow
-
-                applyStreamSecurityAndTransport(map, net, security, streamSettings, address)
+                applyStreamSecurityAndTransport(map, net, security, streamSettings, address, flow)
+                applyMux(map, outbound, flow)
                 map
             }
             "hysteria" -> {
@@ -446,7 +454,8 @@ internal object XrayJsonConverter {
                     "network" to if (net == "splithttp") "xhttp" else net
                 )
                 applyStreamSecurityAndTransport(map, net, security, streamSettings, address)
-                map
+                applyMux(map, outbound)
+            map
             }
             "shadowsocks" -> {
                 val servers = settings["servers"] as? JsonArray ?: return null
@@ -481,7 +490,8 @@ internal object XrayJsonConverter {
                     "network" to if (net == "splithttp") "xhttp" else net
                 )
                 applyStreamSecurityAndTransport(map, net, security, streamSettings, address)
-                map
+                applyMux(map, outbound)
+            map
             }
             "http" -> {
                 // Xray http outbound -> mihomo http proxy (with optional basic auth).
@@ -583,9 +593,19 @@ internal object XrayJsonConverter {
         net: String,
         security: String,
         streamSettings: JsonObject,
-        address: String
+        address: String,
+        flow: String = ""
     ) {
-        if (security == "reality") {
+        if (security == "xtls") {
+            // Deprecated pre-reality XTLS: port as plain TLS, the flow field
+            // (xtls-rprx-vision/xtls-rprx-direct) survives via the users record.
+            map["tls"] = true
+            val tlsSettings = streamSettings["tlsSettings"] as? JsonObject ?: JsonObject(emptyMap())
+            map["servername"] = tlsSettings["serverName"]?.jsonPrimitive?.contentOrNull ?: address
+            if (tlsSettings["allowInsecure"]?.jsonPrimitive?.booleanOrNull == true ||
+                streamSettings["allowInsecure"]?.jsonPrimitive?.booleanOrNull == true
+            ) map["skip-cert-verify"] = true
+        } else if (security == "reality") {
             map["tls"] = true
             val realitySettings = streamSettings["realitySettings"] as? JsonObject ?: JsonObject(emptyMap())
             map["servername"] = realitySettings["serverName"]?.jsonPrimitive?.contentOrNull ?: address
@@ -606,7 +626,9 @@ internal object XrayJsonConverter {
             if (fp.isNotBlank()) map["client-fingerprint"] = fp
             val alpn = tlsSettings["alpn"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }
             if (!alpn.isNullOrEmpty()) map["alpn"] = alpn
-            val allowInsecure = tlsSettings["allowInsecure"]?.jsonPrimitive?.booleanOrNull ?: false
+            val allowInsecure = tlsSettings["allowInsecure"]?.jsonPrimitive?.booleanOrNull
+                ?: streamSettings["allowInsecure"]?.jsonPrimitive?.booleanOrNull
+                ?: false
             if (allowInsecure) map["skip-cert-verify"] = true
         }
 
@@ -645,8 +667,10 @@ internal object XrayJsonConverter {
         }
 
         // TCP with HTTP obfs header (header.type == "http") -> mihomo http-opts
+        // (legacy tcpSettings; newer Xray calls it rawSettings)
         if (net == "tcp") {
-            val tcpHeader = streamSettings["tcpSettings"]?.jsonObject?.get("header")?.jsonObject
+            val tcpHeader = (streamSettings["tcpSettings"] ?: streamSettings["rawSettings"])
+                ?.jsonObject?.get("header")?.jsonObject
             if (tcpHeader?.get("type")?.jsonPrimitive?.contentOrNull == "http") {
                 val request = tcpHeader["request"]?.jsonObject
                 val httpOpts = mutableMapOf<String, Any>()
@@ -677,6 +701,18 @@ internal object XrayJsonConverter {
             if (host.isNotBlank()) xhttpOpts["host"] = host
             val mode = xhttpSettings?.get("mode")?.jsonPrimitive?.contentOrNull
             if (!mode.isNullOrBlank()) xhttpOpts["mode"] = mode
+            // mihomo supports the panel-tunable XHTTP extras
+            if (xhttpSettings?.get("noGrpcHeader")?.jsonPrimitive?.booleanOrNull == true) {
+                xhttpOpts["no-grpc-header"] = true
+            }
+            xhttpSettings?.get("xPaddingBytes")?.jsonPrimitive?.contentOrNull
+                ?.takeIf { it.isNotBlank() }?.let { xhttpOpts["x-padding-bytes"] = it }
+            val extraHeaders = xhttpSettings?.get("extra")?.jsonObject
+            if (extraHeaders != null && extraHeaders.isNotEmpty()) {
+                xhttpOpts["headers"] = extraHeaders.entries.associate { (k, v) ->
+                    k to (v.jsonPrimitive.contentOrNull ?: "")
+                }
+            }
             map["xhttp-opts"] = xhttpOpts
         }
 
@@ -700,19 +736,46 @@ internal object XrayJsonConverter {
             map["httpupgrade-opts"] = opts
         }
 
-        // mKCP Settings
-        if (net == "kcp") {
-            val kcpSettings = streamSettings["kcpSettings"] as? JsonObject
+        // mKCP: Xray kcpSettings → mihomo mkcp-opts (current wiki name)
+        if (net == "kcp" || net == "mkcp") {
+            val kcp = (streamSettings["kcpSettings"] ?: streamSettings["mkcpSettings"])
+                ?.jsonObject ?: JsonObject(emptyMap())
             val opts = mutableMapOf<String, Any>()
-            kcpSettings?.get("mtu")?.jsonPrimitive?.intOrNull?.let { opts["mtu"] = it }
-            kcpSettings?.get("seed")?.jsonPrimitive?.contentOrNull
+            kcp["mtu"]?.jsonPrimitive?.intOrNull?.let { opts["mtu"] = it }
+            kcp["tti"]?.jsonPrimitive?.intOrNull?.let { opts["tti"] = it }
+            kcp["uplinkCapacity"]?.jsonPrimitive?.intOrNull?.let { opts["uplink-capacity"] = it }
+            kcp["downlinkCapacity"]?.jsonPrimitive?.intOrNull?.let { opts["downlink-capacity"] = it }
+            kcp["congestion"]?.jsonPrimitive?.booleanOrNull?.let { opts["congestion"] = it }
+            kcp["writeBufferSize"]?.jsonPrimitive?.intOrNull?.let { opts["write-buffer"] = it }
+            kcp["readBufferSize"]?.jsonPrimitive?.intOrNull?.let { opts["read-buffer"] = it }
+            kcp["seed"]?.jsonPrimitive?.contentOrNull
                 ?.takeIf { it.isNotBlank() }?.let { opts["seed"] = it }
-            val headerType = kcpSettings?.get("header")?.jsonObject?.get("type")?.jsonPrimitive?.contentOrNull
-            if (!headerType.isNullOrBlank() && headerType != "none") {
-                opts["header"] = mapOf("type" to headerType)
-            }
-            map["kcp-opts"] = opts
+            kcp["header"]?.jsonObject?.get("type")?.jsonPrimitive?.contentOrNull
+                ?.takeIf { it.isNotBlank() && it != "none" }?.let { opts["header"] = it }
+            if (opts.isNotEmpty()) map["mkcp-opts"] = opts
         }
+
+        // sockopt.dialerProxy chains one outbound behind another (mihomo dialer-proxy)
+        streamSettings["sockopt"]?.jsonObject?.get("dialerProxy")
+            ?.jsonPrimitive?.contentOrNull
+            ?.takeIf { it.isNotBlank() }?.let { map["dialer-proxy"] = it }
+    }
+
+    /**
+     * Xray MuxObject → mihomo smux. Never emitted for a VLESS vision flow —
+     * smux and vision are incompatible (Xray ignores the combination anyway).
+     */
+    private fun applyMux(map: MutableMap<String, Any>, outbound: JsonObject, flow: String = "") {
+        val mux = outbound["mux"]?.jsonObject ?: return
+        if (mux["enabled"]?.jsonPrimitive?.booleanOrNull != true) return
+        if (flow.contains("vision")) return
+        val smux = mutableMapOf<String, Any>(
+            "enabled" to true,
+            "protocol" to "smux"
+        )
+        mux["concurrency"]?.jsonPrimitive?.intOrNull
+            ?.takeIf { it > 0 }?.let { smux["max-connections"] = it.coerceIn(1, 8) }
+        map["smux"] = smux
     }
 
     private fun extractAddressAndPort(protocol: String, settings: JsonObject): Pair<String?, Int?> {
