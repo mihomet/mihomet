@@ -1,0 +1,119 @@
+# Remnawave — Mihomo template ("Mihomet Edition", 07.11)
+# Построен по структуре Happ-канала этой панели: leastLoad-балансер по всем
+# нодам (observatory: HEAD gstatic/204, interval 600s, sampling 8) + RU/push
+# напрямую. Синтаксис подстановки — стандартный для Remnawave:
+# строки «proxies: # LEAVE THIS LINE!» панель заменяет списком нод.
+#
+# Правила для клиента Mihomet (приложение само форсит порты/контроллер —
+# эти поля оно игнорирует; для других mihomo-клиентов они рабочие).
+
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+unified-delay: true
+tcp-concurrent: true
+external-controller: 127.0.0.1:9090
+profile:
+  store-selected: true
+
+dns:
+  enable: true
+  use-hosts: true
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  default-nameserver:
+    - 1.1.1.1
+    - 8.8.8.8
+  nameserver:
+    - https://dns.cloudflare.com/dns-query
+    - https://dns.google/dns-query
+  nameserver-policy:
+    rule-set:geosite-private:
+      - system
+    rule-set:geosite-category-ru:
+      - system
+  fake-ip-filter:
+    - "*.lan"
+    - "+.local"
+    - "time.*.*.com"
+    - "time.*.apple.com"
+    - "time1.*.com"
+    - "ntp.*.com"
+    - "+.pool.ntp.org"
+    - "+.stun.*.*"
+    - "+.stun.*.*.*"
+    - "+.msftconnecttest.com"
+    - "+.msftncsi.com"
+    - "+.push.apple.com"
+    - "mtalk.google.com"
+
+rule-providers:
+  geosite-private:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/private.mrs
+    path: ./rules/geosite-private.mrs
+    interval: 86400
+  geosite-category-ru:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/category-ru.mrs
+    path: ./rules/geosite-category-ru.mrs
+    interval: 86400
+  geoip-ru:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/ru.mrs
+    path: ./rules/geoip-ru.mrs
+    interval: 86400
+  geoip-private:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/private.mrs
+    path: ./rules/geoip-private.mrs
+    interval: 86400
+
+proxies: # LEAVE THIS LINE!
+
+proxy-groups:
+  # Аналог BALANCER-MAIN (leastLoad) из Happ-конфига: ping-проверка каждые
+  # 600 секунд, переключение на наименее загруженную ноду.
+  - name: "⚡ Авто-выбор"
+    type: url-test
+    url: http://www.gstatic.com/generate_204
+    interval: 600
+    tolerance: 50
+    proxies: # LEAVE THIS LINE!
+
+  # Ручной выбор конкретной ноды (в т.ч. для «Обхода БС»-цепочек).
+  - name: "👉 Ручной выбор"
+    type: select
+    proxies:
+      - "⚡ Авто-выбор"
+      - DIRECT
+      # LEAVE THIS LINE!
+
+rules:
+  # Локальный/приватный трафик — всегда напрямую
+  - RULE-SET,geosite-private,DIRECT
+  - RULE-SET,geoip-private,DIRECT,no-resolve
+
+  # Push-уведомления и синхронизация времени — напрямую (как в Happ-канале:
+  # mtalk.google.com, push.apple.com, 17.0.0.0/8)
+  - DOMAIN-SUFFIX,push.apple.com,DIRECT
+  - DOMAIN,mtalk.google.com,DIRECT
+  - IP-CIDR,17.0.0.0/8,DIRECT,no-resolve
+
+  # Российские сайты и сервисы — напрямую (аналог regexp .*\.ru$ + 117
+  # доменов из Happ-канала; geosite category-ru покрывает их целиком)
+  - RULE-SET,geosite-category-ru,DIRECT
+  - DOMAIN-SUFFIX,ru,DIRECT
+  - RULE-SET,geoip-ru,DIRECT,no-resolve
+
+  # Весь остальной трафик — через балансер
+  - MATCH,⚡ Авто-выбор
