@@ -51,9 +51,9 @@ class UriMatrixTest {
         val p = parse("vless://uuid-3@k.example.com:9000?encryption=none" +
                 "&type=kcp&seed=KcpSeed&headerType=wechat-video#KNode")
         assertEquals("kcp", p!!["network"])
-        val opts = p["kcp-opts"] as Map<String, Any>
+        val opts = p["mkcp-opts"] as Map<String, Any>
         assertEquals("KcpSeed", opts["seed"])
-        assertEquals("wechat-video", (opts["header"] as Map<String, Any>)["type"])
+        assertEquals("wechat-video", opts["header"])
     }
 
     @Test

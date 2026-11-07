@@ -145,8 +145,8 @@ internal object UriListParser {
                 val opts = mutableMapOf<String, Any>()
                 params["seed"]?.takeIf { it.isNotBlank() }?.let { opts["seed"] = it }
                 params["headerType"]?.takeIf { it.isNotBlank() && it != "none" }
-                    ?.let { opts["header"] = mapOf("type" to it) }
-                map["kcp-opts"] = opts
+                    ?.let { opts["header"] = it }
+                map["mkcp-opts"] = opts
             }
             "tcp" -> {
                 // HTTP obfs (headerType=http) -> mihomo http-opts
