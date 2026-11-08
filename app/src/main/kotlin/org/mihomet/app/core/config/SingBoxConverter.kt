@@ -210,6 +210,8 @@ internal object SingBoxConverter {
                     "uuid" to uuid
                 )
                 if (flow.isNotBlank()) map["flow"] = flow
+                ob["packet_encoding"]?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }?.let { map["packet-encoding"] = it }
 
                 applySingBoxTls(map, ob["tls"]?.jsonObject, server)
                 applySingBoxTransport(map, ob["transport"]?.jsonObject)
@@ -234,6 +236,11 @@ internal object SingBoxConverter {
 
                 val insecure = tlsObj?.get("insecure")?.jsonPrimitive?.booleanOrNull == true
                 if (insecure) map["skip-cert-verify"] = true
+
+                ob["up_mbps"]?.jsonPrimitive?.intOrNull
+                    ?.takeIf { it > 0 }?.let { map["up"] = it }
+                ob["down_mbps"]?.jsonPrimitive?.intOrNull
+                    ?.takeIf { it > 0 }?.let { map["down"] = it }
 
                 val serverPorts = ob["server_ports"]?.jsonPrimitive?.contentOrNull
                 if (!serverPorts.isNullOrBlank()) {
@@ -285,6 +292,8 @@ internal object SingBoxConverter {
                     "alterId" to alterId,
                     "cipher" to security
                 )
+                ob["packet_encoding"]?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }?.let { map["packet-encoding"] = it }
                 applySingBoxTls(map, ob["tls"]?.jsonObject, server)
                 applySingBoxTransport(map, ob["transport"]?.jsonObject)
                 applyMultiplex(map, ob["multiplex"]?.jsonObject)
@@ -425,6 +434,65 @@ internal object SingBoxConverter {
                 )
                 if (localAddress.isNotEmpty()) map["ip"] = localAddress.first()
                 if (!preSharedKey.isNullOrBlank()) map["preshared-key"] = preSharedKey
+                // reserved: either a [n,n,n] array or a base64 string — mihomo
+                // takes the array form
+                when (val reserved = ob["reserved"]) {
+                    is kotlinx.serialization.json.JsonArray -> {
+                        val list = reserved.mapNotNull { it.jsonPrimitive.contentOrNull?.toIntOrNull() }
+                        if (list.size == 3) map["reserved"] = list
+                    }
+                    is kotlinx.serialization.json.JsonPrimitive -> runCatching {
+                        val bytes = java.util.Base64.getDecoder().decode(reserved.content)
+                        if (bytes.size == 3) {
+                            map["reserved"] = listOf(
+                                bytes[0].toInt() and 0xFF,
+                                bytes[1].toInt() and 0xFF,
+                                bytes[2].toInt() and 0xFF
+                            )
+                        }
+                    }
+                    else -> {}
+                }
+                ob["mtu"]?.jsonPrimitive?.intOrNull
+                    ?.takeIf { it > 0 }?.let { map["mtu"] = it }
+                map
+            }
+
+            "ssh" -> {
+                // mihomo supports the ssh protocol natively (same field names).
+                val map = mutableMapOf<String, Any>(
+                    "name" to tag,
+                    "type" to "ssh",
+                    "server" to server,
+                    "port" to port,
+                    "username" to (ob["user"]?.jsonPrimitive?.contentOrNull ?: "root")
+                )
+                ob["password"]?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }?.let { map["password"] = it }
+                ob["private_key"]?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }?.let { map["private-key"] = it }
+                ob["private_key_path"]?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }?.let { map["private-key-path"] = it }
+                val hk = ob["host_key_algorithms"]?.jsonArray
+                    ?.mapNotNull { it.jsonPrimitive.contentOrNull }
+                if (!hk.isNullOrEmpty()) map["host-key-algorithms"] = hk
+                map
+            }
+
+            "socks" -> {
+                val map = mutableMapOf<String, Any>(
+                    "name" to tag,
+                    "type" to "socks5",
+                    "server" to server,
+                    "port" to port
+                )
+                ob["version"]?.jsonPrimitive?.contentOrNull?.takeIf { it == "4" }
+                    ?.let { map["version"] = "4" }
+                ob["username"]?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }?.let { map["username"] = it }
+                ob["password"]?.jsonPrimitive?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }?.let { map["password"] = it }
+                applySingBoxTls(map, ob["tls"]?.jsonObject, server)
                 map
             }
             else -> null
