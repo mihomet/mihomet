@@ -216,7 +216,60 @@ class SingBoxMatrixTest {
         assertNull(p["ws-opts"])
     }
 
+    // ---- portability additions (sing-box docs diff 08.11) ----
+
     @Test
+    fun `vless packet-encoding survives`() {
+        val parsed = convert(wrapper(outbound("vless", "\"uuid\":\"u\",\"packet_encoding\":\"xudp\",\"server\":\"1.2.3.4\",\"server_port\":443")))
+        assertEquals("xudp", byName(parsed, "proxy")["packet-encoding"])
+    }
+
+    @Test
+    fun `hysteria2 up down bandwidth maps`() {
+        val parsed = convert(wrapper(outbound("hysteria2",
+            "\"password\":\"p\",\"up_mbps\":100,\"down_mbps\":500,\"server\":\"1.2.3.4\",\"server_port\":443")))
+        val m = byName(parsed, "proxy")
+        assertEquals(100, m["up"])
+        assertEquals(500, m["down"])
+    }
+
+    @Test
+    fun `wireguard reserved array and base64 and mtu`() {
+        val arr = convert(wrapper(outbound("wireguard",
+            "\"private_key\":\"k\",\"peer_public_key\":\"pk\",\"server\":\"1.2.3.4\",\"server_port\":51820," +
+            "\"local_address\": [\"10.0.0.2/32\"], \"reserved\": [1,2,3], \"mtu\": 1408")))
+        assertEquals(listOf(1, 2, 3), byName(arr, "proxy")["reserved"])
+        assertEquals(1408, byName(arr, "proxy")["mtu"])
+
+        val b64 = convert(wrapper(outbound("wireguard",
+            "\"private_key\":\"k\",\"peer_public_key\":\"pk\",\"server\":\"1.2.3.4\",\"server_port\":51820," +
+            "\"local_address\": [\"10.0.0.2/32\"], \"reserved\": \"" + java.util.Base64.getEncoder().encodeToString(byteArrayOf(4, 5, 6)) + "\"")))
+        assertEquals(listOf(4, 5, 6), byName(b64, "proxy")["reserved"])
+    }
+
+    @Test
+    fun `ssh outbound maps to mihomo ssh`() {
+        val parsed = convert(wrapper(outbound("ssh",
+            "\"user\":\"root\",\"password\":\"pw\",\"private_key\":\"KEY\",\"server\":\"1.2.3.4\",\"server_port\":22," +
+            "\"host_key_algorithms\": [\"ssh-ed25519\"]")))
+        val m = byName(parsed, "proxy")
+        assertEquals("ssh", m["type"])
+        assertEquals("root", m["username"])
+        assertEquals("pw", m["password"])
+        assertEquals("KEY", m["private-key"])
+        assertEquals(listOf("ssh-ed25519"), m["host-key-algorithms"])
+    }
+
+    @Test
+    fun `socks outbound maps to mihomo socks5`() {
+        val parsed = convert(wrapper(outbound("socks",
+            "\"version\":\"5\",\"username\":\"u\",\"password\":\"p\",\"server\":\"1.2.3.4\",\"server_port\":1080")))
+        val m = byName(parsed, "proxy")
+        assertEquals("socks5", m["type"])
+        assertEquals("u", m["username"])
+        assertEquals("p", m["password"])
+    }
+
     fun `multiplex smux maps to mihomo smux`() {
         val parsed = convert(wrapper(outbound("vless", """
             "server":"m.example.com","server_port":443,"uuid":"u-3",
@@ -272,7 +325,6 @@ class SingBoxMatrixTest {
     @Test
     fun `exotic outbounds produce warnings and are skipped`() {
         val outcome = UniversalConfigConverter.convertToMihomoYamlWithOutcome(wrapper(
-            outbound("ssh", """ "server":"s.example.com","server_port":22,"user":"u" """),
             outbound("naive", """ "server":"n.example.com","server_port":443 """),
             outbound("mieru", """ "server":"mi.example.com","server_port":443 """)
         ))
