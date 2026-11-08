@@ -127,6 +127,14 @@ class VpnNotificationController(
             .setOngoing(false)
             .setAutoCancel(true)
             .build()
+        // POST_NOTIFICATIONS is user-granted (API 33+); the VPN foreground service
+        // notifications bypass it, this one-shot notice does not.
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
         androidx.core.app.NotificationManagerCompat.from(context)
             .notify(REVOKED_NOTIFICATION_ID, notification)
     }
