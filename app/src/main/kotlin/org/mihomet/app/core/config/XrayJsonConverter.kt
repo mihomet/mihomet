@@ -57,18 +57,28 @@ internal object XrayJsonConverter {
                 if (!isBalancerItem && remarks.isNotBlank()) {
                     val outbounds = item["outbounds"]?.jsonArray
                     if (outbounds != null) {
-                        for (obEl in outbounds) {
-                            val ob = obEl as? JsonObject ?: continue
+                        // Real outbounds of this item (service tags excluded). The
+                        // Remnawave/Happ list format is one node per item — the
+                        // node keeps the user-facing `remarks` name. A single item
+                        // carrying MULTIPLE real outbounds (some panels ship one
+                        // config with everything) converts each of them, named by
+                        // tag — previously only the first survived (break).
+                        val realOutbounds = outbounds.mapNotNull { it as? JsonObject }.filter { ob ->
                             val tag = ob["tag"]?.jsonPrimitive?.contentOrNull ?: ""
-                            if (tag == "direct" || tag == "block" || tag == "dns-out" || tag == "api") continue
-
                             val protocol = ob["protocol"]?.jsonPrimitive?.contentOrNull ?: ""
-                            if (protocol.lowercase() in SERVICE_PROTOCOLS) continue
+                            tag !in setOf("direct", "block", "dns-out", "api") &&
+                                    protocol.lowercase() !in SERVICE_PROTOCOLS
+                        }
+                        val useRemarksName = realOutbounds.size == 1
+                        for (ob in realOutbounds) {
+                            val tag = ob["tag"]?.jsonPrimitive?.contentOrNull ?: ""
+                            val protocol = ob["protocol"]?.jsonPrimitive?.contentOrNull ?: ""
 
                             val settings = ob["settings"]?.jsonObject ?: JsonObject(emptyMap())
                             val streamSettings = ob["streamSettings"]?.jsonObject ?: JsonObject(emptyMap())
 
-                            val proxyMap = parseXrayOutboundToMihomo(remarks, protocol, settings, streamSettings, ob)
+                            val nodeName = if (useRemarksName) remarks else tag.ifBlank { remarks }
+                            val proxyMap = parseXrayOutboundToMihomo(nodeName, protocol, settings, streamSettings, ob)
                             if (proxyMap == null) {
                                 warnings?.add(
                                     ConversionWarning.ProxyParseError(
@@ -81,11 +91,10 @@ internal object XrayJsonConverter {
                                 val srv = proxyMap["server"]?.toString() ?: ""
                                 val port = proxyMap["port"]?.toString() ?: ""
                                 if (srv.isNotBlank() && port.isNotBlank()) {
-                                    addrToRemarks["$srv:$port"] = remarks
+                                    addrToRemarks["$srv:$port"] = nodeName
                                 }
                                 proxies.add(proxyMap)
-                                serverNames.add(remarks)
-                                break
+                                serverNames.add(nodeName)
                             }
                         }
                     }
