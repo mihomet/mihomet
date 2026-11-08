@@ -39,10 +39,13 @@ object DeepLinkParser {
 
         val scheme = trimmed.substringBefore("://").substringAfterLast(' ').lowercase()
         val rest = trimmed.substringAfter("://")
-        // "clash://install-config?url=…" has no path segment — default to the whole rest
-        val pathAndQuery = if (rest.contains('/')) rest.substringAfter('/') else rest
-        val query = pathAndQuery.substringAfter('?', "")
-        val action = pathAndQuery.substringBefore('/').substringBefore('?').lowercase()
+        // Split path/query on '?' FIRST: the `url` parameter carries an http URL
+        // full of '/' (v2rayng://install-sub?url=http://panel/sub) — splitting on
+        // the first '/' previously sliced INSIDE that URL, emptying the action
+        // and silently breaking every deep-link import.
+        val actionAndPath = rest.substringBefore('?')
+        val query = rest.substringAfter('?', "")
+        val action = actionAndPath.substringBefore('/').lowercase()
 
         val params = query.split("&")
             .filter { it.contains('=') }
