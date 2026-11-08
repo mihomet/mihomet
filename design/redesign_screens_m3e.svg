@@ -1,0 +1,509 @@
+<svg id="Frame-PixelPlayer-Redesign" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 840" width="1600" height="840">
+  <defs>
+    <!-- Background Frame Fill -->
+    <rect id="bg-frame" width="1600" height="840" fill="#050505"/>
+    
+    <!-- Hero Connect Button Radial Glow -->
+    <radialGradient id="hero-glow-green" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#10B981" stop-opacity="0.8"/>
+      <stop offset="60%" stop-color="#059669" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#047857" stop-opacity="0"/>
+    </radialGradient>
+    
+    <!-- Live Traffic Gradients -->
+    <linearGradient id="download-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#10B981" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#10B981" stop-opacity="0.0"/>
+    </linearGradient>
+    <linearGradient id="upload-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#06B6D4" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#06B6D4" stop-opacity="0.0"/>
+    </linearGradient>
+
+    <!-- Quota Violet Progress Gradient -->
+    <linearGradient id="quota-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#C4B5FD"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ========================================================================= -->
+  <!-- SCREEN 1: DASHBOARD (x=20, y=20, w=360, h=800)                            -->
+  <!-- ========================================================================= -->
+  <g id="Redesign-Screen-Dashboard" transform="translate(20, 20)">
+    <!-- Screen AMOLED Canvas -->
+    <rect width="360" height="800" rx="38" fill="#000000" stroke="#181818" stroke-width="2"/>
+
+    <!-- Android Status Bar -->
+    <text x="32" y="38" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#EDEDED">12:30</text>
+    <circle cx="316" cy="34" r="3.5" fill="#EDEDED"/>
+    <rect x="326" y="29" width="16" height="9" rx="2.5" fill="#EDEDED"/>
+
+    <!-- Header: Display Title + Action Badges -->
+    <g transform="translate(24, 76)">
+      <text x="0" y="16" font-family="system-ui, sans-serif" font-size="30" font-weight="900" fill="#EDEDED" letter-spacing="-0.02em">Mihomet</text>
+      <!-- Profile Badge Pill (surfaceContainerHighest #242424) -->
+      <g transform="translate(196, -6)">
+        <rect width="52" height="36" rx="18" fill="#181818" stroke="#262626" stroke-width="1"/>
+        <circle cx="20" cy="18" r="3.5" fill="#C4B5FD"/>
+        <text x="36" y="22" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#C4B5FD">14</text>
+      </g>
+      <!-- Terminal Quick Action Pill -->
+      <g transform="translate(256, -6)">
+        <rect width="52" height="36" rx="18" fill="#181818" stroke="#262626" stroke-width="1"/>
+        <path d="M20 13 L26 18 L20 23 M28 23 L34 23" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" fill="none"/>
+      </g>
+    </g>
+
+    <!-- HERO ZONE: PixelPlayer Cookie Morphing Power Button -->
+    <g transform="translate(180, 216)">
+      <!-- Kinetic Aura Ring Outer (184x184) -->
+      <circle cx="0" cy="0" r="92" fill="#10B981" opacity="0.10"/>
+      <!-- Core Halo Ring (160x160) -->
+      <circle cx="0" cy="0" r="80" fill="#10B981" opacity="0.22"/>
+      <!-- Cookie Morphing Tactile Button (132x132, Cookie-12 shape) -->
+      <path d="M 66.00 0.00 C 66.00 5.55, 58.60 9.27, 56.99 15.27 C 55.38 21.27, 59.93 28.19, 57.16 33.00 C 54.38 37.81, 46.11 37.33, 42.43 42.43 C 37.33 46.11, 37.81 54.38, 33.00 57.16 C 28.19 59.93, 21.27 55.38, 15.27 56.99 C 9.27 58.60, 5.55 66.00, 0.00 66.00 C -5.55 66.00, -9.27 58.60, -15.27 56.99 C -21.27 55.38, -28.19 59.93, -33.00 57.16 C -37.81 54.38, -37.33 46.11, -42.43 42.43 C -46.11 37.33, -54.38 37.81, -57.16 33.00 C -59.93 28.19, -55.38 21.27, -56.99 15.27 C -58.60 9.27, -66.00 5.55, -66.00 0.00 C -66.00 -5.55, -58.60 -9.27, -56.99 -15.27 C -55.38 -21.27, -59.93 -28.19, -57.16 -33.00 C -54.38 -37.81, -46.11 -37.33, -42.43 -42.43 C -37.33 -46.11, -37.81 -54.38, -33.00 -57.16 C -28.19 -59.93, -21.27 -55.38, -15.27 -56.99 C -9.27 -58.60, -5.55 -66.00, -0.00 -66.00 C 5.55 -66.00, 9.27 -58.60, 15.27 -56.99 C 21.27 -55.38, 28.19 -59.93, 33.00 -57.16 C 37.81 -54.38, 37.33 -46.11, 42.43 -42.43 C 46.11 -37.33, 54.38 -37.81, 57.16 -33.00 C 59.93 -28.19, 55.38 -21.27, 56.99 -15.27 C 58.60 -9.27, 66.00 -5.55, 66.00 -0.00 Z" fill="#10B981"/>
+      <path d="M 66.00 0.00 C 66.00 5.55, 58.60 9.27, 56.99 15.27 C 55.38 21.27, 59.93 28.19, 57.16 33.00 C 54.38 37.81, 46.11 37.33, 42.43 42.43 C 37.33 46.11, 37.81 54.38, 33.00 57.16 C 28.19 59.93, 21.27 55.38, 15.27 56.99 C 9.27 58.60, 5.55 66.00, 0.00 66.00 C -5.55 66.00, -9.27 58.60, -15.27 56.99 C -21.27 55.38, -28.19 59.93, -33.00 57.16 C -37.81 54.38, -37.33 46.11, -42.43 42.43 C -46.11 37.33, -54.38 37.81, -57.16 33.00 C -59.93 28.19, -55.38 21.27, -56.99 15.27 C -58.60 9.27, -66.00 5.55, -66.00 0.00 C -66.00 -5.55, -58.60 -9.27, -56.99 -15.27 C -55.38 -21.27, -59.93 -28.19, -57.16 -33.00 C -54.38 -37.81, -46.11 -37.33, -42.43 -42.43 C -37.33 -46.11, -37.81 -54.38, -33.00 -57.16 C -28.19 -59.93, -21.27 -55.38, -15.27 -56.99 C -9.27 -58.60, -5.55 -66.00, -0.00 -66.00 C 5.55 -66.00, 9.27 -58.60, 15.27 -56.99 C 21.27 -55.38, 28.19 -59.93, 33.00 -57.16 C 37.81 -54.38, 37.33 -46.11, 42.43 -42.43 C 46.11 -37.33, 54.38 -37.81, 57.16 -33.00 C 59.93 -28.19, 55.38 -21.27, 56.99 -15.27 C 58.60 -9.27, 66.00 -5.55, 66.00 -0.00 Z" fill="url(#hero-glow-green)" opacity="0.4"/>
+      <!-- White Tactile Power Icon -->
+      <path d="M0 -24 L0 -7" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round"/>
+      <path d="M-15 -14 A21 21 0 1 0 15 -14" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round"/>
+      <!-- Status Readout -->
+      <text x="0" y="98" font-family="system-ui, sans-serif" font-size="22" font-weight="900" fill="#EDEDED" text-anchor="middle" letter-spacing="-0.02em">PROTECTED</text>
+      <!-- Status Uptime Pill -->
+      <g transform="translate(-64, 114)">
+        <rect width="128" height="26" rx="13" fill="#101010" stroke="#262626" stroke-width="1"/>
+        <circle cx="16" cy="13" r="3.5" fill="#10B981"/>
+        <text x="70" y="17" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#10B981" text-anchor="middle">VPN · 01:24:12</text>
+      </g>
+    </g>
+
+    <!-- ACTIVE SERVER STRIP (Tonal #181818, 26dp container) -->
+    <g transform="translate(20, 396)">
+      <text x="4" y="0" font-family="system-ui, sans-serif" font-size="11" font-weight="800" letter-spacing="1.5px" fill="#71717A">ACTIVE SERVER</text>
+      <g transform="translate(0, 10)">
+        <rect width="320" height="74" rx="26" fill="#181818" stroke="#262626" stroke-width="1"/>
+        <!-- Squircle Flag Container -->
+        <rect x="14" y="15" width="44" height="44" rx="14" fill="#242424"/>
+        <text x="36" y="44" font-size="22" text-anchor="middle">🇳🇱</text>
+        <text x="68" y="34" font-family="system-ui, sans-serif" font-size="15" font-weight="800" fill="#EDEDED">Amsterdam Fast #1</text>
+        <text x="68" y="50" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#71717A">Auto-Selected · VIP</text>
+        <!-- Ping Badge Pill -->
+        <rect x="228" y="24" width="62" height="26" rx="13" fill="#101010" stroke="#10B981" stroke-width="1"/>
+        <text x="259" y="41" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#10B981" text-anchor="middle">24 ms</text>
+        <!-- Chevron Right -->
+        <path d="M300 32 L305 37 L300 42" stroke="#71717A" stroke-width="2" stroke-linecap="round" fill="none"/>
+      </g>
+    </g>
+
+    <!-- LIVE TRAFFIC STAT BLOCKS (Side-by-side Dual Cards) -->
+    <g transform="translate(20, 508)">
+      <text x="4" y="0" font-family="system-ui, sans-serif" font-size="11" font-weight="800" letter-spacing="1.5px" fill="#71717A">LIVE TRAFFIC</text>
+      <g transform="translate(0, 10)">
+        <!-- Download Block -->
+        <g transform="translate(0, 0)">
+          <rect width="154" height="82" rx="24" fill="#181818" stroke="#262626" stroke-width="1"/>
+          <path d="M16 22 L16 32 M12 28 L16 32 L20 28" stroke="#10B981" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <text x="26" y="28" font-family="system-ui, sans-serif" font-size="10" font-weight="800" fill="#71717A">DOWNLOAD</text>
+          <text x="16" y="52" font-family="system-ui, sans-serif" font-size="17" font-weight="900" fill="#10B981">48.2 MB/s</text>
+          <path d="M16 72 Q 40 60, 75 66 T 138 60 L 138 74 L 16 74 Z" fill="url(#download-grad)"/>
+        </g>
+        <!-- Upload Block -->
+        <g transform="translate(166, 0)">
+          <rect width="154" height="82" rx="24" fill="#181818" stroke="#262626" stroke-width="1"/>
+          <path d="M16 30 L16 20 M12 24 L16 20 L20 24" stroke="#06B6D4" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <text x="26" y="28" font-family="system-ui, sans-serif" font-size="10" font-weight="800" fill="#71717A">UPLOAD</text>
+          <text x="16" y="52" font-family="system-ui, sans-serif" font-size="17" font-weight="900" fill="#06B6D4">14.6 MB/s</text>
+          <path d="M16 72 Q 40 66, 75 60 T 138 64 L 138 74 L 16 74 Z" fill="url(#upload-grad)"/>
+        </g>
+      </g>
+    </g>
+
+    <!-- ROUTING MODE SEGMENTED PILLS -->
+    <g transform="translate(20, 626)">
+      <text x="4" y="0" font-family="system-ui, sans-serif" font-size="11" font-weight="800" letter-spacing="1.5px" fill="#71717A">ROUTING MODE</text>
+      <g transform="translate(0, 10)">
+        <rect width="320" height="52" rx="26" fill="#101010" stroke="#262626" stroke-width="1"/>
+        <!-- Active Pill Thumb (RULE) -->
+        <rect x="6" y="5" width="98" height="42" rx="21" fill="#C4B5FD"/>
+        <text x="55" y="31" font-family="system-ui, sans-serif" font-size="12" font-weight="900" fill="#1E1035" text-anchor="middle">RULE</text>
+        <text x="160" y="31" font-family="system-ui, sans-serif" font-size="12" font-weight="800" fill="#71717A" text-anchor="middle">GLOBAL</text>
+        <text x="265" y="31" font-family="system-ui, sans-serif" font-size="12" font-weight="800" fill="#71717A" text-anchor="middle">DIRECT</text>
+      </g>
+    </g>
+
+    <!-- FLOATING M3E NAVIGATION BAR CAPSULE -->
+    <g transform="translate(18, 712)">
+      <rect width="324" height="66" rx="33" fill="#101010" stroke="#262626" stroke-width="1.5"/>
+      <!-- Item 1: Dashboard Active -->
+      <g transform="translate(18, 12)">
+        <rect width="64" height="42" rx="21" fill="#4C1D95"/>
+        <path d="M32 12 L22 17 L22 25 L32 30 L42 25 L42 17 Z" fill="#C4B5FD"/>
+      </g>
+      <!-- Item 2: Servers -->
+      <g transform="translate(100, 12)">
+        <path d="M22 18 H38 V22 H22 Z M22 26 H38 V30 H22 Z" fill="#71717A"/>
+      </g>
+      <!-- Item 3: Profiles -->
+      <g transform="translate(174, 12)">
+        <path d="M22 16 H36 V32 L29 27 L22 32 Z" fill="#71717A"/>
+      </g>
+      <!-- Item 4: Settings -->
+      <g transform="translate(248, 12)">
+        <circle cx="28" cy="24" r="7" stroke="#71717A" stroke-width="2.5" fill="none"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- SCREEN 2: SERVERS (x=420, y=20, w=360, h=800)                              -->
+  <!-- ========================================================================= -->
+  <g id="Redesign-Screen-Servers" transform="translate(420, 20)">
+    <rect width="360" height="800" rx="38" fill="#000000" stroke="#181818" stroke-width="2"/>
+
+    <!-- Android Status Bar -->
+    <text x="32" y="38" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#EDEDED">12:30</text>
+    <circle cx="316" cy="34" r="3.5" fill="#EDEDED"/>
+    <rect x="326" y="29" width="16" height="9" rx="2.5" fill="#EDEDED"/>
+
+    <!-- Header: Servers Title + Node Count + Fast Ping -->
+    <g transform="translate(24, 76)">
+      <text x="0" y="16" font-family="system-ui, sans-serif" font-size="30" font-weight="900" fill="#EDEDED" letter-spacing="-0.02em">Servers</text>
+      <!-- Node Count Badge Pill (Feature 8) -->
+      <g transform="translate(136, -6)">
+        <rect width="42" height="36" rx="18" fill="#181818" stroke="#262626" stroke-width="1"/>
+        <text x="21" y="22" font-family="system-ui, sans-serif" font-size="12" font-weight="800" fill="#C4B5FD" text-anchor="middle">64</text>
+      </g>
+      <!-- Speedtest Quick Action -->
+      <g transform="translate(210, -6)">
+        <rect width="44" height="36" rx="18" fill="#181818" stroke="#262626" stroke-width="1"/>
+        <path d="M22 11 L17 21 L23 21 L20 27 L27 17 L21 17 Z" fill="#10B981"/>
+      </g>
+      <!-- Filter Quick Action -->
+      <g transform="translate(264, -6)">
+        <rect width="44" height="36" rx="18" fill="#181818" stroke="#262626" stroke-width="1"/>
+        <path d="M16 15 H28 M18 20 H26 M20 25 H24" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round"/>
+      </g>
+    </g>
+
+    <!-- Search Capsule Bar -->
+    <g transform="translate(20, 134)">
+      <rect width="320" height="46" rx="23" fill="#181818" stroke="#262626" stroke-width="1"/>
+      <circle cx="26" cy="23" r="5" stroke="#71717A" stroke-width="2" fill="none"/>
+      <path d="M30 27 L35 32" stroke="#71717A" stroke-width="2" stroke-linecap="round"/>
+      <text x="46" y="28" font-family="system-ui, sans-serif" font-size="13" fill="#71717A">Search 64 nodes...</text>
+      <!-- FASTEST Chip -->
+      <rect x="238" y="9" width="72" height="28" rx="14" fill="#3B1569"/>
+      <text x="274" y="27" font-family="system-ui, sans-serif" font-size="10" font-weight="800" fill="#C084FC" text-anchor="middle">FASTEST</text>
+    </g>
+
+    <!-- Filter Tabs (Horizontal Stadium Pills) -->
+    <g transform="translate(20, 196)">
+      <!-- Tab 1: PROXIES Active -->
+      <rect x="0" y="0" width="86" height="34" rx="17" fill="#C4B5FD"/>
+      <text x="43" y="22" font-family="system-ui, sans-serif" font-size="11" font-weight="900" fill="#1E1035" text-anchor="middle">PROXIES</text>
+      <!-- Tab 2: AUTO -->
+      <rect x="94" y="0" width="68" height="34" rx="17" fill="#181818" stroke="#262626" stroke-width="1"/>
+      <text x="128" y="22" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#71717A" text-anchor="middle">AUTO</text>
+      <!-- Tab 3: FALLBACK -->
+      <rect x="170" y="0" width="84" height="34" rx="17" fill="#181818" stroke="#262626" stroke-width="1"/>
+      <text x="212" y="22" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#71717A" text-anchor="middle">FALLBACK</text>
+      <!-- Tab 4: DIRECT -->
+      <rect x="262" y="0" width="58" height="34" rx="17" fill="#181818" stroke="#262626" stroke-width="1"/>
+      <text x="291" y="22" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#71717A" text-anchor="middle">DIRECT</text>
+    </g>
+
+    <!-- ASYMMETRIC GROUPED SERVER LIST (24dp / 4dp rhythm) -->
+    <g transform="translate(20, 248)">
+      <!-- Row 1: Active NL Node (Top Asymmetric: 24dp top, 4dp bottom) -->
+      <g transform="translate(0, 0)">
+        <path d="M0 24 C 0 10.7, 10.7 0, 24 0 L 296 0 C 309.3 0, 320 10.7, 320 24 L 320 74 C 320 76.2, 318.2 78, 316 78 L 4 78 C 1.8 78, 0 76.2, 0 74 Z" fill="#242424" stroke="#8B5CF6" stroke-width="1.5"/>
+        <rect x="14" y="16" width="46" height="46" rx="14" fill="#181818"/>
+        <text x="37" y="46" font-size="22" text-anchor="middle">🇳🇱</text>
+        <text x="70" y="34" font-family="system-ui, sans-serif" font-size="14" font-weight="800" fill="#EDEDED">NL-Amsterdam-01</text>
+        <!-- Protocol Badge VLESS -->
+        <rect x="70" y="44" width="48" height="18" rx="9" fill="#3B1569"/>
+        <text x="94" y="57" font-family="system-ui, sans-serif" font-size="9" font-weight="800" fill="#C084FC" text-anchor="middle">VLESS</text>
+        <text x="124" y="57" font-family="system-ui, sans-serif" font-size="10" fill="#71717A">185.220.x.x</text>
+        <!-- Selection Checkmark Indicator (Feature 12) -->
+        <circle cx="224" cy="39" r="10" fill="#8B5CF6"/>
+        <path d="M220 39 L223 42 L228 36" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <!-- Ping Badge -->
+        <rect x="246" y="26" width="60" height="26" rx="13" fill="#101010" stroke="#10B981" stroke-width="1"/>
+        <text x="276" y="43" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#10B981" text-anchor="middle">24 ms</text>
+      </g>
+
+      <!-- Row 2: DE Node (Middle: 4dp) -->
+      <g transform="translate(0, 80)">
+        <rect width="320" height="78" rx="4" fill="#181818" stroke="#262626" stroke-width="1"/>
+        <rect x="14" y="16" width="46" height="46" rx="14" fill="#242424"/>
+        <text x="37" y="46" font-size="22" text-anchor="middle">🇩🇪</text>
+        <text x="70" y="34" font-family="system-ui, sans-serif" font-size="14" font-weight="800" fill="#EDEDED">DE-Frankfurt-02</text>
+        <!-- Protocol Badge TROJAN -->
+        <rect x="70" y="44" width="54" height="18" rx="9" fill="#4E2D07"/>
+        <text x="97" y="57" font-family="system-ui, sans-serif" font-size="9" font-weight="800" fill="#FBBF24" text-anchor="middle">TROJAN</text>
+        <text x="130" y="57" font-family="system-ui, sans-serif" font-size="10" fill="#71717A">45.133.x.x</text>
+        <rect x="246" y="26" width="60" height="26" rx="13" fill="#101010" stroke="#10B981" stroke-width="1"/>
+        <text x="276" y="43" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#10B981" text-anchor="middle">38 ms</text>
+      </g>
+
+      <!-- Row 3: FI Node (Middle: 4dp) -->
+      <g transform="translate(0, 160)">
+        <rect width="320" height="78" rx="4" fill="#181818" stroke="#262626" stroke-width="1"/>
+        <rect x="14" y="16" width="46" height="46" rx="14" fill="#242424"/>
+        <text x="37" y="46" font-size="22" text-anchor="middle">🇫🇮</text>
+        <text x="70" y="34" font-family="system-ui, sans-serif" font-size="14" font-weight="800" fill="#EDEDED">FI-Helsinki-01</text>
+        <!-- Protocol Badge HYSTERIA2 -->
+        <rect x="70" y="44" width="70" height="18" rx="9" fill="#0B3A53"/>
+        <text x="105" y="57" font-family="system-ui, sans-serif" font-size="9" font-weight="800" fill="#38BDF8" text-anchor="middle">HYSTERIA2</text>
+        <rect x="246" y="26" width="60" height="26" rx="13" fill="#101010" stroke="#10B981" stroke-width="1"/>
+        <text x="276" y="43" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#10B981" text-anchor="middle">45 ms</text>
+      </g>
+
+      <!-- Row 4: US Node (Bottom Asymmetric: 4dp top, 24dp bottom) -->
+      <g transform="translate(0, 240)">
+        <path d="M0 4 C 0 1.8, 1.8 0, 4 0 L 316 0 C 318.2 0, 320 1.8, 320 4 L 320 54 C 320 67.3, 309.3 78, 296 78 L 24 78 C 10.7 78, 0 67.3, 0 54 Z" fill="#181818" stroke="#262626" stroke-width="1"/>
+        <rect x="14" y="16" width="46" height="46" rx="14" fill="#242424"/>
+        <text x="37" y="46" font-size="22" text-anchor="middle">🇺🇸</text>
+        <text x="70" y="34" font-family="system-ui, sans-serif" font-size="14" font-weight="800" fill="#EDEDED">US-NewYork-04</text>
+        <!-- Protocol Badge SHADOWS -->
+        <rect x="70" y="44" width="62" height="18" rx="9" fill="#1E1E5E"/>
+        <text x="101" y="57" font-family="system-ui, sans-serif" font-size="9" font-weight="800" fill="#818CF8" text-anchor="middle">SHADOWS</text>
+        <rect x="240" y="26" width="66" height="26" rx="13" fill="#101010" stroke="#F59E0B" stroke-width="1"/>
+        <text x="273" y="43" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#F59E0B" text-anchor="middle">120 ms</text>
+      </g>
+    </g>
+
+    <!-- FLOATING M3E NAVIGATION BAR CAPSULE -->
+    <g transform="translate(18, 712)">
+      <rect width="324" height="66" rx="33" fill="#101010" stroke="#262626" stroke-width="1.5"/>
+      <g transform="translate(28, 12)">
+        <path d="M32 12 L22 17 L22 25 L32 30 L42 25 L42 17 Z" fill="#71717A"/>
+      </g>
+      <!-- Item 2: Servers Active -->
+      <g transform="translate(90, 12)">
+        <rect width="64" height="42" rx="21" fill="#4C1D95"/>
+        <path d="M24 17 H40 V21 H24 Z M24 25 H40 V29 H24 Z" fill="#C4B5FD"/>
+      </g>
+      <g transform="translate(174, 12)">
+        <path d="M22 16 H36 V32 L29 27 L22 32 Z" fill="#71717A"/>
+      </g>
+      <g transform="translate(248, 12)">
+        <circle cx="28" cy="24" r="7" stroke="#71717A" stroke-width="2.5" fill="none"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- SCREEN 3: SUBSCRIPTIONS (x=820, y=20, w=360, h=800)                        -->
+  <!-- ========================================================================= -->
+  <g id="Redesign-Screen-Subscriptions" transform="translate(820, 20)">
+    <rect width="360" height="800" rx="38" fill="#000000" stroke="#181818" stroke-width="2"/>
+
+    <!-- Android Status Bar -->
+    <text x="32" y="38" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#EDEDED">12:30</text>
+    <circle cx="316" cy="34" r="3.5" fill="#EDEDED"/>
+    <rect x="326" y="29" width="16" height="9" rx="2.5" fill="#EDEDED"/>
+
+    <!-- Header: Subscriptions Title + Add Action Button -->
+    <g transform="translate(24, 76)">
+      <text x="0" y="16" font-family="system-ui, sans-serif" font-size="28" font-weight="900" fill="#EDEDED" letter-spacing="-0.02em">Subscriptions</text>
+      <!-- Subscriptions Count Pill (Feature 14) -->
+      <g transform="translate(208, -6)">
+        <rect width="38" height="36" rx="18" fill="#181818" stroke="#262626" stroke-width="1"/>
+        <text x="19" y="22" font-family="system-ui, sans-serif" font-size="12" font-weight="800" fill="#C4B5FD" text-anchor="middle">2</text>
+      </g>
+      <!-- Add Profile Button -->
+      <g transform="translate(262, -6)">
+        <circle cx="22" cy="18" r="18" fill="#C4B5FD"/>
+        <path d="M22 11 V25 M15 18 H29" stroke="#1E1035" stroke-width="2.5" stroke-linecap="round"/>
+      </g>
+    </g>
+
+    <!-- Import Action Card (Dashed Container) -->
+    <g transform="translate(20, 134)">
+      <rect width="320" height="60" rx="20" fill="#101010" stroke="#333333" stroke-width="1.5" stroke-dasharray="6,4"/>
+      <circle cx="36" cy="30" r="14" fill="#181818"/>
+      <path d="M36 24 V36 M30 30 H42" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round"/>
+      <text x="64" y="35" font-family="system-ui, sans-serif" font-size="14" font-weight="800" fill="#EDEDED">Import via URL / Clipboard</text>
+    </g>
+
+    <!-- SUBSCRIPTION CARDS LIST -->
+    <g transform="translate(20, 212)">
+      <!-- Card 1: FastPremium VIP (Active Plan) -->
+      <g transform="translate(0, 0)">
+        <rect width="320" height="168" rx="28" fill="#181818" stroke="#262626" stroke-width="1"/>
+        <rect x="16" y="16" width="36" height="36" rx="12" fill="#064E3B"/>
+        <path d="M26 34 L32 40 L42 28" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <text x="62" y="32" font-family="system-ui, sans-serif" font-size="16" font-weight="900" fill="#EDEDED">FastPremium VIP</text>
+        <text x="62" y="48" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#71717A">Auto-update · 42 nodes</text>
+        
+        <!-- Quota Usage Block -->
+        <g transform="translate(16, 68)">
+          <text x="0" y="12" font-family="system-ui, sans-serif" font-size="10" font-weight="800" fill="#71717A" letter-spacing="1px">TRAFFIC USAGE</text>
+          <text x="288" y="12" font-family="system-ui, sans-serif" font-size="11" font-weight="900" fill="#10B981" text-anchor="end">48.5 GB / 120 GB</text>
+          <!-- Stadium Progress Bar Track -->
+          <rect x="0" y="20" width="288" height="10" rx="5" fill="#101010"/>
+          <rect x="0" y="20" width="116" height="10" rx="5" fill="url(#quota-grad)"/>
+        </g>
+
+        <!-- Actions Row -->
+        <g transform="translate(16, 122)">
+          <rect x="0" y="0" width="84" height="30" rx="15" fill="#242424"/>
+          <text x="42" y="19" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#EDEDED" text-anchor="middle">UPDATE 🔄</text>
+          <rect x="92" y="0" width="68" height="30" rx="15" fill="#242424"/>
+          <text x="126" y="19" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#EDEDED" text-anchor="middle">EDIT ✏️</text>
+          <rect x="194" y="0" width="94" height="30" rx="15" fill="#3A2407"/>
+          <text x="241" y="19" font-family="system-ui, sans-serif" font-size="10" font-weight="800" fill="#F59E0B" text-anchor="middle">14 days left</text>
+        </g>
+      </g>
+
+      <!-- Card 2: Backup Free Config -->
+      <g transform="translate(0, 184)">
+        <rect width="320" height="142" rx="28" fill="#101010" stroke="#262626" stroke-width="1"/>
+        <rect x="16" y="16" width="36" height="36" rx="12" fill="#242424"/>
+        <circle cx="34" cy="34" r="5" fill="#71717A"/>
+        <text x="62" y="32" font-family="system-ui, sans-serif" font-size="16" font-weight="800" fill="#EDEDED">Backup Free Config</text>
+        <text x="62" y="48" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#71717A">Local file · 12 nodes</text>
+
+        <g transform="translate(16, 68)">
+          <text x="0" y="12" font-family="system-ui, sans-serif" font-size="10" font-weight="800" fill="#71717A">UNLIMITED LOCAL</text>
+          <rect x="0" y="20" width="288" height="6" rx="3" fill="#181818"/>
+        </g>
+
+        <g transform="translate(16, 102)">
+          <rect x="0" y="0" width="84" height="28" rx="14" fill="#181818"/>
+          <text x="42" y="18" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#71717A" text-anchor="middle">UPDATE 🔄</text>
+          <text x="100" y="18" font-family="system-ui, sans-serif" font-size="11" fill="#71717A">Updated 2d ago</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- FLOATING M3E NAVIGATION BAR CAPSULE -->
+    <g transform="translate(18, 712)">
+      <rect width="324" height="66" rx="33" fill="#101010" stroke="#262626" stroke-width="1.5"/>
+      <g transform="translate(28, 12)">
+        <path d="M32 12 L22 17 L22 25 L32 30 L42 25 L42 17 Z" fill="#71717A"/>
+      </g>
+      <g transform="translate(100, 12)">
+        <path d="M22 18 H38 V22 H22 Z M22 26 H38 V30 H22 Z" fill="#71717A"/>
+      </g>
+      <!-- Item 3: Profiles Active -->
+      <g transform="translate(164, 12)">
+        <rect width="64" height="42" rx="21" fill="#4C1D95"/>
+        <path d="M26 16 H38 V32 L32 27 L26 32 Z" fill="#C4B5FD"/>
+      </g>
+      <g transform="translate(248, 12)">
+        <circle cx="28" cy="24" r="7" stroke="#71717A" stroke-width="2.5" fill="none"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- SCREEN 4: SETTINGS (x=1220, y=20, w=360, h=800)                            -->
+  <!-- ========================================================================= -->
+  <g id="Redesign-Screen-Settings" transform="translate(1220, 20)">
+    <rect width="360" height="800" rx="38" fill="#000000" stroke="#181818" stroke-width="2"/>
+
+    <!-- Android Status Bar -->
+    <text x="32" y="38" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#EDEDED">12:30</text>
+    <circle cx="316" cy="34" r="3.5" fill="#EDEDED"/>
+    <rect x="326" y="29" width="16" height="9" rx="2.5" fill="#EDEDED"/>
+
+    <!-- Header: Settings Title -->
+    <g transform="translate(24, 76)">
+      <text x="0" y="16" font-family="system-ui, sans-serif" font-size="30" font-weight="900" fill="#EDEDED" letter-spacing="-0.02em">Settings</text>
+    </g>
+
+    <!-- SECTION 1: APPEARANCE (Grouped 24/4dp container) -->
+    <g transform="translate(20, 134)">
+      <text x="4" y="0" font-family="system-ui, sans-serif" font-size="11" font-weight="800" letter-spacing="1.5px" fill="#71717A">APPEARANCE</text>
+      <g transform="translate(0, 10)">
+        <rect width="320" height="124" rx="24" fill="#181818" stroke="#262626" stroke-width="1"/>
+        <!-- Row 1: AMOLED Pure Black -->
+        <g transform="translate(18, 18)">
+          <text x="0" y="16" font-family="system-ui, sans-serif" font-size="15" font-weight="800" fill="#EDEDED">AMOLED Pure Black</text>
+          <text x="0" y="32" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#71717A">Zero OLED power consumption</text>
+          <!-- Switch ON -->
+          <rect x="236" y="8" width="48" height="28" rx="14" fill="#10B981"/>
+          <circle cx="270" cy="22" r="11" fill="#FFFFFF"/>
+        </g>
+        <line x1="18" y1="68" x2="302" y2="68" stroke="#242424" stroke-width="1"/>
+        <!-- Row 2: Material You Dynamic -->
+        <g transform="translate(18, 76)">
+          <text x="0" y="16" font-family="system-ui, sans-serif" font-size="15" font-weight="800" fill="#EDEDED">Material You Dynamic</text>
+          <text x="0" y="32" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#71717A">Adapt colors to wallpaper</text>
+          <!-- Switch OFF -->
+          <rect x="236" y="8" width="48" height="28" rx="14" fill="#242424"/>
+          <circle cx="250" cy="22" r="11" fill="#71717A"/>
+        </g>
+      </g>
+    </g>
+
+    <!-- SECTION 2: CONNECTION (Grouped 24/4dp container) -->
+    <g transform="translate(20, 298)">
+      <text x="4" y="0" font-family="system-ui, sans-serif" font-size="11" font-weight="800" letter-spacing="1.5px" fill="#71717A">CONNECTION</text>
+      <g transform="translate(0, 10)">
+        <rect width="320" height="174" rx="24" fill="#181818" stroke="#262626" stroke-width="1"/>
+        <!-- Row 1: Working Mode -->
+        <g transform="translate(18, 16)">
+          <text x="0" y="16" font-family="system-ui, sans-serif" font-size="15" font-weight="800" fill="#EDEDED">Working Mode</text>
+          <text x="0" y="32" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#71717A">VpnService (Rootless)</text>
+          <path d="M278 18 L284 24 L278 30" stroke="#71717A" stroke-width="2" stroke-linecap="round" fill="none"/>
+        </g>
+        <line x1="18" y1="64" x2="302" y2="64" stroke="#242424" stroke-width="1"/>
+        <!-- Row 2: Bypass LAN & Local -->
+        <g transform="translate(18, 72)">
+          <text x="0" y="16" font-family="system-ui, sans-serif" font-size="15" font-weight="800" fill="#EDEDED">Bypass LAN &amp; Local</text>
+          <text x="0" y="32" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#71717A">Exclude home subnets</text>
+          <rect x="236" y="8" width="48" height="28" rx="14" fill="#10B981"/>
+          <circle cx="270" cy="22" r="11" fill="#FFFFFF"/>
+        </g>
+        <line x1="18" y1="120" x2="302" y2="120" stroke="#242424" stroke-width="1"/>
+        <!-- Row 3: Enable IPv6 Route -->
+        <g transform="translate(18, 128)">
+          <text x="0" y="16" font-family="system-ui, sans-serif" font-size="15" font-weight="800" fill="#EDEDED">Enable IPv6 Route</text>
+          <rect x="236" y="4" width="48" height="28" rx="14" fill="#242424"/>
+          <circle cx="250" cy="18" r="11" fill="#71717A"/>
+        </g>
+      </g>
+    </g>
+
+    <!-- SECTION 3: SYSTEM & CORE -->
+    <g transform="translate(20, 512)">
+      <text x="4" y="0" font-family="system-ui, sans-serif" font-size="11" font-weight="800" letter-spacing="1.5px" fill="#71717A">SYSTEM &amp; CORE</text>
+      <g transform="translate(0, 10)">
+        <rect width="320" height="116" rx="24" fill="#181818" stroke="#262626" stroke-width="1"/>
+        <g transform="translate(18, 18)">
+          <text x="0" y="16" font-family="system-ui, sans-serif" font-size="15" font-weight="800" fill="#EDEDED">Mihomo Core Alpha</text>
+          <text x="0" y="32" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#71717A">v1.19.0-alpha · Premium</text>
+          <path d="M278 18 L284 24 L278 30" stroke="#71717A" stroke-width="2" stroke-linecap="round" fill="none"/>
+        </g>
+        <line x1="18" y1="62" x2="302" y2="62" stroke="#242424" stroke-width="1"/>
+        <g transform="translate(18, 70)">
+          <text x="0" y="16" font-family="system-ui, sans-serif" font-size="15" font-weight="800" fill="#EDEDED">About Mihomet</text>
+          <text x="0" y="32" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#71717A">v0.8.2 (MD3E Edition 2)</text>
+          <path d="M278 18 L284 24 L278 30" stroke="#71717A" stroke-width="2" stroke-linecap="round" fill="none"/>
+        </g>
+      </g>
+    </g>
+
+    <!-- FLOATING M3E NAVIGATION BAR CAPSULE -->
+    <g transform="translate(18, 712)">
+      <rect width="324" height="66" rx="33" fill="#101010" stroke="#262626" stroke-width="1.5"/>
+      <g transform="translate(28, 12)">
+        <path d="M32 12 L22 17 L22 25 L32 30 L42 25 L42 17 Z" fill="#71717A"/>
+      </g>
+      <g transform="translate(100, 12)">
+        <path d="M22 18 H38 V22 H22 Z M22 26 H38 V30 H22 Z" fill="#71717A"/>
+      </g>
+      <g transform="translate(174, 12)">
+        <path d="M22 16 H36 V32 L29 27 L22 32 Z" fill="#71717A"/>
+      </g>
+      <!-- Item 4: Settings Active -->
+      <g transform="translate(236, 12)">
+        <rect width="64" height="42" rx="21" fill="#4C1D95"/>
+        <circle cx="32" cy="21" r="7" stroke="#C4B5FD" stroke-width="2.5" fill="none"/>
+      </g>
+    </g>
+  </g>
+</svg>
