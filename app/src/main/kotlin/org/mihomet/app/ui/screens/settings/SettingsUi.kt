@@ -159,44 +159,14 @@ fun ExpressiveSwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(ExpressiveShapes.Medium)
-            .clickable { onCheckedChange(!checked) },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(
-            modifier = Modifier.weight(1f).padding(end = 12.dp, top = 4.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                shape = ExpressiveShapes.Small,
-                color = iconBg,
-                modifier = Modifier.size(SettingsIconContainerSize)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        icon,
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier.size(SettingsIconSize)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Column {
-                Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange
-        )
-    }
+    // Edition 2 delegation: the visual language lives in the D2 kit now.
+    org.mihomet.app.ui.design2.D2SwitchRow(
+        icon = icon,
+        title = title,
+        subtitle = subtitle,
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        iconContainer = iconBg,
+        iconTint = iconTint
+    )
 }
