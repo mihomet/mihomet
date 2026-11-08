@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.3.7
+
+### Fixed
+- Subscription UA fallback now lands on the RICHEST channel: panels
+  (Remnawave et al.) serve a full Xray config with a balancer and thousands
+  of routing rules to the Happ tier — the app stopped at the first grouped
+  (Mihomo-tier) channel and silently lost all of it
+- Converter: a Remnawave-style subscription item with remarks and multiple
+  real outbounds converted only the first node — the rest were silently
+  dropped (found by the new on-device instrumented test)
+
+### Added
+- Xray→mihomo parameter portability sweep: streamSettings method alias
+  (raw/websocket), mux→smux (vision-safe), kcpSettings→mkcp-opts (mihomo
+  dropped the legacy kcp-opts key), sockopt.dialerProxy, root-level
+  allowInsecure, legacy xtls security, xhttp extras
+- sing-box→mihomo sweep: ssh and socks outbounds, packet-encoding,
+  hysteria2 up/down, wireguard reserved+mtu
+- On-device instrumented verification of the subscription UA fallback
+  (MockWebServer serves all three UA-tier channels; the real repository
+  stack must land on the richest one)
+
+### Security
+- Provider host redacted from the compatibility research docs
+- Hiddify bench fixtures no longer carry real-shaped ed25519 private keys
+
 ## 1.3.6
 
 ### Fixed
