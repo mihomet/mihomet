@@ -1,0 +1,1631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mihomet — Material 3 Expressive (Phone Monet Live)</title>
+  <style>
+    :root {
+      /* Dynamic Monet Palette from Realme GT Neo 5 (RMX3706 via ADB :6666) */
+      --seed-color: #4CA985;
+      
+      --monet-primary: #8CD5B3;
+      --monet-on-primary: #003826;
+      --monet-primary-container: #005139;
+      --monet-on-primary-container: #A8F2CE;
+      
+      --monet-secondary: #B3CCBE;
+      --monet-on-secondary: #1F352B;
+      --monet-secondary-container: #354B40;
+      --monet-on-secondary-container: #CFE9D9;
+      
+      --monet-tertiary: #A5CCDF;
+      --monet-on-tertiary: #083544;
+      --monet-tertiary-container: #254B5B;
+      --monet-on-tertiary-container: #C1E8FC;
+      
+      --monet-neutral-900: #171D1A;
+      --monet-neutral-800: #2C322E;
+      --monet-neutral-700: #424844;
+      --monet-neutral-600: #5A605C;
+      --monet-neutral-500: #727974;
+      --monet-neutral-400: #8C928D;
+      --monet-neutral-100: #DEE4DE;
+      --monet-neutral-50: #EDF2EC;
+
+      --bg-amoled: #000000;
+      --bg-monet-surface: #0E1512;
+      --bg-current: var(--bg-amoled);
+      
+      --card-surface: #121815;
+      --card-surface-elevated: #1A221E;
+      --card-stroke: rgba(140, 213, 179, 0.12);
+      --card-stroke-active: #8CD5B3;
+
+      --amber-latency: #F59E0B;
+      --emerald-latency: #10B981;
+      --text-high: #F2F5F3;
+      --text-medium: #A4ADA7;
+      --text-subtle: #707973;
+
+      /* M3E Shapes */
+      --radius-phone: 40px;
+      --radius-card: 26px;
+      --radius-pill: 20px;
+      --radius-control: 16px;
+
+      /* Springs */
+      --spring-fast: cubic-bezier(0.2, 0, 0, 1);
+      --spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      background: #090c0b;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+      color: var(--text-high);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    /* Device Showcase Wrapper */
+    .device-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .device-info-banner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(140, 213, 179, 0.08);
+      border: 1px solid rgba(140, 213, 179, 0.2);
+      border-radius: 20px;
+      padding: 8px 18px;
+      font-size: 13px;
+      color: var(--monet-primary);
+    }
+    .device-info-banner .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--monet-primary);
+      box-shadow: 0 0 8px var(--monet-primary);
+      animation: pulse-dot 2s infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* Phone Chassis */
+    .phone-frame {
+      width: 380px;
+      height: 820px;
+      background: var(--bg-current);
+      border: 3px solid #232B27;
+      border-radius: var(--radius-phone);
+      box-shadow: 0 25px 60px -15px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.05);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: background 0.3s var(--spring-fast);
+    }
+
+    /* Android Status Bar */
+    .status-bar {
+      height: 48px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-high);
+      z-index: 10;
+    }
+    .status-icons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      opacity: 0.9;
+    }
+
+    /* Screen Views Container */
+    .screens-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .screen-view {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      padding: 8px 20px 84px 20px;
+      overflow-y: auto;
+      scrollbar-width: none;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      opacity: 0;
+      transform: translateX(30px) scale(0.98);
+      pointer-events: none;
+      transition: opacity 0.28s var(--spring-fast), transform 0.28s var(--spring-fast);
+    }
+    .screen-view::-webkit-scrollbar { display: none; }
+    .screen-view.active {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+      pointer-events: auto;
+    }
+
+    /* Common Header */
+    .screen-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 0 6px 0;
+    }
+    .screen-title {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -0.6px;
+      color: var(--text-high);
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .pill-badge-btn {
+      background: var(--card-surface);
+      border: 1px solid var(--card-stroke);
+      height: 36px;
+      padding: 0 14px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--monet-primary);
+      cursor: pointer;
+      transition: transform 0.15s, background 0.15s, border-color 0.15s;
+    }
+    .pill-badge-btn:active {
+      transform: scale(0.93);
+      background: var(--card-surface-elevated);
+      border-color: var(--monet-primary);
+    }
+
+    /* ========================================================
+       SCREEN 1: DASHBOARD
+       ======================================================== */
+    .hero-power-zone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 18px 0 10px 0;
+      position: relative;
+    }
+
+    /* Kinetic Aura Rings */
+    .power-halo-wrap {
+      width: 190px;
+      height: 190px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .aura-ring-outer {
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(140, 213, 179, 0.25) 0%, rgba(140, 213, 179, 0) 70%);
+      opacity: 0;
+      transform: scale(0.85);
+      transition: opacity 0.5s ease, transform 0.5s var(--spring-bounce);
+      pointer-events: none;
+    }
+    .aura-ring-inner {
+      position: absolute;
+      width: 154px;
+      height: 154px;
+      border-radius: 50%;
+      border: 2px dashed rgba(140, 213, 179, 0.4);
+      opacity: 0;
+      transition: opacity 0.4s ease, transform 0.4s var(--spring-bounce);
+      pointer-events: none;
+    }
+
+    /* Tactile Power Squircle Button */
+    .power-btn {
+      width: 130px;
+      height: 130px;
+      border-radius: 46px; /* Tactile squircle */
+      background: #18221D;
+      border: 2px solid #2B3831;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 2px 4px rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.5);
+      position: relative;
+      z-index: 2;
+      transition: all 0.35s var(--spring-bounce);
+    }
+    .power-btn svg {
+      width: 44px;
+      height: 44px;
+      stroke: var(--monet-neutral-400);
+      stroke-width: 3.5;
+      fill: none;
+      transition: stroke 0.3s, transform 0.3s;
+    }
+
+    /* Power Button States */
+    .power-halo-wrap:active .power-btn {
+      transform: scale(0.91);
+    }
+
+    /* Connecting Animation */
+    .power-halo-wrap.connecting .aura-ring-inner {
+      opacity: 0.8;
+      border-style: solid;
+      border-color: var(--monet-primary);
+      animation: spin-ring 1.4s linear infinite;
+    }
+    .power-halo-wrap.connecting .power-btn {
+      border-color: var(--monet-primary);
+      animation: pulse-connecting 1s infinite alternate;
+    }
+
+    /* Connected Active State */
+    .power-halo-wrap.connected .aura-ring-outer {
+      opacity: 1;
+      transform: scale(1.1);
+      animation: breathe-aura 3.5s ease-in-out infinite;
+    }
+    .power-halo-wrap.connected .aura-ring-inner {
+      opacity: 0.6;
+      border-color: rgba(140, 213, 179, 0.6);
+      border-style: solid;
+      animation: spin-ring 12s linear infinite;
+    }
+    .power-halo-wrap.connected .power-btn {
+      background: linear-gradient(135deg, #10B981, #059669);
+      border-color: #34D399;
+      box-shadow: 0 0 35px rgba(16, 185, 129, 0.5), inset 0 2px 4px rgba(255,255,255,0.4);
+    }
+    .power-halo-wrap.connected .power-btn svg {
+      stroke: #FFFFFF;
+      transform: scale(1.08);
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
+
+    @keyframes spin-ring {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes breathe-aura {
+      0%, 100% { transform: scale(1.05); opacity: 0.7; }
+      50% { transform: scale(1.2); opacity: 1; }
+    }
+    @keyframes pulse-connecting {
+      0% { transform: scale(0.97); }
+      100% { transform: scale(1.03); }
+    }
+
+    .hero-status-title {
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: -0.3px;
+      margin-top: 14px;
+      color: var(--text-high);
+      text-align: center;
+      transition: color 0.3s;
+    }
+    .hero-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card-surface);
+      border: 1px solid var(--card-stroke);
+      padding: 5px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text-medium);
+      margin-top: 6px;
+      transition: all 0.3s;
+    }
+    .hero-status-pill .indicator-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--monet-neutral-500);
+      transition: background 0.3s;
+    }
+    .connected .hero-status-pill {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.3);
+      color: #34D399;
+    }
+    .connected .hero-status-pill .indicator-dot {
+      background: #10B981;
+      box-shadow: 0 0 6px #10B981;
+    }
+
+    /* Active Server Card */
+    .active-server-card {
+      background: var(--card-surface);
+      border: 1px solid var(--card-stroke);
+      border-radius: var(--radius-card);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: transform 0.15s, background 0.15s, border-color 0.15s;
+    }
+    .active-server-card:active {
+      transform: scale(0.97);
+      background: var(--card-surface-elevated);
+      border-color: var(--monet-primary);
+    }
+    .server-card-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .flag-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background: #19231F;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .server-card-info .name {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-high);
+    }
+    .server-card-info .meta {
+      font-size: 11px;
+      color: var(--text-medium);
+      margin-top: 2px;
+    }
+    .server-card-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .latency-badge {
+      background: rgba(16, 185, 129, 0.14);
+      color: #34D399;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 8px;
+      border-radius: 8px;
+    }
+
+    /* Live Traffic Cards */
+    .traffic-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .traffic-tile {
+      background: var(--card-surface);
+      border: 1px solid var(--card-stroke);
+      border-radius: var(--radius-control);
+      padding: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+    .traffic-label {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .traffic-label.dl { color: var(--monet-primary); }
+    .traffic-label.ul { color: var(--monet-tertiary); }
+    .traffic-val {
+      font-size: 19px;
+      font-weight: 900;
+      color: var(--text-high);
+      margin-top: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+    .traffic-canvas {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 28px;
+      opacity: 0.55;
+    }
+
+    /* Routing Mode Segmented Group */
+    .routing-segmented-group {
+      background: var(--card-surface);
+      border: 1px solid var(--card-stroke);
+      border-radius: var(--radius-pill);
+      padding: 4px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      position: relative;
+      gap: 4px;
+    }
+    .routing-tab {
+      padding: 8px 0;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text-medium);
+      border-radius: 16px;
+      cursor: pointer;
+      position: relative;
+      z-index: 2;
+      transition: color 0.2s;
+    }
+    .routing-tab.active {
+      color: var(--monet-on-primary-container);
+    }
+    .routing-pill-slider {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: calc(33.333% - 5.33px);
+      height: calc(100% - 8px);
+      background: var(--monet-primary-container);
+      border-radius: 16px;
+      transition: transform 0.25s var(--spring-fast);
+      z-index: 1;
+    }
+
+    /* ========================================================
+       SCREEN 2: SERVERS
+       ======================================================== */
+    .search-pill-box {
+      background: var(--card-surface);
+      border: 1px solid var(--card-stroke);
+      border-radius: var(--radius-pill);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .search-pill-box input {
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text-high);
+      font-size: 13px;
+      font-weight: 600;
+      width: 100%;
+    }
+    .search-pill-box input::placeholder {
+      color: var(--text-subtle);
+    }
+    .fastest-tag {
+      background: var(--monet-primary-container);
+      color: var(--monet-on-primary-container);
+      font-size: 10px;
+      font-weight: 900;
+      padding: 3px 8px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .filter-chips-row {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+    }
+    .filter-chip {
+      background: var(--card-surface);
+      border: 1px solid var(--card-stroke);
+      padding: 6px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text-medium);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .filter-chip.active {
+      background: var(--monet-primary-container);
+      border-color: var(--monet-primary);
+      color: var(--monet-on-primary-container);
+    }
+
+    .servers-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .server-item {
+      background: var(--card-surface);
+      border: 1px solid var(--card-stroke);
+      border-radius: var(--radius-control);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .server-item:active {
+      transform: scale(0.98);
+    }
+    .server-item.selected {
+      border-color: var(--monet-primary);
+      background: rgba(140, 213, 179, 0.08);
+      box-shadow: 0 0 16px rgba(140, 213, 179, 0.15);
+    }
+    .server-item .protocol-tag {
+      font-size: 10px;
+      font-weight: 900;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: var(--monet-secondary-container);
+      color: var(--monet-on-secondary-container);
+      display: inline-block;
+      margin-top: 3px;
+    }
+
+    /* ========================================================
+       SCREEN 3: SUBSCRIPTIONS
+       ======================================================== */
+    .import-btn-pill {
+      background: var(--card-surface);
+      border: 1px solid var(--monet-primary);
+      color: var(--monet-primary);
+      padding: 12px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .import-btn-pill:active {
+      transform: scale(0.97);
+      background: rgba(140, 213, 179, 0.12);
+    }
+
+    .sub-card {
+      background: var(--card-surface);
+      border: 1px solid var(--card-stroke);
+      border-radius: var(--radius-card);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .sub-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .sub-quota-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text-medium);
+    }
+    .quota-track {
+      width: 100%;
+      height: 7px;
+      background: #1B2420;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .quota-fill {
+      height: 100%;
+      width: 40.4%;
+      background: linear-gradient(90deg, #10B981, #34D399);
+      border-radius: 4px;
+      transition: width 0.8s var(--spring-bounce);
+    }
+    .sub-card-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 4px;
+    }
+    .action-btn-sm {
+      background: var(--card-surface-elevated);
+      border: 1px solid var(--card-stroke);
+      color: var(--text-high);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 6px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: transform 0.15s, background 0.15s;
+    }
+    .action-btn-sm:active {
+      transform: scale(0.92);
+      background: var(--monet-primary-container);
+    }
+    .days-badge {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--amber-latency);
+      background: rgba(245, 158, 11, 0.12);
+      padding: 4px 8px;
+      border-radius: 8px;
+    }
+
+    /* ========================================================
+       SCREEN 4: SETTINGS
+       ======================================================== */
+    .settings-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .settings-group-title {
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.6px;
+      color: var(--monet-primary);
+      padding-left: 6px;
+    }
+    .settings-tile {
+      background: var(--card-surface);
+      border: 1px solid var(--card-stroke);
+      border-radius: var(--radius-control);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .settings-tile:active {
+      background: var(--card-surface-elevated);
+    }
+    .settings-tile .title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-high);
+    }
+    .settings-tile .desc {
+      font-size: 11px;
+      color: var(--text-medium);
+      margin-top: 2px;
+    }
+
+    /* Tactile Material 3 Switch */
+    .m3-switch {
+      width: 48px;
+      height: 28px;
+      background: #252F2A;
+      border: 2px solid #36443E;
+      border-radius: 14px;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.25s var(--spring-bounce);
+    }
+    .m3-switch .thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--monet-neutral-400);
+      transition: all 0.25s var(--spring-bounce);
+    }
+    .m3-switch.active {
+      background: var(--monet-primary);
+      border-color: var(--monet-primary);
+    }
+    .m3-switch.active .thumb {
+      transform: translateX(20px) scale(1.1);
+      background: var(--monet-on-primary);
+    }
+
+    /* ========================================================
+       BOTTOM NAVIGATION BAR (M3E FLOATING PILL)
+       ======================================================== */
+    .bottom-nav-bar {
+      position: absolute;
+      bottom: 14px;
+      left: 20px;
+      right: 20px;
+      height: 64px;
+      background: #111714;
+      border: 1px solid var(--card-stroke);
+      border-radius: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      z-index: 100;
+    }
+    .nav-tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      width: 60px;
+      height: 48px;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.15s;
+    }
+    .nav-tab:active {
+      transform: scale(0.9);
+    }
+    .nav-pill-bg {
+      position: absolute;
+      width: 50px;
+      height: 28px;
+      border-radius: 14px;
+      background: var(--monet-primary-container);
+      opacity: 0;
+      transform: scale(0.6);
+      transition: all 0.25s var(--spring-bounce);
+      z-index: 1;
+    }
+    .nav-tab.active .nav-pill-bg {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .nav-tab svg {
+      width: 20px;
+      height: 20px;
+      stroke: var(--monet-neutral-400);
+      fill: none;
+      position: relative;
+      z-index: 2;
+      transition: stroke 0.2s;
+    }
+    .nav-tab.active svg {
+      stroke: var(--monet-on-primary-container);
+    }
+    .nav-tab .label {
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--monet-neutral-400);
+      position: relative;
+      z-index: 2;
+      transition: color 0.2s;
+    }
+    .nav-tab.active .label {
+      color: var(--monet-primary);
+    }
+
+    /* Modal / Bottom Sheet */
+    .sheet-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+      display: flex;
+      align-items: flex-end;
+    }
+    .sheet-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .sheet-content {
+      width: 100%;
+      background: #141B18;
+      border-top: 1px solid var(--card-stroke);
+      border-radius: 28px 28px 0 0;
+      padding: 20px 24px 34px 24px;
+      transform: translateY(100%);
+      transition: transform 0.3s var(--spring-bounce);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .sheet-overlay.active .sheet-content {
+      transform: translateY(0);
+    }
+
+    /* Toast notification */
+    .toast-pill {
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: var(--monet-primary);
+      color: var(--monet-on-primary);
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 800;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s var(--spring-bounce);
+      z-index: 300;
+    }
+    .toast-pill.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="device-stage">
+    
+    <!-- Phone Info Pill -->
+    <div class="device-info-banner">
+      <div class="dot"></div>
+      <span>Monet Live from <b>Realme GT Neo 5</b> (Seed: <span id="seed-badge">#4CA985</span>)</span>
+    </div>
+
+    <!-- Phone Hardware Frame -->
+    <div class="phone-frame" id="phone-frame">
+      
+      <!-- Android Status Bar -->
+      <div class="status-bar">
+        <span id="live-clock">12:30</span>
+        <div class="status-icons">
+          <!-- Wi-Fi -->
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98C20.93 5.9 16.69 4 12 4z"/>
+          </svg>
+          <!-- Cell -->
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M2 22h20V2L2 22z"/>
+          </svg>
+          <!-- Battery -->
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M16 4h-2V2h-4v2H8C6.9 4 6 4.9 6 6v14c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Screens Container -->
+      <div class="screens-container">
+        
+        <!-- ============================================
+             1. DASHBOARD SCREEN
+             ============================================ -->
+        <div class="screen-view active" id="screen-dashboard">
+          
+          <div class="screen-header">
+            <div class="screen-title">Mihomet</div>
+            <div class="header-actions">
+              <div class="pill-badge-btn" id="badge-connections">
+                <span style="font-size:16px;">●</span>
+                <span id="conn-count">14</span>
+              </div>
+              <div class="pill-badge-btn" id="btn-terminal-logs">
+                <span>&gt;_</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hero Zone: Power Button -->
+          <div class="hero-power-zone">
+            <div class="power-halo-wrap" id="power-toggle">
+              <div class="aura-ring-outer"></div>
+              <div class="aura-ring-inner"></div>
+              <div class="power-btn">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 2v10M18.36 6.64a9 9 0 1 1-12.73 0" stroke-linecap="round"/>
+                </svg>
+              </div>
+            </div>
+            
+            <div class="hero-status-title" id="vpn-status-text">DISCONNECTED</div>
+            <div class="hero-status-pill" id="vpn-timer-pill">
+              <div class="indicator-dot"></div>
+              <span id="vpn-timer-text">Tap to Connect</span>
+            </div>
+          </div>
+
+          <!-- Active Server Card -->
+          <div class="active-server-card" id="active-server-card">
+            <div class="server-card-left">
+              <div class="flag-avatar" id="hero-server-flag">🇳🇱</div>
+              <div class="server-card-info">
+                <div class="name" id="hero-server-name">Amsterdam Fast #1</div>
+                <div class="meta">Auto-Selected · VIP Node</div>
+              </div>
+            </div>
+            <div class="server-card-right">
+              <div class="latency-badge" id="hero-server-ping">24 ms</div>
+              <span style="color:var(--text-subtle); font-size: 16px;">›</span>
+            </div>
+          </div>
+
+          <!-- Real-Time Traffic Metrics with Live Sparklines -->
+          <div class="traffic-grid">
+            <div class="traffic-tile">
+              <div class="traffic-label dl">↓ DOWNLOAD</div>
+              <div class="traffic-val" id="val-dl">0.0 MB/s</div>
+              <canvas class="traffic-canvas" id="canvas-dl"></canvas>
+            </div>
+            <div class="traffic-tile">
+              <div class="traffic-label ul">↑ UPLOAD</div>
+              <div class="traffic-val" id="val-ul">0.0 MB/s</div>
+              <canvas class="traffic-canvas" id="canvas-ul"></canvas>
+            </div>
+          </div>
+
+          <!-- Routing Mode Segmented Group -->
+          <div class="routing-segmented-group" id="routing-switcher">
+            <div class="routing-pill-slider" id="routing-slider"></div>
+            <div class="routing-tab active" data-mode="rule">RULE</div>
+            <div class="routing-tab" data-mode="global">GLOBAL</div>
+            <div class="routing-tab" data-mode="direct">DIRECT</div>
+          </div>
+
+        </div>
+
+        <!-- ============================================
+             2. SERVERS SCREEN
+             ============================================ -->
+        <div class="screen-view" id="screen-servers">
+          <div class="screen-header">
+            <div class="screen-title">Servers</div>
+            <div class="header-actions">
+              <div class="pill-badge-btn" id="btn-ping-all" title="Speedtest All Nodes">
+                <span>⚡</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="search-pill-box">
+            <span style="opacity:0.6;">🔍</span>
+            <input type="text" id="server-search-input" placeholder="Search 64 nodes...">
+            <div class="fastest-tag" id="btn-fastest">FASTEST</div>
+          </div>
+
+          <div class="filter-chips-row" id="server-protocol-chips">
+            <div class="filter-chip active" data-proto="all">ALL (64)</div>
+            <div class="filter-chip" data-proto="vless">VLESS</div>
+            <div class="filter-chip" data-proto="trojan">TROJAN</div>
+            <div class="filter-chip" data-proto="hysteria2">HYSTERIA2</div>
+            <div class="filter-chip" data-proto="shadowsocks">SHADOWSOCKS</div>
+          </div>
+
+          <div class="servers-list" id="servers-list">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- ============================================
+             3. SUBSCRIPTIONS SCREEN
+             ============================================ -->
+        <div class="screen-view" id="screen-subscriptions">
+          <div class="screen-header">
+            <div class="screen-title">Subscriptions</div>
+            <div class="header-actions">
+              <div class="pill-badge-btn" id="btn-add-sub">
+                <span style="font-size:16px;">+</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="import-btn-pill" id="btn-import-url">
+            <span>+</span> Import via URL / Clipboard
+          </div>
+
+          <!-- Active VIP Profile -->
+          <div class="sub-card">
+            <div class="sub-card-header">
+              <div>
+                <div style="font-size:16px; font-weight:800; color:var(--text-high);">FastPremium VIP</div>
+                <div style="font-size:11px; color:var(--text-medium); margin-top:2px;">Auto-update · 42 nodes</div>
+              </div>
+              <div style="font-size:18px; color:var(--monet-primary);">✓</div>
+            </div>
+
+            <div>
+              <div class="sub-quota-row">
+                <span>TRAFFIC USAGE</span>
+                <span style="color:var(--monet-primary);" id="sub-quota-text">48.5 GB / 120 GB</span>
+              </div>
+              <div class="quota-track">
+                <div class="quota-fill" id="sub-quota-fill"></div>
+              </div>
+            </div>
+
+            <div class="sub-card-actions">
+              <div style="display:flex; gap:6px;">
+                <div class="action-btn-sm" id="btn-update-sub">⟳ UPDATE</div>
+                <div class="action-btn-sm" id="btn-edit-sub">✎ EDIT</div>
+              </div>
+              <div class="days-badge">14 days left</div>
+            </div>
+          </div>
+
+          <!-- Secondary Local Profile -->
+          <div class="sub-card" style="opacity: 0.85;">
+            <div class="sub-card-header">
+              <div>
+                <div style="font-size:16px; font-weight:800; color:var(--text-high);">Backup Free Config</div>
+                <div style="font-size:11px; color:var(--text-medium); margin-top:2px;">Local file · 12 nodes</div>
+              </div>
+              <div style="font-size:14px; color:var(--text-subtle);">📁</div>
+            </div>
+
+            <div class="sub-quota-row">
+              <span>UNLIMITED LOCAL</span>
+              <span style="color:var(--text-medium);">Updated 2d ago</span>
+            </div>
+
+            <div class="sub-card-actions">
+              <div class="action-btn-sm" onclick="showToast('Local config refreshed!')">⟳ UPDATE</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================
+             4. SETTINGS SCREEN
+             ============================================ -->
+        <div class="screen-view" id="screen-settings">
+          <div class="screen-header">
+            <div class="screen-title">Settings</div>
+          </div>
+
+          <div class="settings-group">
+            <div class="settings-group-title">APPEARANCE</div>
+            <div class="settings-tile" id="tile-amoled">
+              <div>
+                <div class="title">AMOLED Pure Black</div>
+                <div class="desc">Zero OLED power consumption (#000000)</div>
+              </div>
+              <div class="m3-switch active" id="sw-amoled">
+                <div class="thumb"></div>
+              </div>
+            </div>
+
+            <div class="settings-tile" id="tile-monet">
+              <div>
+                <div class="title">Material You Dynamic</div>
+                <div class="desc">Live tokens from connected phone</div>
+              </div>
+              <div class="m3-switch active" id="sw-monet">
+                <div class="thumb"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <div class="settings-group-title">CONNECTION & ROUTING</div>
+            <div class="settings-tile" id="tile-workmode">
+              <div>
+                <div class="title">Working Mode</div>
+                <div class="desc" id="workmode-text">VpnService (Rootless TUN)</div>
+              </div>
+              <span style="color:var(--text-subtle);">›</span>
+            </div>
+
+            <div class="settings-tile" id="tile-bypass">
+              <div>
+                <div class="title">Bypass LAN & Local</div>
+                <div class="desc">Exclude home subnets from proxy</div>
+              </div>
+              <div class="m3-switch active" id="sw-bypass">
+                <div class="thumb"></div>
+              </div>
+            </div>
+
+            <div class="settings-tile" id="tile-ipv6">
+              <div>
+                <div class="title">Enable IPv6 Route</div>
+                <div class="desc">Route IPv6 traffic through Mihomo</div>
+              </div>
+              <div class="m3-switch" id="sw-ipv6">
+                <div class="thumb"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <div class="settings-group-title">SYSTEM & CORE</div>
+            <div class="settings-tile">
+              <div>
+                <div class="title">Mihomo Core Alpha</div>
+                <div class="desc">v1.19.0-alpha · Premium Engine</div>
+              </div>
+              <span style="color:var(--text-subtle);">›</span>
+            </div>
+            <div class="settings-tile">
+              <div>
+                <div class="title">About Mihomet</div>
+                <div class="desc">v1.3.6 (PixelPlayer MD3E Edition)</div>
+              </div>
+              <span style="color:var(--text-subtle);">›</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Floating Capsule Bottom Navigation -->
+      <div class="bottom-nav-bar">
+        <div class="nav-tab active" data-screen="screen-dashboard">
+          <div class="nav-pill-bg"></div>
+          <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="label">Dashboard</span>
+        </div>
+        <div class="nav-tab" data-screen="screen-servers">
+          <div class="nav-pill-bg"></div>
+          <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" stroke-width="2"/><rect x="2" y="14" width="20" height="8" rx="2" stroke-width="2"/><line x1="6" y1="6" x2="6.01" y2="6" stroke-width="3"/><line x1="6" y1="18" x2="6.01" y2="18" stroke-width="3"/></svg>
+          <span class="label">Servers</span>
+        </div>
+        <div class="nav-tab" data-screen="screen-subscriptions">
+          <div class="nav-pill-bg"></div>
+          <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" stroke-width="2"/></svg>
+          <span class="label">Profiles</span>
+        </div>
+        <div class="nav-tab" data-screen="screen-settings">
+          <div class="nav-pill-bg"></div>
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke-width="2"/></svg>
+          <span class="label">Settings</span>
+        </div>
+      </div>
+
+      <!-- Import Dialog Sheet -->
+      <div class="sheet-overlay" id="sheet-import">
+        <div class="sheet-content">
+          <div style="font-size:18px; font-weight:900;">Import Subscription</div>
+          <input type="text" placeholder="https://example.com/clash.yaml" style="background:#1B2320; border:1px solid var(--card-stroke); padding:12px; border-radius:14px; color:white; font-size:13px; outline:none;">
+          <div style="display:flex; gap:10px;">
+            <div class="pill-badge-btn" style="flex:1; justify-content:center;" onclick="closeSheet()">Cancel</div>
+            <div class="pill-badge-btn" style="flex:1; justify-content:center; background:var(--monet-primary); color:var(--monet-on-primary);" onclick="confirmImport()">Import</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Floating Toast -->
+      <div class="toast-pill" id="toast-pill"></div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // --- Audio Feedback (Tactile Click Synthesizer) ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playTactileHaptic(freq = 180, duration = 0.04) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + duration);
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
+
+    // --- Toast Notification ---
+    function showToast(text) {
+      const toast = document.getElementById('toast-pill');
+      toast.innerText = text;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    // --- Clock ---
+    function updateClock() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const mins = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('live-clock').innerText = `${hours}:${mins}`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // --- State Management ---
+    let vpnState = 'disconnected'; // 'disconnected' | 'connecting' | 'connected'
+    let vpnTimerInterval = null;
+    let vpnSeconds = 0;
+    let trafficInterval = null;
+
+    // --- Power Button Interaction ---
+    const powerToggle = document.getElementById('power-toggle');
+    const statusText = document.getElementById('vpn-status-text');
+    const timerText = document.getElementById('vpn-timer-text');
+    const connCount = document.getElementById('conn-count');
+
+    powerToggle.addEventListener('click', () => {
+      playTactileHaptic(vpnState === 'connected' ? 120 : 260);
+
+      if (vpnState === 'disconnected') {
+        // Transition to Connecting
+        vpnState = 'connecting';
+        powerToggle.className = 'power-halo-wrap connecting';
+        statusText.innerText = 'CONNECTING...';
+        statusText.style.color = 'var(--monet-primary)';
+        timerText.innerText = 'Handshaking with node...';
+
+        setTimeout(() => {
+          if (vpnState === 'connecting') {
+            // Connected!
+            vpnState = 'connected';
+            powerToggle.className = 'power-halo-wrap connected';
+            statusText.innerText = 'PROTECTED';
+            statusText.style.color = '#34D399';
+            connCount.innerText = '14';
+            startVpnTimer();
+            startTrafficSimulation();
+            showToast('VPN Connected · AES-256-GCM');
+          }
+        }, 1100);
+
+      } else if (vpnState === 'connecting' || vpnState === 'connected') {
+        // Disconnect
+        vpnState = 'disconnected';
+        powerToggle.className = 'power-halo-wrap';
+        statusText.innerText = 'DISCONNECTED';
+        statusText.style.color = 'var(--text-high)';
+        timerText.innerText = 'Tap to Connect';
+        connCount.innerText = '0';
+        stopVpnTimer();
+        stopTrafficSimulation();
+        showToast('VPN Disconnected');
+      }
+    });
+
+    function startVpnTimer() {
+      vpnSeconds = 0;
+      clearInterval(vpnTimerInterval);
+      vpnTimerInterval = setInterval(() => {
+        vpnSeconds++;
+        const h = String(Math.floor(vpnSeconds / 3600)).padStart(2, '0');
+        const m = String(Math.floor((vpnSeconds % 3600) / 60)).padStart(2, '0');
+        const s = String(vpnSeconds % 60).padStart(2, '0');
+        timerText.innerText = `VPN · ${h}:${m}:${s}`;
+      }, 1000);
+    }
+
+    function stopVpnTimer() {
+      clearInterval(vpnTimerInterval);
+    }
+
+    // --- Traffic Graph Simulation ---
+    const canvasDl = document.getElementById('canvas-dl');
+    const canvasUl = document.getElementById('canvas-ul');
+    const ctxDl = canvasDl.getContext('2d');
+    const ctxUl = canvasUl.getContext('2d');
+    const valDl = document.getElementById('val-dl');
+    const valUl = document.getElementById('val-ul');
+
+    canvasDl.width = 160; canvasDl.height = 36;
+    canvasUl.width = 160; canvasUl.height = 36;
+
+    let dlPoints = Array(20).fill(2);
+    let ulPoints = Array(20).fill(2);
+
+    function drawSparkline(ctx, points, color) {
+      ctx.clearRect(0, 0, 160, 36);
+      ctx.beginPath();
+      const step = 160 / (points.length - 1);
+      points.forEach((p, i) => {
+        const x = i * step;
+        const y = 34 - p;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    }
+
+    function startTrafficSimulation() {
+      clearInterval(trafficInterval);
+      trafficInterval = setInterval(() => {
+        const currentDl = (35 + Math.random() * 25).toFixed(1);
+        const currentUl = (10 + Math.random() * 8).toFixed(1);
+
+        valDl.innerText = `${currentDl} MB/s`;
+        valUl.innerText = `${currentUl} MB/s`;
+
+        dlPoints.shift();
+        dlPoints.push(Math.min(30, currentDl * 0.5));
+        ulPoints.shift();
+        ulPoints.push(Math.min(30, currentUl * 1.5));
+
+        drawSparkline(ctxDl, dlPoints, '#10B981');
+        drawSparkline(ctxUl, ulPoints, '#06B6D4');
+      }, 400);
+    }
+
+    function stopTrafficSimulation() {
+      clearInterval(trafficInterval);
+      valDl.innerText = '0.0 MB/s';
+      valUl.innerText = '0.0 MB/s';
+      dlPoints = Array(20).fill(2);
+      ulPoints = Array(20).fill(2);
+      drawSparkline(ctxDl, dlPoints, 'rgba(140,213,179,0.2)');
+      drawSparkline(ctxUl, ulPoints, 'rgba(165,204,223,0.2)');
+    }
+    stopTrafficSimulation();
+
+    // --- Routing Switcher ---
+    const routingTabs = document.querySelectorAll('.routing-tab');
+    const routingSlider = document.getElementById('routing-slider');
+    routingTabs.forEach((tab, index) => {
+      tab.addEventListener('click', () => {
+        playTactileHaptic(200);
+        routingTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        routingSlider.style.transform = `translateX(${index * 104}%)`;
+        showToast(`Routing: ${tab.innerText}`);
+      });
+    });
+
+    // --- Servers List Data & Selection ---
+    const serversData = [
+      { id: 'nl-01', name: 'NL-Amsterdam-01', proto: 'VLESS', flag: '🇳🇱', ping: 24, ip: '185.220.x.x', type: 'vless' },
+      { id: 'de-02', name: 'DE-Frankfurt-02', proto: 'TROJAN', flag: '🇩🇪', ping: 38, ip: '45.133.x.x', type: 'trojan' },
+      { id: 'fi-01', name: 'FI-Helsinki-01', proto: 'HYSTERIA2', flag: '🇫🇮', ping: 45, ip: '95.217.x.x', type: 'hysteria2' },
+      { id: 'us-04', name: 'US-NewYork-04', proto: 'SHADOWSOCKS', flag: '🇺🇸', ping: 120, ip: '198.51.x.x', type: 'shadowsocks' },
+      { id: 'sg-01', name: 'SG-Singapore-01', proto: 'VLESS', flag: '🇸🇬', ping: 165, ip: '103.253.x.x', type: 'vless' },
+      { id: 'jp-02', name: 'JP-Tokyo-02', proto: 'HYSTERIA2', flag: '🇯🇵', ping: 180, ip: '133.242.x.x', type: 'hysteria2' }
+    ];
+
+    let currentSelectedServer = serversData[0];
+
+    function renderServers(list) {
+      const container = document.getElementById('servers-list');
+      container.innerHTML = '';
+      list.forEach(s => {
+        const item = document.createElement('div');
+        item.className = `server-item ${s.id === currentSelectedServer.id ? 'selected' : ''}`;
+        const pingColor = s.ping < 60 ? 'var(--emerald-latency)' : (s.ping < 130 ? 'var(--amber-latency)' : '#EF4444');
+        item.innerHTML = `
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div class="flag-avatar">${s.flag}</div>
+            <div>
+              <div style="font-size:14px; font-weight:800; color:var(--text-high);">${s.name}</div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span class="protocol-tag">${s.proto}</span>
+                <span style="font-size:11px; color:var(--text-medium);">${s.ip}</span>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:11px; font-weight:800; color:${pingColor}; background:rgba(255,255,255,0.05); padding:4px 8px; border-radius:8px;">${s.ping} ms</div>
+        `;
+        item.addEventListener('click', () => {
+          playTactileHaptic(220);
+          currentSelectedServer = s;
+          document.getElementById('hero-server-name').innerText = s.name;
+          document.getElementById('hero-server-flag').innerText = s.flag;
+          document.getElementById('hero-server-ping').innerText = `${s.ping} ms`;
+          renderServers(list);
+          showToast(`Selected: ${s.name}`);
+        });
+        container.appendChild(item);
+      });
+    }
+    renderServers(serversData);
+
+    // Protocol Chips Filter
+    const protoChips = document.querySelectorAll('#server-protocol-chips .filter-chip');
+    protoChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        playTactileHaptic(180);
+        protoChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        const proto = chip.dataset.proto;
+        if (proto === 'all') renderServers(serversData);
+        else renderServers(serversData.filter(s => s.type === proto));
+      });
+    });
+
+    // Speedtest Ping All
+    document.getElementById('btn-ping-all').addEventListener('click', () => {
+      playTactileHaptic(320);
+      showToast('⚡ Running latency test on 64 nodes...');
+      serversData.forEach(s => {
+        s.ping = Math.floor(s.ping * (0.85 + Math.random() * 0.3));
+      });
+      setTimeout(() => {
+        renderServers(serversData);
+        showToast('✓ Latency updated for all nodes');
+      }, 600);
+    });
+
+    // Fastest Button
+    document.getElementById('btn-fastest').addEventListener('click', () => {
+      playTactileHaptic(260);
+      const fastest = [...serversData].sort((a,b) => a.ping - b.ping)[0];
+      currentSelectedServer = fastest;
+      document.getElementById('hero-server-name').innerText = fastest.name;
+      document.getElementById('hero-server-flag').innerText = fastest.flag;
+      document.getElementById('hero-server-ping').innerText = `${fastest.ping} ms`;
+      renderServers(serversData);
+      showToast(`⚡ Connected to fastest: ${fastest.name} (${fastest.ping} ms)`);
+    });
+
+    // --- Subscriptions Actions ---
+    document.getElementById('btn-update-sub').addEventListener('click', () => {
+      playTactileHaptic(200);
+      const fill = document.getElementById('sub-quota-fill');
+      fill.style.width = '10%';
+      showToast('Syncing with subscription server...');
+      setTimeout(() => {
+        fill.style.width = '42.8%';
+        document.getElementById('sub-quota-text').innerText = '51.4 GB / 120 GB';
+        showToast('✓ 42 nodes synchronized successfully');
+      }, 700);
+    });
+
+    // Import Sheet
+    const sheetImport = document.getElementById('sheet-import');
+    document.getElementById('btn-import-url').addEventListener('click', () => {
+      playTactileHaptic(200);
+      sheetImport.classList.add('active');
+    });
+    document.getElementById('btn-add-sub').addEventListener('click', () => {
+      playTactileHaptic(200);
+      sheetImport.classList.add('active');
+    });
+    function closeSheet() {
+      sheetImport.classList.remove('active');
+    }
+    function confirmImport() {
+      closeSheet();
+      showToast('✓ Subscription added from clipboard!');
+    }
+
+    // --- Settings Switches ---
+    function setupSwitch(id, onToggle) {
+      const sw = document.getElementById(id);
+      sw.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playTactileHaptic(190);
+        sw.classList.toggle('active');
+        onToggle(sw.classList.contains('active'));
+      });
+    }
+
+    // AMOLED Pure Black Switch
+    setupSwitch('sw-amoled', (isActive) => {
+      const frame = document.getElementById('phone-frame');
+      if (isActive) {
+        frame.style.background = 'var(--bg-amoled)';
+        showToast('AMOLED Pure Black ON (#000000)');
+      } else {
+        frame.style.background = 'var(--bg-monet-surface)';
+        showToast('Monet Surface ON (#0E1512)');
+      }
+    });
+    document.getElementById('tile-amoled').addEventListener('click', () => {
+      document.getElementById('sw-amoled').click();
+    });
+
+    // Material You Dynamic Switch
+    setupSwitch('sw-monet', (isActive) => {
+      if (isActive) {
+        document.documentElement.style.setProperty('--monet-primary', '#8CD5B3');
+        document.documentElement.style.setProperty('--monet-primary-container', '#005139');
+        document.documentElement.style.setProperty('--monet-on-primary-container', '#A8F2CE');
+        document.getElementById('seed-badge').innerText = '#4CA985';
+        showToast('Dynamic Phone Monet (#4CA985)');
+      } else {
+        // Fallback to static PixelPlayer Emerald
+        document.documentElement.style.setProperty('--monet-primary', '#10B981');
+        document.documentElement.style.setProperty('--monet-primary-container', '#064E3B');
+        document.documentElement.style.setProperty('--monet-on-primary-container', '#6EE7B7');
+        document.getElementById('seed-badge').innerText = '#10B981 (Static)';
+        showToast('Static PixelPlayer Emerald Theme');
+      }
+    });
+    document.getElementById('tile-monet').addEventListener('click', () => {
+      document.getElementById('sw-monet').click();
+    });
+
+    // Bypass Switch
+    setupSwitch('sw-bypass', (isActive) => {
+      showToast(isActive ? 'Bypass LAN enabled' : 'Bypass LAN disabled');
+    });
+    document.getElementById('tile-bypass').addEventListener('click', () => {
+      document.getElementById('sw-bypass').click();
+    });
+
+    // IPv6 Switch
+    setupSwitch('sw-ipv6', (isActive) => {
+      showToast(isActive ? 'IPv6 route enabled' : 'IPv6 route disabled');
+    });
+    document.getElementById('tile-ipv6').addEventListener('click', () => {
+      document.getElementById('sw-ipv6').click();
+    });
+
+    // Working Mode Toggle
+    let workModeIndex = 0;
+    const workModes = ['VpnService (Rootless TUN)', 'Proxy Mode (HTTP/SOCKS5)', 'System Transparent TPROXY'];
+    document.getElementById('tile-workmode').addEventListener('click', () => {
+      playTactileHaptic(210);
+      workModeIndex = (workModeIndex + 1) % workModes.length;
+      document.getElementById('workmode-text').innerText = workModes[workModeIndex];
+      showToast(`Mode: ${workModes[workModeIndex]}`);
+    });
+
+    // --- Bottom Navigation Tab Switching ---
+    const navTabs = document.querySelectorAll('.nav-tab');
+    const screenViews = document.querySelectorAll('.screen-view');
+
+    navTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        playTactileHaptic(180);
+        navTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        const targetScreenId = tab.dataset.screen;
+        screenViews.forEach(v => {
+          if (v.id === targetScreenId) {
+            v.classList.add('active');
+          } else {
+            v.classList.remove('active');
+          }
+        });
+      });
+    });
+
+    // Active Server Card click -> navigate to Servers screen
+    document.getElementById('active-server-card').addEventListener('click', () => {
+      document.querySelector('.nav-tab[data-screen="screen-servers"]').click();
+    });
+  </script>
+</body>
+</html>

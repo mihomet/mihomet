@@ -21,7 +21,7 @@
 | `incy://crypt1/<payload>` | base64url(iv‖ct‖tag) | passthrough (warning) |
 | `incy://connect|disconnect|toggle`, `mihomet://start|stop` | VPN control via link | ✅ (MainActivity.handleControlLink) |
 
-## Cats VPN (sub.meow.ac — Remnawave + Happ HWID gating), 2026-11-01
+## Cats VPN (<redacted-remnawave-host> — Remnawave + Happ HWID gating), 2026-11-01
 
 The panel routes content based on **two headers at once** — reproduced with curl:
 
