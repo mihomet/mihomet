@@ -1,0 +1,74 @@
+{
+    "dns": {
+        "servers": [
+            "1.1.1.1",
+            "1.0.0.1"
+        ]
+    },
+    "routing": {
+        "rules": [
+            {
+                "protocol": [
+                    "bittorrent"
+                ],
+                "outboundTag": "direct"
+            },
+            {
+                "ip": [
+                  "geoip:private"
+                ],
+                "outboundTag": "direct"
+            },
+            {
+                "domain": [
+                  "geosite:private"
+                ],
+                "outboundTag": "direct"
+            }
+        ],
+        "domainStrategy": "IPIfNonMatch"
+    },
+    "inbounds": [
+        {
+            "tag": "socks",
+            "port": 10808,
+            "listen": "127.0.0.1",
+            "protocol": "socks",
+            "settings": {
+                "udp": true
+            },
+            "sniffing": {
+                "enabled": true,
+                "destOverride": [
+                    "http",
+                    "tls",
+                    "quic"
+                ]
+            }
+        },
+        {
+            "tag": "http",
+            "port": 10809,
+            "listen": "127.0.0.1",
+            "protocol": "http",
+            "sniffing": {
+                "enabled": true,
+                "destOverride": [
+                    "http",
+                    "tls",
+                    "quic"
+                ]
+            }
+        }
+    ],
+    "outbounds": [
+        {
+            "tag": "direct",
+            "protocol": "freedom"
+        },
+        {
+            "tag": "block",
+            "protocol": "blackhole"
+        }
+    ]
+}
