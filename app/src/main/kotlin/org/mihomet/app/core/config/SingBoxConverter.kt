@@ -41,7 +41,8 @@ internal object SingBoxConverter {
     fun convertSingBoxJsonToMihomoYaml(jsonStr: String, warnings: MutableList<ConversionWarning>? = null): String {
         try {
             val root = ConverterSupport.json.parseToJsonElement(jsonStr).jsonObject
-            val outbounds = root["outbounds"]?.jsonArray ?: return jsonStr
+            val outbounds = root["outbounds"]
+?.let { it as? JsonArray } ?: return jsonStr
 
             val proxies = mutableListOf<Map<String, Any>>()
             val proxyGroups = mutableListOf<Map<String, Any>>()
@@ -58,7 +59,8 @@ internal object SingBoxConverter {
                         val intervalStr = ob["interval"]?.jsonPrimitive?.contentOrNull ?: "300s"
                         val intervalSec = ConverterSupport.parseSeconds(intervalStr, default = 300)
                         val tolerance = ob["tolerance"]?.jsonPrimitive?.intOrNull ?: 50
-                        val obs = ob["outbounds"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList()
+                        val obs = ob["outbounds"]
+?.let { it as? JsonArray }?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList()
 
                         proxyGroups.add(
                             mutableMapOf(
@@ -72,7 +74,8 @@ internal object SingBoxConverter {
                         )
                     }
                     "selector" -> {
-                        val obs = ob["outbounds"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList()
+                        val obs = ob["outbounds"]
+?.let { it as? JsonArray }?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList()
                         proxyGroups.add(
                             mutableMapOf(
                                 "name" to tag,
@@ -119,7 +122,9 @@ internal object SingBoxConverter {
                 ?: proxyGroups.firstOrNull()?.get("name")?.toString()
                 ?: "DIRECT"
 
-            val routeRules = root["route"]?.jsonObject?.get("rules")?.jsonArray
+            val routeRules = root["route"]
+?.let { it as? JsonObject }?.get("rules")
+?.let { it as? JsonArray }
             routeRules?.filterIsInstance<JsonObject>()?.forEach { r ->
                 val targetOutbound = r["outbound"]?.jsonPrimitive?.contentOrNull
                     ?: if (r["action"]?.jsonPrimitive?.contentOrNull == "reject") "block"
@@ -213,9 +218,12 @@ internal object SingBoxConverter {
                 ob["packet_encoding"]?.jsonPrimitive?.contentOrNull
                     ?.takeIf { it.isNotBlank() }?.let { map["packet-encoding"] = it }
 
-                applySingBoxTls(map, ob["tls"]?.jsonObject, server)
-                applySingBoxTransport(map, ob["transport"]?.jsonObject)
-                applyMultiplex(map, ob["multiplex"]?.jsonObject)
+                applySingBoxTls(map, ob["tls"]
+?.let { it as? JsonObject }, server)
+                applySingBoxTransport(map, ob["transport"]
+?.let { it as? JsonObject })
+                applyMultiplex(map, ob["multiplex"]
+?.let { it as? JsonObject })
                 map
             }
             "hysteria2" -> {
@@ -228,7 +236,8 @@ internal object SingBoxConverter {
                     "password" to pass,
                     "udp" to true
                 )
-                val tlsObj = ob["tls"]?.jsonObject
+                val tlsObj = ob["tls"]
+?.let { it as? JsonObject }
                 val sni = tlsObj?.get("server_name")?.jsonPrimitive?.contentOrNull
                     ?: if (!server.matches(Regex("^[0-9.]+$")) && !server.contains(":")) server else null
                 if (!sni.isNullOrBlank()) map["sni"] = sni
@@ -247,7 +256,8 @@ internal object SingBoxConverter {
                     map["ports"] = serverPorts.replace(":", "-")
                 }
 
-                val obfs = ob["obfs"]?.jsonObject
+                val obfs = ob["obfs"]
+?.let { it as? JsonObject }
                 val obfsType = obfs?.get("type")?.jsonPrimitive?.contentOrNull
                 val obfsPass = obfs?.get("password")?.jsonPrimitive?.contentOrNull
                 if (!obfsType.isNullOrBlank() && !obfsPass.isNullOrBlank()) {
@@ -275,7 +285,8 @@ internal object SingBoxConverter {
                     ?: "100 Mbps"
                 map["up"] = up
                 map["down"] = down
-                val sni = ob["tls"]?.jsonObject?.get("server_name")?.jsonPrimitive?.contentOrNull
+                val sni = ob["tls"]
+?.let { it as? JsonObject }?.get("server_name")?.jsonPrimitive?.contentOrNull
                 if (!sni.isNullOrBlank()) map["sni"] = sni
                 map
             }
@@ -294,9 +305,12 @@ internal object SingBoxConverter {
                 )
                 ob["packet_encoding"]?.jsonPrimitive?.contentOrNull
                     ?.takeIf { it.isNotBlank() }?.let { map["packet-encoding"] = it }
-                applySingBoxTls(map, ob["tls"]?.jsonObject, server)
-                applySingBoxTransport(map, ob["transport"]?.jsonObject)
-                applyMultiplex(map, ob["multiplex"]?.jsonObject)
+                applySingBoxTls(map, ob["tls"]
+?.let { it as? JsonObject }, server)
+                applySingBoxTransport(map, ob["transport"]
+?.let { it as? JsonObject })
+                applyMultiplex(map, ob["multiplex"]
+?.let { it as? JsonObject })
                 map
             }
             "trojan" -> {
@@ -308,9 +322,12 @@ internal object SingBoxConverter {
                     "port" to port,
                     "password" to pass
                 )
-                applySingBoxTls(map, ob["tls"]?.jsonObject, server)
-                applySingBoxTransport(map, ob["transport"]?.jsonObject)
-                applyMultiplex(map, ob["multiplex"]?.jsonObject)
+                applySingBoxTls(map, ob["tls"]
+?.let { it as? JsonObject }, server)
+                applySingBoxTransport(map, ob["transport"]
+?.let { it as? JsonObject })
+                applyMultiplex(map, ob["multiplex"]
+?.let { it as? JsonObject })
                 map
             }
             "shadowsocks" -> {
@@ -370,9 +387,11 @@ internal object SingBoxConverter {
                 ob["udp_relay_mode"]?.jsonPrimitive?.contentOrNull
                     ?.takeIf { it.isNotBlank() }?.let { map["udp-relay-mode"] = it }
                 if (ob["reduce_rtt"]?.jsonPrimitive?.booleanOrNull == true) map["reduce-rtt"] = true
-                val alpn = jsonStringList(ob["tls"]?.jsonObject?.get("alpn"))
+                val alpn = jsonStringList(ob["tls"]
+?.let { it as? JsonObject }?.get("alpn"))
                 if (alpn.isNotEmpty()) map["alpn"] = alpn
-                val sni = ob["tls"]?.jsonObject?.get("server_name")?.jsonPrimitive?.contentOrNull
+                val sni = ob["tls"]
+?.let { it as? JsonObject }?.get("server_name")?.jsonPrimitive?.contentOrNull
                 if (!sni.isNullOrBlank()) map["sni"] = sni
                 map
             }
@@ -388,7 +407,8 @@ internal object SingBoxConverter {
                     ?.takeIf { it.isNotBlank() }?.let { map["username"] = it }
                 ob["password"]?.jsonPrimitive?.contentOrNull
                     ?.takeIf { it.isNotBlank() }?.let { map["password"] = it }
-                applySingBoxTls(map, ob["tls"]?.jsonObject, server)
+                applySingBoxTls(map, ob["tls"]
+?.let { it as? JsonObject }, server)
                 map
             }
             "anytls" -> {
@@ -400,8 +420,10 @@ internal object SingBoxConverter {
                     "port" to port,
                     "password" to (ob["password"]?.jsonPrimitive?.contentOrNull ?: "")
                 )
-                applySingBoxTls(map, ob["tls"]?.jsonObject, server)
-                applySingBoxTransport(map, ob["transport"]?.jsonObject)
+                applySingBoxTls(map, ob["tls"]
+?.let { it as? JsonObject }, server)
+                applySingBoxTransport(map, ob["transport"]
+?.let { it as? JsonObject })
                 map
             }
             "shadowtls" -> {
@@ -414,7 +436,8 @@ internal object SingBoxConverter {
                     "version" to (ob["version"]?.jsonPrimitive?.intOrNull ?: 3),
                     "password" to (ob["password"]?.jsonPrimitive?.contentOrNull ?: "")
                 )
-                applySingBoxTls(map, ob["tls"]?.jsonObject, server)
+                applySingBoxTls(map, ob["tls"]
+?.let { it as? JsonObject }, server)
                 map
             }
             "wireguard" -> {
@@ -473,7 +496,8 @@ internal object SingBoxConverter {
                     ?.takeIf { it.isNotBlank() }?.let { map["private-key"] = it }
                 ob["private_key_path"]?.jsonPrimitive?.contentOrNull
                     ?.takeIf { it.isNotBlank() }?.let { map["private-key-path"] = it }
-                val hk = ob["host_key_algorithms"]?.jsonArray
+                val hk = ob["host_key_algorithms"]
+?.let { it as? JsonArray }
                     ?.mapNotNull { it.jsonPrimitive.contentOrNull }
                 if (!hk.isNullOrEmpty()) map["host-key-algorithms"] = hk
                 map
@@ -492,7 +516,8 @@ internal object SingBoxConverter {
                     ?.takeIf { it.isNotBlank() }?.let { map["username"] = it }
                 ob["password"]?.jsonPrimitive?.contentOrNull
                     ?.takeIf { it.isNotBlank() }?.let { map["password"] = it }
-                applySingBoxTls(map, ob["tls"]?.jsonObject, server)
+                applySingBoxTls(map, ob["tls"]
+?.let { it as? JsonObject }, server)
                 map
             }
             else -> null
@@ -511,11 +536,13 @@ internal object SingBoxConverter {
         val alpn = jsonStringList(tls["alpn"])
         if (alpn.isNotEmpty()) map["alpn"] = alpn
 
-        val utls = tls["utls"]?.jsonObject
+        val utls = tls["utls"]
+?.let { it as? JsonObject }
         val fp = utls?.get("fingerprint")?.jsonPrimitive?.contentOrNull
         if (!fp.isNullOrBlank()) map["client-fingerprint"] = fp
 
-        val reality = tls["reality"]?.jsonObject
+        val reality = tls["reality"]
+?.let { it as? JsonObject }
         if (reality != null && reality["enabled"]?.jsonPrimitive?.booleanOrNull == true) {
             val pubKey = reality["public_key"]?.jsonPrimitive?.contentOrNull ?: ""
             val shortId = reality["short_id"]?.jsonPrimitive?.contentOrNull ?: ""
@@ -535,7 +562,8 @@ internal object SingBoxConverter {
                 map["network"] = "ws"
                 val path = transport["path"]?.jsonPrimitive?.contentOrNull ?: "/"
                 val wsOpts = mutableMapOf<String, Any>("path" to path)
-                val wsHeaders = transport["headers"]?.jsonObject
+                val wsHeaders = transport["headers"]
+?.let { it as? JsonObject }
                 if (wsHeaders != null && wsHeaders.isNotEmpty()) {
                     wsOpts["headers"] = wsHeaders.entries.associate { (k, v) ->
                         k to (v.jsonPrimitive.contentOrNull ?: "")
@@ -554,7 +582,8 @@ internal object SingBoxConverter {
                 map["network"] = "httpupgrade"
                 val path = transport["path"]?.jsonPrimitive?.contentOrNull ?: "/"
                 val host = transport["host"]?.jsonPrimitive?.contentOrNull
-                    ?: transport["headers"]?.jsonObject?.get("Host")?.jsonPrimitive?.contentOrNull ?: ""
+                    ?: transport["headers"]
+?.let { it as? JsonObject }?.get("Host")?.jsonPrimitive?.contentOrNull ?: ""
                 val opts = mutableMapOf<String, Any>("path" to path)
                 if (host.isNotBlank()) opts["host"] = host
                 map["httpupgrade-opts"] = opts
@@ -576,8 +605,11 @@ internal object SingBoxConverter {
             }
         }
         // Multiplex (smux / h2mux / yamux) -> mihomo smux block.
-        val mux = transport["multiplex"]?.jsonObject
-            ?: transport["transport"]?.jsonObject?.get("multiplex")?.jsonObject
+        val mux = transport["multiplex"]
+?.let { it as? JsonObject }
+            ?: transport["transport"]
+?.let { it as? JsonObject }?.get("multiplex")
+?.let { it as? JsonObject }
         if (mux == null && transport["multiplex"] == null) {
             // multiplex may also sit on the outbound itself (handled by callers via applyMultiplex)
         }

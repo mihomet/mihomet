@@ -27,7 +27,7 @@ internal object ClashYamlConverter {
 
     fun validateAndNormalizeYaml(yamlContent: String, warnings: MutableList<ConversionWarning>? = null): String {
         return try {
-            val yaml = Yaml()
+            val yaml = ConverterSupport.newYaml()
             val parsed = yaml.load<Map<String, Any>>(yamlContent) ?: return yamlContent
             val dumperOptions = DumperOptions().apply {
                 defaultFlowStyle = DumperOptions.FlowStyle.BLOCK

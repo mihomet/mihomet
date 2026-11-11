@@ -12,6 +12,23 @@ import java.util.Base64
  */
 internal object ConverterSupport {
 
+    /**
+     * Hardened SnakeYAML factory for user/panel-supplied YAML:
+     * - maxAliasesForCollections raised above the default 50 — real panel
+     *   templates (Remnawave "Quantum" et al.) legitimately use more anchors,
+     *   and the default aborts the whole parse with YamlError;
+     * - code point limit raised for the multi-thousand-line RU bundles.
+     */
+    fun newYaml(): org.yaml.snakeyaml.Yaml {
+        val opts = org.yaml.snakeyaml.LoaderOptions().apply {
+            // Real panel templates (Remnawave "Quantum" et al.) use more than the
+            // default 50 anchors — the default aborts the entire parse.
+            maxAliasesForCollections = 2000
+            codePointLimit = 16 * 1024 * 1024
+        }
+        return org.yaml.snakeyaml.Yaml(opts)
+    }
+
     val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
