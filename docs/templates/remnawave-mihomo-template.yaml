@@ -23,8 +23,9 @@ dns:
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
   default-nameserver:
+    - system
+    - 77.88.8.8
     - 1.1.1.1
-    - 8.8.8.8
   nameserver:
     - https://dns.cloudflare.com/dns-query
     - https://dns.google/dns-query
@@ -77,6 +78,20 @@ rule-providers:
     url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/private.mrs
     path: ./rules/geoip-private.mrs
     interval: 86400
+  geosite-tiktok:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/tiktok.mrs
+    path: ./rules/geosite-tiktok.mrs
+    interval: 86400
+  geosite-telegram:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/telegram.mrs
+    path: ./rules/geosite-telegram.mrs
+    interval: 86400
 
 proxies: # LEAVE THIS LINE!
 
@@ -108,6 +123,13 @@ rules:
   - DOMAIN-SUFFIX,push.apple.com,DIRECT
   - DOMAIN,mtalk.google.com,DIRECT
   - IP-CIDR,17.0.0.0/8,DIRECT,no-resolve
+
+  # Мессенджеры и соцсети с региональными проверками — через прокси явно
+  # (TikTok проверяет регион по егресс-IP и DNS: с нашим fake-ip + DoH и
+  # зарубежным выходом грузится стабильно — проблемы MaterialXray здесь
+  # лечатся именно таким правилом)
+  - RULE-SET,geosite-tiktok,⚡ Авто-выбор
+  - RULE-SET,geosite-telegram,⚡ Авто-выбор
 
   # Российские сайты и сервисы — напрямую (аналог regexp .*\.ru$ + 117
   # доменов из Happ-канала; geosite category-ru покрывает их целиком)
