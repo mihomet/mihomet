@@ -1,5 +1,7 @@
 package org.mihomet.app.ui.screens.logs
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -51,7 +53,7 @@ fun LogsScreen(
     onNavigateBack: () -> Unit,
     viewModel: LogsViewModel = koinViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val view = LocalView.current
     val listState = rememberLazyListState()
@@ -108,7 +110,6 @@ fun LogsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .statusBarsPadding()
                 .padding(horizontal = D2.ScreenH)
         ) {
             // ── Header: big display title + round tonal actions ──────────────

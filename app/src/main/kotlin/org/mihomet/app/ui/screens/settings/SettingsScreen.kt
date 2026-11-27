@@ -1,5 +1,14 @@
 package org.mihomet.app.ui.screens.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.Icon
+import org.mihomet.app.ui.components.D2BackHeader
+import org.mihomet.app.ui.design2.D2Panel
+import org.mihomet.app.ui.design2.D2Row
 import android.os.Build
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -8,7 +17,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,7 +48,7 @@ fun SettingsScreen(
     onNavigateToConnections: () -> Unit,
     viewModel: SettingsViewModel = koinViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val settings = state.settings
     val context = LocalContext.current
 
@@ -51,7 +59,9 @@ fun SettingsScreen(
     var showSubscriptionHwidDialog by remember { mutableStateOf(false) }
     var showMtuDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
-    var isAdvancedExpanded by rememberSaveable { mutableStateOf(false) }
+    var isAdvancedExpanded by rememberSaveable { mutableStateOf(true) }
+    var section by rememberSaveable { mutableStateOf(-1) }
+    BackHandler(section >= 0) { section = -1 }
 
     // Manufacturer diagnostics — only on devices from vendors whose power
     // managers are known to kill background VPN services (MIUI, ColorOS, …).
@@ -82,77 +92,59 @@ fun SettingsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
                 .padding(innerPadding)
                 .padding(horizontal = D2.ScreenH),
             verticalArrangement = Arrangement.spacedBy(D2.SectionGap),
             contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp)
         ) {
-            // Large-title header on the Edition 2 language.
             item {
-                D2ScreenTitle(text = stringResource(R.string.nav_settings))
+                if (section < 0) D2ScreenTitle(stringResource(R.string.nav_settings))
+                else D2BackHeader(stringResource(R.string.nav_settings), stringResource(R.string.cd_back), { section = -1 })
             }
-
-            // 1. Connection Mode Grouped Card
-            item {
-                ConnectionModeSection(settings, viewModel)
-            }
-
-            // 2. Routing & App Rules Card
-            item {
-                RoutingSection(settings, viewModel, onNavigateToRouting, onNavigateToSiteRules)
-            }
-
-            // 3. Subscriptions identity card (global UA / x-hwid merge defaults;
-            //    per-profile custom headers override these — see Profiles screen)
-            item {
-                SubscriptionsSection(
-                    settings = settings,
-                    viewModel = viewModel,
-                    onShowUaDialog = { showSubscriptionUaDialog = true },
-                    onShowHwidDialog = { showSubscriptionHwidDialog = true }
-                )
-            }
-
-            // 4. Notifications Card
-            item {
-                NotificationsSection(settings, viewModel)
-            }
-
-            // 4. Appearance Card
-            item {
-                AppearanceSection(
-                    settings = settings,
-                    viewModel = viewModel,
-                    onShowLanguageDialog = { showLanguageDialog = true }
-                )
-            }
-
-            // 5. Advanced Settings (Expandable)
-            item {
-                AdvancedSection(
-                    state = state,
-                    viewModel = viewModel,
-                    expanded = isAdvancedExpanded,
-                    onExpandedChange = { isAdvancedExpanded = it },
-                    onShowPortsDialog = { showPortsDialog = true },
-                    onShowLatencyDialog = { showLatencyDialog = true },
-                    onShowDnsDialog = { showDnsDialog = true },
-                    onShowMtuDialog = { showMtuDialog = true },
-                    onNavigateToLogs = onNavigateToLogs
-                )
-            }
-
-            // 6. Manufacturer diagnostics card (known OEM ROMs only)
-            if (oemBrand != OemHints.OemBrand.STOCK) {
+            if (section < 0) {
                 item {
-                    OemDiagnosticsSection(oemBrand, oemLaunch, oemLabel)
+                    D2Panel(contentPadding = PaddingValues(0.dp)) {
+                        val categories = listOf(
+                            Triple(R.string.settings_connection_mode, Icons.Default.VpnKey, R.string.settings_category_connection),
+                            Triple(R.string.settings_routing_section, Icons.Default.Route, R.string.settings_category_routing),
+                            Triple(R.string.settings_subs_section, Icons.Default.CloudDownload, R.string.settings_category_subscriptions),
+                            Triple(R.string.settings_appearance, Icons.Default.Palette, R.string.settings_category_appearance),
+                            Triple(R.string.settings_notifications, Icons.Default.Notifications, R.string.settings_category_notifications),
+                            Triple(R.string.settings_advanced, Icons.Default.Tune, R.string.settings_category_advanced)
+                        )
+                        categories.forEachIndexed { index, category ->
+                            D2Row(icon = category.second, title = stringResource(category.first), subtitle = stringResource(category.third),
+                                onClick = { section = index; isAdvancedExpanded = true }) {
+                                Icon(Icons.Default.ChevronRight, contentDescription = null)
+                            }
+                        }
+                    }
                 }
-            }
-
-            // 7. About App Card
-            item {
-                AboutSection()
+                item {
+                    D2Panel(contentPadding = PaddingValues(0.dp)) {
+                        D2Row(Icons.Default.Hub, stringResource(R.string.nav_connections), onClick = onNavigateToConnections) {
+                            Icon(Icons.Default.ChevronRight, null)
+                        }
+                        D2Row(Icons.Default.Terminal, stringResource(R.string.nav_logs), onClick = onNavigateToLogs) {
+                            Icon(Icons.Default.ChevronRight, null)
+                        }
+                    }
+                }
+                if (oemBrand != OemHints.OemBrand.STOCK) item { OemDiagnosticsSection(oemBrand, oemLaunch, oemLabel) }
+                item { AboutSection() }
+            } else item {
+                when (section) {
+                    0 -> ConnectionModeSection(settings, viewModel)
+                    1 -> RoutingSection(settings, viewModel, onNavigateToRouting, onNavigateToSiteRules)
+                    2 -> SubscriptionsSection(settings, viewModel, { showSubscriptionUaDialog = true }, { showSubscriptionHwidDialog = true })
+                    3 -> AppearanceSection(settings, viewModel) { showLanguageDialog = true }
+                    4 -> NotificationsSection(settings, viewModel)
+                    5 -> AdvancedSection(
+                        state, viewModel, isAdvancedExpanded, { isAdvancedExpanded = it },
+                        { showPortsDialog = true }, { showLatencyDialog = true },
+                        { showDnsDialog = true }, { showMtuDialog = true }, onNavigateToLogs
+                    )
+                }
             }
         }
 

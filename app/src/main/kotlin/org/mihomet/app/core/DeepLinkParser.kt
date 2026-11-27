@@ -4,6 +4,8 @@ import java.net.URLDecoder
 import java.util.Base64
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Converts import deep links (happ://, clash://, v2rayng://, sing-box://, incy:// …)
@@ -162,12 +164,17 @@ data class DeepLinkImport(val text: String, val source: String? = null)
 object DeepLinkBus {
     private val pending = kotlinx.coroutines.channels.Channel<DeepLinkImport>(capacity = 8)
     val flow: Flow<DeepLinkImport> get() = pending.receiveAsFlow()
+    private val nextRequest = java.util.concurrent.atomic.AtomicLong()
+    private val navigationRequestFlow = MutableStateFlow(0L)
+    val navigationRequest = navigationRequestFlow.asStateFlow()
 
-    fun post(text: String?, source: String? = null) {
-        text?.let { runCatching { pending.trySend(DeepLinkImport(it, source)) } }
+    fun post(text: String?, source: String? = null): Boolean {
+        if (text.isNullOrBlank() || !pending.trySend(DeepLinkImport(text, source)).isSuccess) return false
+        navigationRequestFlow.value = nextRequest.incrementAndGet()
+        return true
     }
 
-    fun consume() {
-        // receiveAsFlow consumes on collect; nothing to drain here
+    fun acknowledgeNavigation(request: Long) {
+        navigationRequestFlow.compareAndSet(request, 0L)
     }
 }

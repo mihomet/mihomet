@@ -41,8 +41,7 @@ class XrayMatrixTest {
                  "users":[{"id":"83999090-86f8-4009-a889-746a492638d1","encryption":"none","flow":"xtls-rprx-vision","level":8}]}]},
                "streamSettings":{"network":"tcp","security":"reality",
                  "realitySettings":{"show":false,"fingerprint":"chrome","serverName":"www.microsoft.com",
-                   "publicKey":"PBK_Value","shortId":"DF23C040","spiderX":"/",
-                   "mldsa65Verify":"PQKEY"}}}"""))
+                   "publicKey":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","shortId":"DF23C040","spiderX":"/"}}}"""))
         val p = first(parsed)
         assertEquals("vless", p["type"])
         assertEquals("1.2.3.4", p["server"])
@@ -53,9 +52,9 @@ class XrayMatrixTest {
         assertEquals("www.microsoft.com", p["servername"])
         assertEquals("chrome", p["client-fingerprint"])
         val ro = p["reality-opts"] as Map<String, Any>
-        assertEquals("PBK_Value", ro["public-key"])
+        assertEquals("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", ro["public-key"])
         assertEquals("DF23C040", ro["short-id"])
-        assertEquals("/", ro["spider-x"])
+        assertEquals(null, ro["spider-x"])
     }
 
     @Test
@@ -90,7 +89,7 @@ class XrayMatrixTest {
         val p = first(parsed)
         val grpc = p["grpc-opts"] as Map<String, Any>
         assertEquals("SvcName", grpc["grpc-service-name"])
-        assertEquals(true, grpc["grpc-multi-mode"])
+        assertEquals(null, grpc["grpc-multi-mode"])
     }
 
     @Test
@@ -129,7 +128,7 @@ class XrayMatrixTest {
     }
 
     @Test
-    fun `vless httpupgrade maps to mihomo httpupgrade-opts`() {
+    fun `vless httpupgrade uses the core websocket upgrade transport`() {
         val parsed = convert(singleOutbound(
             """{"tag":"proxy","protocol":"vless",
                "settings":{"vnext":[{"address":"u.example.com","port":443,
@@ -137,26 +136,23 @@ class XrayMatrixTest {
                "streamSettings":{"network":"httpupgrade","security":"tls",
                  "httpupgradeSettings":{"path":"/up","host":"u.example.com"}}}"""))
         val p = first(parsed)
-        assertEquals("httpupgrade", p["network"])
-        val opts = p["httpupgrade-opts"] as Map<String, Any>
+        assertEquals("ws", p["network"])
+        val opts = p["ws-opts"] as Map<String, Any>
         assertEquals("/up", opts["path"])
-        assertEquals("u.example.com", opts["host"])
+        assertEquals(true, opts["v2ray-http-upgrade"])
+        assertEquals("u.example.com", (opts["headers"] as Map<*, *>)["Host"])
     }
 
     @Test
     fun `vless kcp with seed and header type`() {
-        val parsed = convert(singleOutbound(
+        val parsed = UniversalConfigConverter.convertToMihomoYamlWithOutcome(singleOutbound(
             """{"tag":"proxy","protocol":"vless",
                "settings":{"vnext":[{"address":"k.example.com","port":9000,
                  "users":[{"id":"uuid-6","encryption":"none"}]}]},
                "streamSettings":{"network":"kcp","security":"none",
                  "kcpSettings":{"mtu":1350,"seed":"SeedValue","header":{"type":"wechat-video"}}}}"""))
-        val p = first(parsed)
-        assertEquals("kcp", p["network"])
-        val opts = p["mkcp-opts"] as Map<String, Any>
-        assertEquals(1350, opts["mtu"])
-        assertEquals("SeedValue", opts["seed"])
-        assertEquals("wechat-video", opts["header"])
+        assertEquals("", parsed.yaml)
+        assertTrue(parsed.report!!.issues.any { it.code == org.mihomet.app.core.config.ConversionIssueCode.UNSUPPORTED_TRANSPORT })
     }
 
     // ---- VMess ----
@@ -329,8 +325,8 @@ class XrayMatrixTest {
             """{"tag":"mystery","protocol":"mysteryproto",
                "settings":{"address":"m.example.com","port":1}}"""))
         assertTrue(
-            "expected a ProxyParseError warning, got: ${outcome.warnings}",
-            outcome.warnings.any { it::class.simpleName == "ProxyParseError" }
+            "expected a typed invalid-node issue, got: ${outcome.warnings}",
+            outcome.report!!.issues.any { it.code == org.mihomet.app.core.config.ConversionIssueCode.INVALID_NODE }
         )
     }
 
@@ -355,19 +351,19 @@ class XrayMatrixTest {
                "streamSettings":{"method":"raw","security":"none",
                  "rawSettings":{"header":{"type":"http","request":{"path":["/p"],"headers":{"Host":["ex.com"]}}}}}}"""))
         val m = first(parsed)
-        assertEquals("tcp", m["network"])
+        assertEquals("http", m["network"])
         val opts = m["http-opts"] as Map<*, *>
         assertEquals("/p", (opts["path"] as List<*>).first())
     }
 
     @Test
-    fun `xray mux becomes smux unless vision flow`() {
+    fun `xray mux is omitted rather than enabling incompatible smux`() {
         val base = """{"tag":"t","protocol":"vless",
             "settings":{"vnext":[{"address":"1.2.3.4","port":443,"users":[{"id":"u","encryption":"none"%FLOW%}]}]},
             "streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"serverName":"ex.com"}},
             "mux":{"enabled":true,"concurrency":8}}"""
         val withMux = first(convert(singleOutbound(base.replace("%FLOW%", ""))))
-        assertEquals(true, (withMux["smux"] as Map<*, *>)["enabled"])
+        assertEquals(null, withMux["smux"])
         val withVision = first(convert(singleOutbound(base.replace("%FLOW%", ",\"flow\":\"xtls-rprx-vision\""))))
         assertEquals(null, withVision["smux"])
     }
@@ -395,7 +391,7 @@ class XrayMatrixTest {
                "streamSettings":{"network":"xhttp","security":"tls",
                  "tlsSettings":{"serverName":"ex.com"},
                  "xhttpSettings":{"path":"/x","host":"ex.com","mode":"stream-up",
-                   "noGrpcHeader":true,"xPaddingBytes":"100-1000","extra":{"X-Custom":"v"}}}}"""))
+                   "extra":{"noGrpcHeader":true,"xPaddingBytes":"100-1000","headers":{"X-Custom":"v"}}}}}"""))
         val opts = first(parsed)["xhttp-opts"] as Map<*, *>
         assertEquals("stream-up", opts["mode"])
         assertEquals(true, opts["no-grpc-header"])
@@ -404,13 +400,13 @@ class XrayMatrixTest {
     }
 
     @Test
-    fun `sockopt dialerProxy and legacy xtls security and root allowInsecure`() {
-        val parsed = convert(singleOutbound(
-            """{"tag":"t","protocol":"vless",
-               "settings":{"vnext":[{"address":"1.2.3.4","port":443,"users":[{"id":"u","encryption":"none"}]}]},
-               "streamSettings":{"network":"tcp","security":"xtls","allowInsecure":true,
-                 "tlsSettings":{"serverName":"ex.com"},
-                 "sockopt":{"dialerProxy":"chain-1"}}}"""))
+    fun `sockopt dialerProxy resolves a declared chain and keeps TLS parameters`() {
+        val parsed = convert("""{"outbounds":[
+            {"tag":"t","protocol":"vless","settings":{"address":"1.2.3.4","port":443,"id":"u"},
+             "streamSettings":{"network":"tcp","security":"tls","allowInsecure":true,
+                "tlsSettings":{"serverName":"ex.com"},"sockopt":{"dialerProxy":"chain-1"}}},
+            {"tag":"chain-1","protocol":"socks","settings":{"address":"example.com","port":1080}}
+        ]}""")
         val m = first(parsed)
         assertEquals(true, m["tls"])
         assertEquals(true, m["skip-cert-verify"])

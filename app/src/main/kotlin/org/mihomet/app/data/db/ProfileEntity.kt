@@ -1,5 +1,6 @@
 package org.mihomet.app.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -33,5 +34,7 @@ data class ProfileEntity(
     // into the runtime config BEFORE the mandatory app-managed keys (ports, allow-lan,
     // DNS, external-controller...) are written, so security/port settings always win.
     // Empty string = no patch.
-    val overridePatch: String = ""
+    val overridePatch: String = "",
+    @ColumnInfo(defaultValue = "''")
+    val conversionReport: String = ""
 )

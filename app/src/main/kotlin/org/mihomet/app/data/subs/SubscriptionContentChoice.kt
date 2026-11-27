@@ -48,50 +48,49 @@ object SubscriptionContentChoice {
      * Mihomo YAML whose groups include a balancer type.
      */
     fun isRich(attemptText: String): Boolean {
+        return quality(attemptText) == ChannelQuality.RICH
+    }
+
+    /** Parse each candidate only once; a panel response may be up to 20 MB. */
+    private fun quality(attemptText: String): ChannelQuality {
         val trimmed = attemptText.trim()
+        val parsed = runCatching { Yaml().load<Any>(trimmed) as? Map<*, *> }.getOrNull()
+            ?: return ChannelQuality.PLAIN
         if (trimmed.startsWith("{")) {
-            val outbounds = runCatching {
-                kotlinx.serialization.json.Json.parseToJsonElement(trimmed)
-                    .let { it as? kotlinx.serialization.json.JsonObject }
-                    ?.get("outbounds")
-                    ?.let { it as? kotlinx.serialization.json.JsonArray }
-                    ?.size ?: 0
-            }.getOrDefault(0)
-            return outbounds > 2
+            if (((parsed["outbounds"] as? List<*>)?.size ?: 0) > 2) return ChannelQuality.RICH
         }
-        val groups = runCatching {
-            @Suppress("UNCHECKED_CAST")
-            (Yaml().load<Any>(attemptText) as? Map<*, *>)?.get("proxy-groups")
-                as? List<Map<*, *>> ?: emptyList()
-        }.getOrDefault(emptyList())
-        return groups.any {
+        val groups = (parsed["proxy-groups"] as? List<*>)?.filterIsInstance<Map<*, *>>().orEmpty()
+        if (groups.any {
             val type = (it["type"] as? String)?.lowercase().orEmpty()
             type == "url-test" || type == "fallback" || type == "load-balance"
-        }
+        }) return ChannelQuality.RICH
+        return if ((parsed["proxies"] as? List<*>)?.isNotEmpty() == true && groups.isNotEmpty()) ChannelQuality.GROUPED
+            else ChannelQuality.PLAIN
     }
 
     fun evaluate(
         currentHasResponse: Boolean,
         currentSawQuality: ChannelQuality,
         attemptEncrypted: Boolean,
-        attemptText: String
+        attemptText: String,
+        attemptReport: org.mihomet.app.core.config.ConversionReport? = null,
+        currentReport: org.mihomet.app.core.config.ConversionReport? = null
     ): Decision {
         val attemptQuality = when {
             attemptEncrypted -> ChannelQuality.RICH
-            isRich(attemptText) -> ChannelQuality.RICH
-            countTopLevelList(attemptText, "proxies") > 0 &&
-                    countTopLevelList(attemptText, "proxy-groups") > 0 -> ChannelQuality.GROUPED
-            else -> ChannelQuality.PLAIN
+            (attemptReport?.importedRules ?: 0) > 0 -> ChannelQuality.RICH
+            else -> quality(attemptText)
         }
-        // Accept when the attempt beats or matches what we hold (a later equal
-        // channel is still taken: UA tiers the panel knows better than us).
+        // A partial rich response must not hide a later lossless response.
         val accept = when {
             !currentHasResponse -> true
             attemptQuality > currentSawQuality -> true
+            attemptQuality == currentSawQuality &&
+                attemptReport?.issues.orEmpty().size < currentReport?.issues.orEmpty().size -> true
             attemptQuality == currentSawQuality && currentSawQuality != ChannelQuality.RICH -> true
             else -> false
         }
-        val stop = attemptQuality == ChannelQuality.RICH
+        val stop = accept && attemptQuality == ChannelQuality.RICH && attemptReport?.issues.isNullOrEmpty()
         val sawQuality = when {
             accept -> attemptQuality
             else -> currentSawQuality

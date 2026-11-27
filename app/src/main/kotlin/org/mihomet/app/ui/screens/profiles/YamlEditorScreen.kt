@@ -107,8 +107,6 @@ fun YamlEditorScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .statusBarsPadding()
-                .navigationBarsPadding()
         ) {
             // ── Header: big display title + round tonal actions ──────────────
             D2BackHeader(

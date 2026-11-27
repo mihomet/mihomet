@@ -1,5 +1,7 @@
 package org.mihomet.app.ui.screens.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +22,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -132,7 +133,7 @@ internal fun AboutSection(viewModel: AppUpdateViewModel = koinViewModel()) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AppUpdateRow(viewModel: AppUpdateViewModel) {
-    val updateState by viewModel.state.collectAsState()
+    val updateState by viewModel.state.collectAsStateWithLifecycle()
 
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(

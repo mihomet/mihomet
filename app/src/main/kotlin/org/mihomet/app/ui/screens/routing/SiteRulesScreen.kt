@@ -1,5 +1,7 @@
 package org.mihomet.app.ui.screens.routing
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -9,7 +11,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,7 +48,7 @@ fun SiteRulesScreen(
     onNavigateBack: () -> Unit = {},
     viewModel: RoutingViewModel = koinViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val settings = state.settings
     val context = LocalContext.current
     val view = LocalView.current
@@ -60,7 +61,6 @@ fun SiteRulesScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .statusBarsPadding()
                 .padding(horizontal = D2.ScreenH)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(D2.SectionGap)

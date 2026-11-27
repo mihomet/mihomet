@@ -7,41 +7,28 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.Hub
-import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Terminal
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import org.koin.androidx.compose.koinViewModel
@@ -49,31 +36,10 @@ import org.mihomet.app.R
 import org.mihomet.app.core.ServiceState
 import org.mihomet.app.data.preferences.ProxyMode
 import org.mihomet.app.ui.components.ExpressiveLatencyBadge
-import org.mihomet.app.ui.components.rememberPressScale
-import org.mihomet.app.ui.design2.D2
-import org.mihomet.app.ui.design2.D2Caption
-import org.mihomet.app.ui.design2.D2Gap
-import org.mihomet.app.ui.design2.D2IconAction
-import org.mihomet.app.ui.design2.D2Panel
-import org.mihomet.app.ui.design2.D2ScreenTitle
-import org.mihomet.app.ui.design2.D2SectionLabel
-import org.mihomet.app.ui.design2.D2SegmentOption
-import org.mihomet.app.ui.design2.D2Segmented
-import org.mihomet.app.ui.design2.D2StatBlock
-import org.mihomet.app.ui.theme.AccentBlue
-import org.mihomet.app.ui.theme.AccentGreen
-import org.mihomet.app.ui.theme.AccentOrange
-import org.mihomet.app.ui.theme.AppHaptics
-import org.mihomet.app.ui.theme.ExpressiveMorph
-import org.mihomet.app.ui.theme.HapticType
+import org.mihomet.app.ui.design2.*
+import org.mihomet.app.ui.theme.*
 
-/**
- * Dashboard on the "Edition 2" language: a full-width hero zone on the plain
- * background (morph connect button + big status text), a tonal server strip,
- * two big-numeral traffic blocks, a segmented routing control in a filled
- * panel, and the traffic chart last. No outlined cards anywhere — separation
- * by tone steps and spacing.
- */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DashboardScreen(
     onNavigateToServers: () -> Unit,
@@ -81,495 +47,146 @@ fun DashboardScreen(
     onNavigateToLogs: () -> Unit,
     viewModel: DashboardViewModel = koinViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val view = LocalView.current
-
-    val vpnPrepareLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            viewModel.startProxy()
-        }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (it.resultCode == Activity.RESULT_OK) viewModel.startProxy()
     }
-
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { _ ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = D2.ScreenH),
-            verticalArrangement = Arrangement.spacedBy(D2.SectionGap)
-        ) {
-            // ── Header: big brand title + round tonal quick actions ──────────
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(top = 12.dp)
-            ) {
-                D2ScreenTitle(
-                    text = stringResource(R.string.app_name),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    D2IconAction(
-                        icon = Icons.Default.Hub,
-                        contentDescription = stringResource(R.string.nav_connections),
-                        onClick = onNavigateToConnections
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    D2IconAction(
-                        icon = Icons.Default.Terminal,
-                        contentDescription = stringResource(R.string.nav_logs),
-                        onClick = onNavigateToLogs
-                    )
-                }
-            }
-
-            // ── Hero zone: connect morph + big status text, on background ────
-            HeroZone(
-                isRunning = state.isRunning,
-                isConnecting = state.isConnecting,
-                isDisconnecting = state.isDisconnecting,
-                modeLabel = stringResource(
-                    if (state.isRootMode) R.string.dashboard_mode_root_tproxy else R.string.dashboard_mode_vpn
-                ),
-                onClick = {
-                    AppHaptics.perform(context, HapticType.HEAVY, view)
-                    if (state.isRunning || state.isDisconnecting) {
-                        viewModel.stopProxy()
-                    } else {
-                        if (state.isRootMode) {
-                            viewModel.startProxy()
-                        } else {
-                            val prepareIntent = VpnService.prepare(context)
-                            if (prepareIntent != null) {
-                                vpnPrepareLauncher.launch(prepareIntent)
-                            } else {
-                                viewModel.startProxy()
-                            }
-                        }
-                    }
-                }
-            )
-
-            // ── Server strip ─────────────────────────────────────────────────
-            Column(verticalArrangement = Arrangement.spacedBy(D2.LabelGap)) {
-                D2SectionLabel(text = stringResource(R.string.dashboard_active_server))
-                D2Panel(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)) {
-                    D2ServerRow(
-                        serverName = state.selectedNode,
-                        profileName = state.activeProfileName
-                            .ifBlank { stringResource(R.string.dashboard_default_profile_name) },
-                        delayMs = state.selectedNodeDelay,
-                        onClick = {
-                            AppHaptics.perform(context, HapticType.CLICK, view)
-                            onNavigateToServers()
-                        }
-                    )
-                }
-            }
-
-            // ── Traffic: two big-numeral stat blocks + live core caption ─────
-            Column(verticalArrangement = Arrangement.spacedBy(D2.LabelGap)) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(D2.BlockGap),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    D2StatBlock(
-                        label = stringResource(R.string.dashboard_download),
-                        value = formatSpeed(state.currentTraffic.down),
-                        accent = AccentGreen,
-                        modifier = Modifier.weight(1f)
-                    )
-                    D2StatBlock(
-                        label = stringResource(R.string.dashboard_upload),
-                        value = formatSpeed(state.currentTraffic.up),
-                        accent = AccentBlue,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                if (state.isRunning) {
-                    D2Caption(
-                        text = stringResource(R.string.dash_connections, state.connectionsCount) +
-                            "  ·  " +
-                            stringResource(R.string.dash_memory, formatMemoryMb(state.memoryInuse)),
-                        modifier = Modifier.padding(start = 6.dp)
-                    )
-                }
-            }
-
-            // ── Routing mode: compact segmented control in a filled panel ────
-            Column(verticalArrangement = Arrangement.spacedBy(D2.LabelGap)) {
-                D2SectionLabel(text = stringResource(R.string.dashboard_routing_mode))
-                D2Panel {
-                    val modeOptions = listOf(
-                        D2SegmentOption(ProxyMode.RULE, stringResource(R.string.mode_rule)),
-                        D2SegmentOption(ProxyMode.GLOBAL, stringResource(R.string.mode_global)),
-                        D2SegmentOption(ProxyMode.DIRECT, stringResource(R.string.mode_direct))
-                    )
-                    D2Segmented(
-                        options = modeOptions,
-                        selected = state.activeMode,
-                        onOptionSelected = { mode ->
-                            AppHaptics.perform(context, HapticType.CLICK, view)
-                            viewModel.setMode(mode)
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    D2Gap()
-
-                    Text(
-                        text = when (state.activeMode) {
-                            ProxyMode.RULE -> stringResource(R.string.dashboard_mode_rule_desc)
-                            ProxyMode.GLOBAL -> stringResource(R.string.dashboard_mode_global_desc)
-                            ProxyMode.DIRECT -> stringResource(R.string.dashboard_mode_direct_desc)
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 17.sp
-                    )
-                }
-            }
-
-            // ── Traffic activity chart, last ─────────────────────────────────
-            Column(verticalArrangement = Arrangement.spacedBy(D2.LabelGap)) {
-                D2SectionLabel(text = stringResource(R.string.dashboard_traffic_activity))
-                D2Panel {
-                    TrafficGraph(
-                        history = state.trafficHistory,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(140.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(D2.SectionGap))
-        }
-    }
-}
-
-/** Server switcher strip content: squircle icon, loud node name, latency, chevron. */
-@Composable
-private fun D2ServerRow(
-    serverName: String,
-    profileName: String,
-    delayMs: Long,
-    onClick: () -> Unit
-) {
-    val isAuto = serverName.startsWith("⚡") || serverName.contains("Auto", ignoreCase = true)
-    val interaction = remember { MutableInteractionSource() }
-    val pressScale = rememberPressScale(interaction, pressedScale = 0.97f)
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(pressScale)
-            .clickable(interactionSource = interaction) { onClick() }
-            .padding(vertical = 6.dp)
+    // Keep the full-bleed hero; the app shell owns system and navigation insets.
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = D2.ScreenH),
+        verticalArrangement = Arrangement.spacedBy(D2.SectionGap)
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(48.dp)
-                .clip(D2.Inner)
-                .background(MaterialTheme.colorScheme.primaryContainer)
-        ) {
-            Icon(
-                imageVector = if (isAuto) Icons.Default.Bolt else Icons.Default.Dns,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(23.dp)
-            )
+        D2ScreenTitle(stringResource(R.string.app_name), Modifier.padding(top = 8.dp)) {
+            D2IconAction(Icons.Default.Hub, stringResource(R.string.nav_connections), onNavigateToConnections)
+            Spacer(Modifier.width(8.dp))
+            D2IconAction(Icons.Default.Terminal, stringResource(R.string.nav_logs), onNavigateToLogs)
         }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = serverName.ifBlank { stringResource(R.string.dashboard_select_server) },
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Black,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = stringResource(R.string.dashboard_subscription_label, profileName),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+        ConnectionHero(state) {
+            AppHaptics.perform(context, HapticType.HEAVY, view)
+            if (state.isRunning || state.isConnecting || state.isDisconnecting) viewModel.stopProxy()
+            else if (state.isRootMode) viewModel.startProxy()
+            else {
+                val request = VpnService.prepare(context)
+                if (request != null) permission.launch(request) else viewModel.startProxy()
+            }
         }
-
-        if (delayMs > 0 || delayMs == -1L) {
-            ExpressiveLatencyBadge(delayMs = delayMs)
-            Spacer(modifier = Modifier.width(6.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            D2SectionLabel(stringResource(R.string.dashboard_active_server))
+            Surface(
+                onClick = onNavigateToServers,
+                shape = D2.Container,
+                color = MaterialTheme.colorScheme.surfaceContainer
+            ) {
+                ListItem(
+                    headlineContent = { Text(state.selectedNode.ifBlank { stringResource(R.string.dashboard_select_server) }, style = MaterialTheme.typography.titleMedium) },
+                    supportingContent = { Text(state.activeProfileName.ifBlank { stringResource(R.string.dashboard_default_profile_name) }) },
+                    leadingContent = { Icon(Icons.Default.Dns, null, tint = MaterialTheme.colorScheme.primary) },
+                    trailingContent = {
+                        if (state.selectedNodeDelay != 0L) ExpressiveLatencyBadge(state.selectedNodeDelay)
+                        else Icon(Icons.Default.ChevronRight, null)
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
+            }
         }
-        Icon(
-            Icons.Default.ChevronRight,
-            contentDescription = stringResource(R.string.cd_dashboard_change_server),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            D2StatBlock(stringResource(R.string.dashboard_download), formatSpeed(state.currentTraffic.down), Modifier.weight(1f), MaterialTheme.colorScheme.primary)
+            D2StatBlock(stringResource(R.string.dashboard_upload), formatSpeed(state.currentTraffic.up), Modifier.weight(1f), MaterialTheme.colorScheme.tertiary)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            D2SectionLabel(stringResource(R.string.dashboard_routing_mode))
+            D2Segmented(
+                options = listOf(
+                    D2SegmentOption(ProxyMode.RULE, stringResource(R.string.mode_rule)),
+                    D2SegmentOption(ProxyMode.GLOBAL, stringResource(R.string.mode_global)),
+                    D2SegmentOption(ProxyMode.DIRECT, stringResource(R.string.mode_direct))
+                ),
+                selected = state.activeMode,
+                onOptionSelected = { AppHaptics.perform(context, HapticType.CLICK, view); viewModel.setMode(it) },
+                modifier = Modifier.fillMaxWidth()
+            )
+            D2Caption(stringResource(when (state.activeMode) {
+                ProxyMode.RULE -> R.string.dashboard_mode_rule_desc
+                ProxyMode.GLOBAL -> R.string.dashboard_mode_global_desc
+                ProxyMode.DIRECT -> R.string.dashboard_mode_direct_desc
+            }), Modifier.padding(horizontal = 8.dp))
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            D2SectionLabel(stringResource(R.string.dashboard_traffic_activity))
+            D2Panel {
+                TrafficGraph(state.trafficHistory, Modifier.fillMaxWidth().height(140.dp))
+                if (state.isRunning) {
+                    Spacer(Modifier.height(12.dp))
+                    D2Caption(stringResource(R.string.dash_connections, state.connectionsCount) + " · " +
+                        stringResource(R.string.dash_memory, stringResource(R.string.dash_memory_value, state.memoryInuse / 1048576.0)))
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
     }
 }
 
-/**
- * Hero zone: the tactile morph button with its breathing aura, then the
- * status as a big display line — the visual anchor of the screen sits
- * directly on the background, not in a card.
- *
- * Ring motion is differentiated per state (M3E kinematics): emanating pulse
- * while connecting, calm breathing while protected, contracting spin-down
- * while disconnecting. All glow stays within the 165.dp ring bounds.
- * NO shadowElevation on the morph path (concave spot-shadow tessellation
- * wedges HWUI on real devices — see ExpressiveMorph notes).
- */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun HeroZone(
-    isRunning: Boolean,
-    isConnecting: Boolean,
-    isDisconnecting: Boolean,
-    modeLabel: String,
-    onClick: () -> Unit
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "d2HeroHalo")
-
-    val ringDuration = when {
-        isConnecting -> 900
-        isDisconnecting -> 600
-        else -> 2400
-    }
-    val ringRepeat = if (isRunning) RepeatMode.Reverse else RepeatMode.Restart
-
-    val outerRingScale by infiniteTransition.animateFloat(
-        initialValue = if (isDisconnecting) 1.08f else 1f,
-        targetValue = when {
-            isConnecting -> 1.12f
-            isDisconnecting -> 1f
-            isRunning -> 1.04f
-            else -> 1f
-        },
-        animationSpec = infiniteRepeatable(
-            animation = tween(ringDuration, easing = FastOutSlowInEasing),
-            repeatMode = ringRepeat
-        ),
-        label = "d2OuterRingScale"
-    )
-
-    val innerRingScale by infiniteTransition.animateFloat(
-        initialValue = if (isDisconnecting) 1.05f else 1f,
-        targetValue = when {
-            isConnecting -> 1.07f
-            isDisconnecting -> 1f
-            isRunning -> 1.02f
-            else -> 1f
-        },
-        animationSpec = infiniteRepeatable(
-            animation = tween((ringDuration * 0.85f).toInt().coerceAtLeast(200), easing = FastOutSlowInEasing),
-            repeatMode = ringRepeat
-        ),
-        label = "d2InnerRingScale"
-    )
-
-    val outerRingAlpha by infiniteTransition.animateFloat(
-        initialValue = if (isConnecting) 0.85f else 0.6f,
-        targetValue = when {
-            isConnecting -> 0.25f
-            isDisconnecting -> 0.2f
-            else -> 1f
-        },
-        animationSpec = infiniteRepeatable(
-            animation = tween(ringDuration, easing = FastOutSlowInEasing),
-            repeatMode = ringRepeat
-        ),
-        label = "d2OuterRingAlpha"
-    )
-
-    val isBusy = isRunning || isConnecting || isDisconnecting
-
-    val targetButtonColor = when {
-        isRunning -> AccentGreen
-        isConnecting -> AccentOrange
-        isDisconnecting -> Color(0xFFEA580C)
+private fun ConnectionHero(state: DashboardUiState, onToggle: () -> Unit) {
+    val busy = state.isConnecting || state.isDisconnecting
+    val status = stringResource(when {
+        state.isDisconnecting -> R.string.dashboard_status_disconnecting
+        state.isConnecting -> R.string.dashboard_status_connecting
+        state.isRunning -> R.string.dashboard_status_protected
+        else -> R.string.dashboard_status_disconnected
+    })
+    val action = stringResource(if (state.isRunning) R.string.action_disconnect else if (busy) R.string.action_cancel else R.string.cd_dashboard_connect)
+    val container by animateColorAsState(when {
+        busy -> MaterialTheme.colorScheme.tertiaryContainer
+        state.isRunning -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.surfaceContainerHighest
+    }, label = "connectionColor")
+    val content = when {
+        busy -> MaterialTheme.colorScheme.onTertiaryContainer
+        state.isRunning -> MaterialTheme.colorScheme.onPrimary
+        else -> MaterialTheme.colorScheme.primary
     }
-    val buttonColor by animateColorAsState(
-        targetValue = targetButtonColor,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
-        label = "d2HeroButtonColor"
-    )
-
-    val iconTint by animateColorAsState(
-        targetValue = if (isBusy) Color.White else MaterialTheme.colorScheme.primary,
-        label = "d2HeroIconTint"
-    )
-
-    val targetGlowColor = when {
-        isRunning -> AccentGreen.copy(alpha = 0.28f)
-        isConnecting -> AccentOrange.copy(alpha = 0.28f)
-        isDisconnecting -> Color(0xFFEA580C).copy(alpha = 0.22f)
-        else -> Color.Transparent
-    }
-    val glowColor by animateColorAsState(targetValue = targetGlowColor, label = "d2HeroGlowColor")
-
-    val statusColor by animateColorAsState(
-        targetValue = when {
-            isRunning -> AccentGreen
-            isConnecting || isDisconnecting -> AccentOrange
-            else -> MaterialTheme.colorScheme.onSurfaceVariant
-        },
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
-        label = "d2HeroStatusColor"
-    )
-
-    // M3E signature "cookie morph": rounded square at rest, 12-lobed cookie
-    // while the VPN protects the device. graphics-shapes Morph, cached, with
-    // a draw-phase re-read so the outline is frame-exact.
-    val heroMorph = remember { ExpressiveMorph.morphFor(ExpressiveMorph.SQUARE, ExpressiveMorph.COOKIE_12) }
-    val heroMorphProgress by ExpressiveMorph.progress(if (isRunning) 1f else 0f)
-    val heroMorphPath = remember { Path() }
-
-    val heroInteractionSource = remember { MutableInteractionSource() }
-    val pressScale = rememberPressScale(
-        interactionSource = heroInteractionSource,
-        pressedScale = 0.93f,
-        stiffness = Spring.StiffnessMedium
-    )
-
-    var uptimeText by remember { mutableStateOf("") }
-    val connectionStartTime by ServiceState.connectionStartTime.collectAsState()
-    LaunchedEffect(isRunning, connectionStartTime) {
-        if (!isRunning || connectionStartTime == null) {
-            uptimeText = ""
-            return@LaunchedEffect
-        }
-        while (isActive) {
-            val start = connectionStartTime ?: break
-            uptimeText = ServiceState.formatDuration(System.currentTimeMillis() - start)
+    val progress by ExpressiveMorph.progress(if (state.isRunning) 1f else 0f)
+    val animatedShape = remember(progress) { ExpressiveMorph.shape(ExpressiveMorph.SQUARE, ExpressiveMorph.COOKIE_12) { progress } }
+    val start by ServiceState.connectionStartTime.collectAsStateWithLifecycle()
+    var uptime by remember { mutableStateOf("") }
+    LaunchedEffect(state.isRunning, start) {
+        uptime = ""
+        while (state.isRunning && start != null && isActive) {
+            uptime = ServiceState.formatDuration(System.currentTimeMillis() - (start ?: break))
             delay(1000)
         }
     }
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 6.dp)
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.size(178.dp)
-        ) {
-            if (isBusy) {
-                Box(
-                    modifier = Modifier
-                        .size(168.dp)
-                        .scale(outerRingScale)
-                        .clip(D2.Hero)
-                        .background(glowColor.copy(alpha = 0.14f * outerRingAlpha))
-                )
-                Box(
-                    modifier = Modifier
-                        .size(152.dp)
-                        .scale(innerRingScale)
-                        .clip(D2.Hero)
-                        .background(glowColor)
-                )
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.size(192.dp), contentAlignment = Alignment.Center) {
+            if (state.isRunning || busy) {
+                val transition = rememberInfiniteTransition(label = "connectionAura")
+                val scale by transition.animateFloat(0.96f, 1.04f, infiniteRepeatable(tween(if (busy) 800 else 2200), RepeatMode.Reverse), label = "auraScale")
+                Box(Modifier.size(180.dp).scale(scale).clip(D2.Hero).background(container.copy(alpha = 0.13f)))
+                Box(Modifier.size(160.dp).clip(D2.Hero).background(container.copy(alpha = 0.18f)))
             }
-
-            val morphOutlineColor =
-                if (!isBusy) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f) else Color.Transparent
             Box(
-                modifier = Modifier
-                    .size(140.dp)
-                    .scale(pressScale)
-                    .graphicsLayer {
-                        shape = ExpressiveMorph.shape(
-                            ExpressiveMorph.SQUARE,
-                            ExpressiveMorph.COOKIE_12
-                        ) { heroMorphProgress }
-                        clip = true
-                    }
-                    .background(buttonColor)
-                    .clickable(
-                        interactionSource = heroInteractionSource,
-                        indication = null,
-                        onClick = onClick
-                    )
-                    .drawWithContent {
-                        drawContent()
-                        if (morphOutlineColor != Color.Transparent) {
-                            drawPath(
-                                ExpressiveMorph.path(heroMorph, heroMorphProgress, size, heroMorphPath),
-                                morphOutlineColor,
-                                style = Stroke(width = 1.5.dp.toPx())
-                            )
-                        }
-                    }
+                Modifier.size(140.dp).clip(animatedShape).background(container)
+                    .toggleable(state.isRunning, enabled = !state.isDisconnecting, role = Role.Switch, onValueChange = { onToggle() })
+                    .semantics { contentDescription = action; stateDescription = status },
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    if (isConnecting || isDisconnecting) {
-                        CircularProgressIndicator(
-                            color = Color.White,
-                            modifier = Modifier.size(52.dp),
-                            strokeWidth = 3.5.dp
-                        )
-                    } else {
-                        Icon(
-                            imageVector = if (isRunning) Icons.Default.Shield else Icons.Default.PowerSettingsNew,
-                            contentDescription = stringResource(R.string.cd_dashboard_connect),
-                            tint = iconTint,
-                            modifier = Modifier.size(56.dp)
-                        )
-                    }
-                }
+                if (busy) LoadingIndicator(Modifier.size(64.dp), color = content)
+                else Icon(if (state.isRunning) Icons.Default.Shield else Icons.Default.PowerSettingsNew, null, Modifier.size(56.dp), tint = content)
             }
         }
-
-        Spacer(modifier = Modifier.height(22.dp))
-
-        // Big status line — the quiet pill from the old design became the voice.
-        Text(
-            text = when {
-                isConnecting -> stringResource(R.string.dashboard_status_connecting)
-                isDisconnecting -> stringResource(R.string.dashboard_status_disconnecting)
-                isRunning -> stringResource(R.string.dashboard_status_protected)
-                else -> stringResource(R.string.dashboard_status_disconnected)
-            },
-            style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.Black,
-            letterSpacing = (-0.5).sp,
-            color = statusColor
-        )
-
-        // Caption: execution mode + live uptime.
-        D2Caption(
-            text = if (isRunning && uptimeText.isNotBlank()) "$modeLabel  ·  $uptimeText" else modeLabel,
-            modifier = Modifier.padding(top = 4.dp)
-        )
+        Text(status, style = MaterialTheme.typography.headlineMedium)
+        val mode = stringResource(if (state.isRootMode) R.string.dashboard_mode_root_tproxy else R.string.dashboard_mode_vpn)
+        D2Caption(if (uptime.isEmpty()) mode else "$mode · $uptime")
     }
 }
 
 @Composable
-private fun formatSpeed(bytesPerSec: Long): String {
-    return when {
-        bytesPerSec >= 1024 * 1024 -> stringResource(R.string.speed_mb_per_s, bytesPerSec / (1024.0 * 1024.0))
-        bytesPerSec >= 1024 -> stringResource(R.string.speed_kb_per_s, bytesPerSec / 1024.0)
-        bytesPerSec > 0 -> stringResource(R.string.speed_b_per_s, bytesPerSec)
-        else -> stringResource(R.string.speed_b_per_s, 0L)
-    }
-}
-
-/** Compact core-memory formatter: bytes → "%.0f MB" (locale-aware). */
-@Composable
-private fun formatMemoryMb(bytes: Long): String {
-    return stringResource(R.string.dash_memory_value, bytes / (1024.0 * 1024.0))
+private fun formatSpeed(value: Long): String = when {
+    value >= 1048576 -> stringResource(R.string.speed_mb_per_s, value / 1048576.0)
+    value >= 1024 -> stringResource(R.string.speed_kb_per_s, value / 1024.0)
+    else -> stringResource(R.string.speed_b_per_s, value)
 }

@@ -1,23 +1,20 @@
 package org.mihomet.app.ui.screens.proxies
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.*
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -27,7 +24,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -47,7 +43,6 @@ import org.mihomet.app.ui.components.ExpressiveLatencyBadge
 import org.mihomet.app.ui.components.ExpressiveSnackbarHost
 import org.mihomet.app.ui.components.ProtocolBadge
 import org.mihomet.app.ui.components.SearchPill
-import org.mihomet.app.ui.components.rememberPressScale
 import org.mihomet.app.ui.design2.D2
 import org.mihomet.app.ui.design2.D2IconAction
 import org.mihomet.app.ui.design2.D2Panel
@@ -58,16 +53,16 @@ import org.mihomet.app.ui.design2.D2Segmented
 import org.mihomet.app.ui.theme.*
 
 /**
- * Servers screen on the "Edition 2" language: big display title with round
- * tonal quick actions, filled tonal node panels (selection = primaryContainer
- * tint, the only state allowed a border), no outlined cards anywhere.
+ * Servers screen with a display title, round tonal actions and connected rows.
+ * Selection uses primaryContainer; inactive cards use surfaceContainerHighest
+ * and an outlineVariant border.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProxiesScreen(
     viewModel: ProxiesViewModel = koinViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val view = LocalView.current
 
@@ -134,13 +129,27 @@ fun ProxiesScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        snackbarHost = { ExpressiveSnackbarHost(hostState = snackbarHostState) }
+        snackbarHost = { ExpressiveSnackbarHost(hostState = snackbarHostState) },
+        floatingActionButtonPosition = FabPosition.Center,
+        floatingActionButton = {
+            HorizontalFloatingToolbar(expanded = true) {
+                TextButton(onClick = { viewModel.testAllServers() }, enabled = !state.isTestingAll && state.allServers.isNotEmpty()) {
+                    if (state.isTestingAll) LoadingIndicator(Modifier.size(24.dp))
+                    else Icon(Icons.Default.Bolt, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.proxies_test_all))
+                }
+                IconButton(onClick = { viewModel.testCurrentConnection() }, enabled = !state.isTestingCurrentConnection) {
+                    Icon(Icons.Default.Public, stringResource(R.string.proxies_network_test))
+                }
+                IconButton(onClick = { showToolsSheet = true }) { Icon(Icons.Default.Tune, stringResource(R.string.cd_proxies_tools)) }
+            }
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .statusBarsPadding()
                 .padding(horizontal = D2.ScreenH)
         ) {
             // ── Header: big display title + round tonal quick actions ────────
@@ -156,23 +165,7 @@ fun ProxiesScreen(
                         CountBadge(count = sortedServers.size)
                         Spacer(modifier = Modifier.width(10.dp))
                     }
-                    TestAllPill(
-                        isTestingAll = state.isTestingAll,
-                        enabled = !state.isTestingAll && state.allServers.isNotEmpty(),
-                        onClick = {
-                            AppHaptics.perform(context, HapticType.CLICK, view)
-                            viewModel.testAllServers()
-                        }
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    D2IconAction(
-                        icon = Icons.Default.Tune,
-                        contentDescription = stringResource(R.string.cd_proxies_tools),
-                        onClick = {
-                            AppHaptics.perform(context, HapticType.CLICK, view)
-                            showToolsSheet = true
-                        }
-                    )
+
                 }
             }
 
@@ -298,16 +291,17 @@ fun ProxiesScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(top = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(bottom = 12.dp)
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    contentPadding = PaddingValues(bottom = 104.dp)
                 ) {
-                    items(sortedServers, key = { it.name }) { node ->
+                    itemsIndexed(sortedServers, key = { _, node -> node.name }) { index, node ->
                         val isSelected = node.name == state.selectedNodeName
 
                         ExpressiveServerNodeCard(
                             node = node,
                             isSelected = isSelected,
                             isTesting = state.testingNodeNames.contains(node.name),
+                            index = index, total = sortedServers.size,
                             onSelect = {
                                 AppHaptics.perform(context, HapticType.CLICK, view)
                                 viewModel.selectServer(currentGroup?.name ?: "", node)
@@ -364,235 +358,52 @@ fun ProxiesScreen(
     }
 }
 
-/** Filled "test all" pill for the title row: primaryContainer, springy squeeze. */
-@Composable
-private fun TestAllPill(
-    isTestingAll: Boolean,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressScale = rememberPressScale(interaction, pressedScale = 0.9f)
-    Surface(
-        shape = D2.Pill,
-        color = MaterialTheme.colorScheme.primaryContainer,
-        modifier = Modifier
-            .scale(pressScale)
-            .clip(D2.Pill)
-            .clickable(interactionSource = interaction, enabled = enabled) { onClick() }
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
-        ) {
-            if (isTestingAll) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(14.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = stringResource(R.string.proxies_pinging),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            } else {
-                Icon(
-                    Icons.Default.Bolt,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = stringResource(R.string.proxies_test_all),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
-        }
-    }
-}
-
 /**
- * Server node panel on the Edition 2 language: filled tonal container
- * (selection morphs to a primaryContainer tint — the only state allowed a
- * border), squircle flag, protocol tag pill, ping capsule, spring check.
+ * Server node panel: outlined neutral inactive surface, primaryContainer
+ * selection, squircle flag, protocol tags and latency capsule.
  */
 @Composable
 fun ExpressiveServerNodeCard(
-    node: ServerNodeItem,
-    isSelected: Boolean,
-    isTesting: Boolean = false,
-    onSelect: () -> Unit,
-    onPingClick: () -> Unit
+    node: ServerNodeItem, isSelected: Boolean, isTesting: Boolean = false,
+    onSelect: () -> Unit, onPingClick: () -> Unit, index: Int = 0, total: Int = 1
 ) {
-    val cardInteractionSource = remember { MutableInteractionSource() }
-    val cardPressScale = rememberPressScale(cardInteractionSource, pressedScale = 0.98f)
-
-    val cardColor by animateColorAsState(
-        targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
-        },
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
-        label = "nodeCardColor"
-    )
-    // Border is reserved for the selected state; it fades out otherwise.
-    val cardBorderColor by animateColorAsState(
-        targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-        } else {
-            Color.Transparent
-        },
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
-        label = "nodeCardBorder"
-    )
-    // Selection indicator: one circle that fills and springs its check in.
-    val indicatorColor by animateColorAsState(
-        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
-        label = "nodeIndicatorColor"
-    )
-    val indicatorBorderColor by animateColorAsState(
-        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
-        label = "nodeIndicatorBorder"
-    )
-    val checkScale by animateFloatAsState(
-        targetValue = if (isSelected) 1f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
-        label = "nodeCheckScale"
-    )
-
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(cardPressScale)
-            .clip(D2.Container)
-            .clickable(
-                interactionSource = cardInteractionSource,
-                onClick = onSelect
-            ),
-        shape = D2.Container,
-        color = cardColor,
-        border = BorderStroke(1.dp, cardBorderColor)
+        selected = isSelected, onClick = onSelect,
+        shape = ExpressiveShapes.groupedShape(index, total),
+        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+        border = if (isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Flag or Auto-select squircle icon
-            Surface(
-                shape = D2.Inner,
-                color = if (node.isAutoSelect) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHighest
-                },
-                modifier = Modifier.size(40.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    if (node.isAutoSelect) {
-                        Icon(
-                            Icons.Default.Bolt,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    } else {
-                        Text(
-                            text = getNodeFlagEmoji(node.name),
-                            fontSize = 18.sp
-                        )
+        ListItem(
+            headlineContent = { Text(node.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+            supportingContent = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        ProtocolBadge(node.type)
+                        if (node.network.isNotBlank()) ProtocolBadge(node.network)
+                    }
+                    if (node.server.isNotBlank()) Text("${node.server}:${node.port}", style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            },
+            leadingContent = {
+                Surface(shape = ExpressiveShapes.Medium, color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+                    Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                        if (node.isAutoSelect) Icon(Icons.Default.Bolt, null, tint = MaterialTheme.colorScheme.primary)
+                        else Text(getNodeFlagEmoji(node.name), fontSize = 24.sp)
                     }
                 }
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Node Name and Protocol (weighted column: latency chip can never
-            // squeeze or overlap the name; both lines ellipsize, never cut mid-word)
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = node.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(3.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    // Content-sized protocol tag: never wrapped, never truncated mid-word
-                    ProtocolBadge(protocol = node.type)
-                    if (node.network.isNotBlank()) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        ProtocolBadge(protocol = node.network.uppercase())
-                    }
-
-                    if (node.server.isNotBlank()) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "${node.server}:${node.port}",
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+            },
+            trailingContent = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    ExpressiveLatencyBadge(node.delayMs, isTesting = isTesting, onClick = onPingClick)
+                    RadioButton(selected = isSelected, onClick = null, modifier = Modifier.size(32.dp))
                 }
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Ping Badge (Clickable)
-            ExpressiveLatencyBadge(
-                delayMs = node.delayMs,
-                isTesting = isTesting,
-                onClick = onPingClick
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Selection indicator (animated fill + spring check)
-            Surface(
-                shape = CircleShape,
-                color = indicatorColor,
-                border = BorderStroke(1.5.dp, indicatorBorderColor),
-                modifier = Modifier.size(22.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Default.Check,
-                        contentDescription = stringResource(R.string.cd_selected),
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier
-                            .size(14.dp)
-                            .scale(checkScale)
-                    )
-                }
-            }
-        }
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
     }
 }
 
-/** Current-connection diagnostics panel: accent tint carries the verdict, no border. */
 @Composable
 fun CurrentConnectionCard(
     result: ConnectionTestResult,

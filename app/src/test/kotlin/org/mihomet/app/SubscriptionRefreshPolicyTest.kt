@@ -52,7 +52,7 @@ class SubscriptionRefreshPolicyTest {
     }
 
     @Test
-    fun `interval below the 6-hour minimum is never due`() {
+    fun `interval below the one-hour minimum is never due`() {
         val tooFrequent = profile(updateIntervalHours = MIN_AUTO_UPDATE_HOURS - 1, lastUpdated = hoursAgo(1000))
         assertFalse(SubscriptionRepository.isDueForRefresh(tooFrequent, now))
     }
@@ -98,4 +98,10 @@ class SubscriptionRefreshPolicyTest {
         val p = profile(updateIntervalHours = 6, lastUpdated = now + 3_600_000L)
         assertFalse(SubscriptionRepository.isDueForRefresh(p, now))
     }
+    @Test
+    fun `one hour profile becomes due after one hour`() {
+        assertFalse(SubscriptionRepository.isDueForRefresh(profile(updateIntervalHours = 1, lastUpdated = now - 3_599_999), now))
+        assertTrue(SubscriptionRepository.isDueForRefresh(profile(updateIntervalHours = 1, lastUpdated = now - 3_600_000), now))
+    }
+
 }

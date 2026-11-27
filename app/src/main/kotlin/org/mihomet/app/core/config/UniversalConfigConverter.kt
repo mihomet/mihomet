@@ -29,7 +29,7 @@ object UniversalConfigConverter {
      * during conversion so the caller can surface them to the user.
      */
     fun convertToMihomoYamlWithOutcome(content: String): ConversionOutcome {
-        val trimmed = content.trim()
+        val trimmed = content.trim().removePrefix("\uFEFF").trim()
         if (trimmed.isBlank()) return ConversionOutcome(content, emptyList())
 
         val warnings = mutableListOf<ConversionWarning>()
@@ -43,23 +43,24 @@ object UniversalConfigConverter {
             trimmed
         }
 
+        val payload = decoded.trim().removePrefix("\uFEFF").trim()
         val yaml = when {
             HappRoutingConverter.isHappRouting(trimmed) -> HappRoutingConverter.convertHappRoutingToMihomoYaml(trimmed)
-            HappRoutingConverter.isHappRouting(decoded) -> HappRoutingConverter.convertHappRoutingToMihomoYaml(decoded)
-            WireGuardConfParser.isWireGuardConf(decoded) -> {
+            HappRoutingConverter.isHappRouting(payload) -> HappRoutingConverter.convertHappRoutingToMihomoYaml(payload)
+            WireGuardConfParser.isWireGuardConf(payload) -> {
                 // Wrap in a full config shape ("proxies: [ ... ]"): the bare proxy
                 // map would fail ProfileValidation (no proxies/rules keys) and the
                 // whitelist sanitizer would strip every field at generation time.
-                val proxy = WireGuardConfParser.parse(decoded, "WireGuard")
+                val proxy = WireGuardConfParser.parse(payload, "WireGuard")
                 org.yaml.snakeyaml.Yaml().dump(mapOf("proxies" to listOf(proxy)))
             }
-            ClashYamlConverter.isClashYaml(decoded) -> ClashYamlConverter.validateAndNormalizeYaml(decoded, warnings)
-            SingBoxConverter.isSingBoxJson(decoded) -> SingBoxConverter.convertSingBoxJsonToMihomoYaml(decoded, warnings)
-            XrayJsonConverter.isXrayJson(decoded) -> XrayJsonConverter.convertXrayJsonToMihomoYaml(decoded, warnings)
-            UriListConverter.isUriList(decoded) -> UriListConverter.convertUriListToMihomoYaml(decoded, warnings)
+            ClashYamlConverter.isClashYaml(payload) -> ClashYamlConverter.validateAndNormalizeYaml(payload, warnings)
+            XrayJsonConverter.isXrayJson(payload) -> return XrayJsonConverter.convert(payload)
+            SingBoxConverter.isSingBoxJson(payload) -> SingBoxConverter.convertSingBoxJsonToMihomoYaml(payload, warnings)
+            UriListConverter.isUriList(payload) -> UriListConverter.convertUriListToMihomoYaml(payload, warnings)
             else -> {
                 warnings.add(ConversionWarning.UnknownFormat)
-                decoded
+                payload
             }
         }
         return ConversionOutcome(yaml, warnings)

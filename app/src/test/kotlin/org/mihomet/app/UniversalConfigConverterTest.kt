@@ -25,6 +25,7 @@ class UniversalConfigConverterTest {
                   "balancers": [
                     {
                       "tag": "BALANCER-MAIN",
+                      "strategy": {"type": "leastPing"},
                       "selector": ["TIER1", "TIER2"]
                     }
                   ],
@@ -69,9 +70,10 @@ class UniversalConfigConverterTest {
                       "network": "ws",
                       "wsSettings": { "path": "/ws-path", "headers": { "Host": "de.meow.ac" } },
                       "security": "reality",
-                      "realitySettings": { "serverName": "de.meow.ac", "publicKey": "pubkey", "shortId": "sid" }
+                      "realitySettings": { "serverName": "de.meow.ac", "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "shortId": "abcd" }
                     }
-                  }
+                  },
+                  {"tag":"direct","protocol":"freedom"}
                 ]
               },
               {
@@ -99,7 +101,7 @@ class UniversalConfigConverterTest {
                       "network": "ws",
                       "wsSettings": { "path": "/ws-path", "headers": { "Host": "de.meow.ac" } },
                       "security": "reality",
-                      "realitySettings": { "serverName": "de.meow.ac", "publicKey": "pubkey", "shortId": "sid" }
+                      "realitySettings": { "serverName": "de.meow.ac", "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "shortId": "abcd" }
                     }
                   }
                 ]
@@ -113,7 +115,7 @@ class UniversalConfigConverterTest {
 
         // Proxies check
         val proxies = parsed["proxies"] as List<Map<String, Any>>
-        assertEquals(2, proxies.size)
+        assertEquals(3, proxies.size)
         assertEquals("🇱🇻 Node Latvia", proxies[0]["name"])
         assertEquals("vless", proxies[0]["type"])
         assertEquals("lv.example.com", proxies[0]["server"])
@@ -131,7 +133,8 @@ class UniversalConfigConverterTest {
         assertEquals("http://www.gstatic.com/generate_204", balancerGroup["url"])
         assertEquals(600, balancerGroup["interval"])
         val balancerProxies = balancerGroup["proxies"] as List<String>
-        assertTrue(balancerProxies.contains("🇱🇻 Node Latvia"))
+        assertTrue(balancerProxies.contains("TIER1"))
+        assertFalse(balancerProxies.contains("🇱🇻 Node Latvia"))
         assertTrue(balancerProxies.contains("🇩🇪 Node Germany"))
 
         // Selector group check
@@ -142,10 +145,9 @@ class UniversalConfigConverterTest {
 
         // Rules check
         val rules = parsed["rules"] as List<String>
-        assertTrue(rules.any { it.contains("GEOIP,PRIVATE,DIRECT") })
-        assertTrue(rules.any { it.contains("DOMAIN-SUFFIX,google.com,DIRECT") })
-        assertTrue(rules.any { it.contains("DOMAIN-SUFFIX,ru,DIRECT") })
-        assertTrue(rules.any { it.contains("IP-CIDR,91.108.4.0/22,PROXY,no-resolve") })
+        assertTrue(rules.any { it.contains("GEOIP,private,DIRECT") })
+        assertTrue(rules.any { it.contains("DOMAIN-SUFFIX,google.com") && it.contains("DOMAIN-REGEX,(?-i:.*\\.ru$)") && it.endsWith(",DIRECT") })
+        assertTrue(rules.any { it == "IP-CIDR,91.108.4.0/22,🚀 Dynamic Best Server" })
         assertTrue(rules.any { it.contains("MATCH,PROXY") })
     }
 
@@ -497,6 +499,6 @@ class UniversalConfigConverterTest {
         assertEquals(1, proxies.size)
         assertEquals("Server-proxies:fast", proxies[0]["name"])
         val realityOpts = proxies[0]["reality-opts"] as Map<String, Any>
-        assertEquals("dGVzdGtleQ==", realityOpts["public-key"])
+        assertEquals("dGVzdGtleQ", realityOpts["public-key"])
     }
 }

@@ -12,8 +12,9 @@ import androidx.compose.ui.unit.dp
  *
  * The language (wave A of the clean-sheet MD3E rebuild):
  *  - FILLED tonal containers ([androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow]
- *    and up), never outlined cards. Separation comes from tone steps and
- *    spacing; borders are reserved for selected/focused state only.
+ *    and up) for static content. Inactive selectable cards use
+ *    surfaceContainerHighest with an outlineVariant border; selected cards
+ *    use primaryContainer. Separation also comes from tone steps and spacing.
  *  - Loud typography: screen titles as big black display text with tight
  *    tracking, section labels as small uppercase labels with wide tracking.
  *  - Expressive corner family: hero 38dp, containers 26dp, inner elements
@@ -30,20 +31,20 @@ object D2 {
 
     // Layout rhythm
     /** Horizontal screen gutter. */
-    val ScreenH: Dp = 20.dp
+    val ScreenH: Dp = 16.dp
 
     /** Vertical gap between major screen sections. */
-    val SectionGap: Dp = 28.dp
+    val SectionGap: Dp = 24.dp
 
     /** Gap between a section label and its content block. */
-    val LabelGap: Dp = 12.dp
+    val LabelGap: Dp = 8.dp
 
     /** Gap between sibling blocks inside one section. */
-    val BlockGap: Dp = 12.dp
+    val BlockGap: Dp = 8.dp
 
     /** Default content padding inside a filled panel. */
-    val PanelPad: Dp = 18.dp
+    val PanelPad: Dp = 16.dp
 
     /** Standard squircle icon-container size inside rows. */
-    val IconBox: Dp = 46.dp
+    val IconBox: Dp = 48.dp
 }

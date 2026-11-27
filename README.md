@@ -3,7 +3,7 @@
 [![CI](https://github.com/mihomet/mihomet/actions/workflows/ci.yml/badge.svg)](https://github.com/mihomet/mihomet/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Min API](https://img.shields.io/badge/API-26%2B-green.svg)](https://developer.android.com/about/versions/oreo)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.1-7F52FF.svg)](https://kotlinlang.org)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.3.20-7F52FF.svg)](https://kotlinlang.org)
 
 **EN.** Mihomet is a modern, fast Android client for the [Mihomo](https://github.com/MetaCubeX/mihomo) core (`Clash.Meta` v1.19+) with a **Material 3 Expressive** interface. It supports both non-root VPN mode (`VpnService` + TUN/gVisor) and root transparent proxying (iptables/nftables), universal subscription conversion (Base64, Clash YAML, sing-box JSON, Xray JSON, share-link URIs incl. VLESS/Reality, VMess, SS/SS2022, Trojan, Hysteria 1/2, TUIC, Snell, WireGuard), per-app proxy, live traffic charts, a true AMOLED theme, and RU/EN localization. Grab a prebuilt APK from [Releases](../../releases) or build it yourself below.
 
@@ -17,7 +17,7 @@
   - **Non-Root (VPN):** the standard Android `VpnService` with a TUN/gVisor stack (no root required).
   - **Root (TProxy):** transparent proxying via `iptables` / `nftables` with minimal battery overhead.
 - **Material 3 Expressive interface:**
-  - Tactile floating navigation and interactive control widgets.
+  - Native expressive navigation, button groups, floating controls and loading indicators; Material You on fresh installs.
   - A true deep **AMOLED theme** (pure OLED `#000000` with neutral graphite containers and no color tint).
   - Smooth cinematic screen transitions (Shared-Axis motion).
   - Live traffic chart and real-time speed monitoring.
@@ -26,9 +26,10 @@
   - VLESS (Reality, Vision, post-quantum encryption fields), VMess, Shadowsocks (incl. SS2022), Trojan, Hysteria 2, Hysteria (v1), TUIC v5, WireGuard, AnyTLS, ShadowTLS, HTTP/SOCKS5.
 - **Universal subscriptions:**
   - Automatic conversion of every popular format: Base64 URI lists, Clash YAML, sing-box JSON, Xray JSON, share links (`vless://`, `vmess://`, `trojan://`, `ss://`, `hysteria2://`, `tuic://`, `snell://`, `wg://`, `ssh://`), incl. SIP003 plugins (simple-obfs, v2ray-plugin).
+  - Xray JSONC/Happ arrays: scoped tags, complete server/user expansion and compatible routing. Persistent per-profile reports explain skipped nodes, rules and options; unsupported server-verification requirements are rejected. Native Clash/Mihomo stays native.
   - Per-subscription custom headers (e.g. a panel access token) — encrypted at rest together with the URL.
   - Global identity settings: custom `User-Agent`, `x-hwid` on/off + override, per-profile overrides with the precedence *profile > global > default*.
-  - Content-aware UA fallback: the UA chain keeps walking while a response has no proxy-groups and prefers the first grouped one — hostile panels work without panel-side changes.
+  - Content-aware UA fallback: validate every response, prefer balancing/routing content over a flat list, and continue after a partial conversion to seek a less lossy rich response.
   - Node latency testing (HTTP, TCP, honest ICMP via the system `ping`) even when the core is stopped.
   - Free-form MTU (1280–65535) and TUN stack selection (gVisor / system / mixed).
   - Built-in AUTO auto-balancer: a `url-test` group is synthesized when the panel provides no balancing group, with a configurable node-exclusion pool.
@@ -115,13 +116,13 @@ Release signing is provided via the `KEYSTORE_FILE`, `KEYSTORE_PASSWORD`, `KEY_A
 
 ## 🏗 Architecture & stack
 
-- **Language:** Kotlin 2.1 (Coroutines, Flow, Serialization)
-- **UI:** Jetpack Compose (BOM 2026.06), Material 3 Expressive
+- **Language:** Kotlin 2.3.20 (Coroutines, Flow, Serialization)
+- **UI:** Jetpack Compose (BOM 2026.09.00; Material 3 1.5.0), Material 3 Expressive
 - **DI:** Koin 4.1
 - **Storage:** Room 2.8 (profiles and sessions; URLs/headers encrypted), DataStore Preferences (settings)
 - **Network client:** Ktor 3 (subscription downloads, traffic WebSocket, core REST API)
 - **Core:** `libmihomo.so` — a patched build from [mihomet/core](https://github.com/mihomet/core), downloaded at build time (see above)
-- **Quality:** 560+ unit tests, 14 instrumented tests in a CI emulator matrix (API 29/35), Android Lint + detekt, JaCoCo coverage report
+- **Quality:** 630+ unit tests, 14 instrumented tests in a CI emulator matrix (API 29/35), Android Lint + detekt, JaCoCo coverage report
 - **Agent/contributor documentation:** [AGENTS.md](AGENTS.md)
 
 ---

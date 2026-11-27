@@ -1,5 +1,80 @@
 # Changelog
 
+## Unreleased
+
+## 1.3.8
+
+### Converter and import
+- Rebuilt Xray JSON/JSONC and Happ-array conversion around scoped tag references,
+  complete server/user expansion, connection-aware deduplication, validated
+  dependencies and native logical routing rules.
+- Preserve compatible transports and XHTTP options supported by the pinned core;
+  report unsupported settings instead of silently dropping them. Xray Mux is no
+  longer mislabeled as sing-box smux; unsupported VLESS KCP and additional Reality
+  server-verification requirements are rejected explicitly.
+- Save conversion reports with profiles (non-destructive Room 5→6 migration),
+  including skipped nodes/rules and schema paths without source credentials.
+- Validate each UA response before selection; prefer a less lossy rich response
+  over an earlier partial conversion. Keep the selected response's quota, title
+  and update interval together.
+- Unify validated, atomic profile creation across URL, clipboard, file and
+  external-link imports. External links navigate to Profiles and wait for their
+  own confirmation; duplicate import actions are guarded while work is running.
+- Add sanitized, pinned official XTLS examples and bundled-core instrumented
+  configuration tests alongside the existing panel corpus.
+- Restore Reality interoperability with current Xray without changing the core
+  pin; supply modern key shares and the default fingerprint, and normalize padded
+  public keys. Add isolated wire tests against current and older Xray.
+- Correct separate XHTTP download security inheritance, strict XMUX fields,
+  `extra` precedence and modern session options. Keep regex commas, named groups
+  and literal parentheses usable in native logical rules.
+- Report a full external-import queue instead of silently losing incoming links.
+- Accept current flat Trojan/Shadowsocks/HTTP/SOCKS outbounds, including proxy
+  authentication and HTTP headers. Preserve explicit WebSocket hosts,
+  HTTPUpgrade headers and gRPC user agents.
+- Count malformed server/user entries individually while keeping valid siblings;
+  reject malformed active stream shapes and whole malformed routing conditions.
+  Report unmapped source fields using credential-free schema paths, and expand
+  large server/user lists lazily instead of retaining every intermediate map.
+
+### Fixed
+- Honor one-hour subscription intervals and update existing periodic work.
+- Keep separate lines in AUTO exclusions when reading and saving preferences.
+- Run temporary latency probes without privileged listeners or socket marks;
+  isolate their working directories and close process/client resources.
+- Prevent Android 8 release imports from crashing when R8 repackages the two
+  SnakeYAML classes whose logger initializers require a nonempty package.
+- Match system-bar icon colors and navigation-bar backgrounds to the app theme,
+  including dark and AMOLED modes on Android 8.
+- Preserve profile selection, edited headers, overrides and manual intervals
+  when a delayed subscription refresh completes; discard responses for deleted
+  profiles without recreating their files.
+
+### Interface and build
+- Use MaterialExpressiveTheme and expressive motion with native navigation,
+  button groups, loading indicators and floating actions. Restructure Dashboard,
+  Servers, Profiles and Settings around shared geometry and typography.
+- Default new preferences to Material You; preserve existing theme choices.
+  AMOLED keeps neutral black/graphite surfaces and the chosen control accents.
+- Move lifecycle collection and system insets to their owning layers; bound local
+  file imports to 20 MB and read them off the UI thread.
+- Upgrade to Kotlin 2.3.20, AGP 9.1.0, Gradle 9.3.1, Compose BOM 2026.09.00 and
+  Material 3 1.5.0; limit Gradle workers to reduce peak memory use.
+- Production core pin and signing configuration are unchanged.
+
+### Verification
+- 664 JVM tests passed on JDK 21, with debug/release builds, detekt and lint.
+- On Android 8 and Android 15, 25 mandatory device tests passed per API,
+  including delayed-refresh races, Room migrations and confirmed imports.
+- All 16 local wire cases passed against both Xray 26.10.31 and 25.3.6 on
+  both Android versions; no public proxies were contacted.
+- R8 release smoke covered imports, manual refresh, persisted reports, native
+  VPN start/clean stop and light/dark/AMOLED rendering on both APIs.
+- All six debug/release core hashes and sizes match the pinned artifacts;
+  EN/RU resources and sanitized official XTLS fixture hashes were checked.
+- Physical ARM and root/TProxy hardware remain unverified. Full results and
+  portability limits are in [the verification report](docs/verification-2026-11-27.md).
+
 ## 1.3.7
 
 ### Fixed

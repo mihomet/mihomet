@@ -11,8 +11,9 @@ import kotlinx.coroutines.withContext
 import org.mihomet.app.R
 import org.mihomet.app.core.AppException
 import org.mihomet.app.core.stringRes
-import org.mihomet.app.core.config.ConfigGenerator
 import org.mihomet.app.core.config.ConversionOutcome
+import org.mihomet.app.core.config.ConversionReport
+import org.mihomet.app.data.subs.SubscriptionDownload
 import org.mihomet.app.core.config.UniversalConfigConverter
 import org.mihomet.app.data.db.ProfileDao
 import org.mihomet.app.data.db.ProfileEntity
@@ -30,6 +31,7 @@ import java.util.Locale
 data class ProfilesUiState(
     val profiles: List<ProfileEntity> = emptyList(),
     val isLoading: Boolean = false,
+    val importInProgress: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null,
     // External deep-link import awaiting explicit user confirmation (audit P0 §1.1):
@@ -38,7 +40,8 @@ data class ProfilesUiState(
     val pendingImport: PendingImport? = null,
     // Behavior-header changes requested by the subscription panel (audit P0 §1.1):
     // applied ONLY after the user accepts the consent dialog.
-    val behaviorConsent: BehaviorConsent? = null
+    val behaviorConsent: BehaviorConsent? = null,
+    val conversionReport: ConversionReport? = null
 )
 
 /**
@@ -82,6 +85,13 @@ class ProfilesViewModel(
     private val successMessageFlow = MutableStateFlow<String?>(null)
     private val pendingImportFlow = MutableStateFlow<PendingImport?>(null)
     private val behaviorConsentFlow = MutableStateFlow<BehaviorConsent?>(null)
+    private val reportFlow = MutableStateFlow<ConversionReport?>(null)
+    private val importInProgressFlow = MutableStateFlow(false)
+    private val importIdle = combine(pendingImportFlow, importInProgressFlow, behaviorConsentFlow, reportFlow) {
+        pending, busy, consent, report -> pending == null && !busy && consent == null && report == null
+    }
+
+    fun showReport(report: ConversionReport?) { reportFlow.value = report }
 
     val uiState: StateFlow<ProfilesUiState> = combine(
         profileDao.getAllProfiles(),
@@ -97,7 +107,9 @@ class ProfilesViewModel(
             pendingImport = pendingImport,
             behaviorConsent = behaviorConsent
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProfilesUiState(isLoading = true))
+    }.combine(reportFlow) { state, report -> state.copy(conversionReport = report) }
+        .combine(importInProgressFlow) { state, busy -> state.copy(importInProgress = busy) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProfilesUiState(isLoading = true))
 
     init {
         // External deep-link / share-target imports arrive here (audit P0 §1.1):
@@ -106,11 +118,14 @@ class ProfilesViewModel(
         viewModelScope.launch {
             org.mihomet.app.core.DeepLinkBus.flow.collect { import ->
                 if (import.text.isNotBlank()) {
+                    importIdle.first { it }
                     pendingImportFlow.value = PendingImport(
                         text = import.text,
                         source = import.source,
                         previewName = previewImportName(import.text)
                     )
+                    // Keep later links queued until this confirmation, import and report finish.
+                    importIdle.first { it }
                 }
             }
         }
@@ -133,13 +148,14 @@ class ProfilesViewModel(
 
     /** User confirmed the pending external import — run the real import now. */
     fun confirmPendingImport() {
+        if (importInProgressFlow.value) return
         val pending = pendingImportFlow.value ?: return
-        pendingImportFlow.value = null
         importFromClipboard(
             text = pending.text,
             onSuccess = { successMessageFlow.value = it },
             onError = { errorMessageFlow.value = it }
         )
+        pendingImportFlow.value = null
     }
 
     /** User rejected the pending external import — drop it, nothing was fetched. */
@@ -161,282 +177,98 @@ class ProfilesViewModel(
         }
     }
 
-    /**
-     * Adds a remote profile. [name] may be blank — when the user leaves it empty,
-     * the panel-provided `profile-title` header (if any) names the profile, and
-     * otherwise a default name is derived from the URL host.
-     */
     fun addRemoteProfile(name: String = "", url: String, customHeaders: String = "{}") {
-        viewModelScope.launch {
-            try {
-                val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
-                // Strict content validation BEFORE anything is stored or sent:
-                // CR/LF inside a value would be a header-injection vector, size
-                // caps keep the stored row and the request bounded.
-                val normalizedHeaders = try {
-                    SubscriptionHeaders.toJson(SubscriptionHeaders.parse(customHeaders))
-                } catch (e: SubscriptionHeaders.HeaderValidationException) {
-                    errorMessageFlow.value = headerViolationMessage(e.violation)
-                    return@launch
-                }
-                val download = subscriptionRepository.downloadAndConvert(url, normalizedHeaders)
-                // Profile-key whitelist warnings (audit P1 §2.1): never silent.
-                val outcome = withProfileKeyWarnings(download.outcome)
-                // Fail-closed: never persist a conversion result without proxies,
-                // proxy-providers or rules — the core would route everything to DIRECT.
-                if (!isValidGeneratedConfig(outcome.yaml)) {
-                    errorMessageFlow.value = context.getString(R.string.profiles_invalid_result)
-                    return@launch
-                }
-                val meta = download.meta
-                // Panel-initiated subscription relocation (New-Url / Fallback-Url): store the new URL.
-                val effectiveUrl = meta.redirectUrl?.takeIf { !it.equals(url, ignoreCase = true) } ?: url
-
-                // Encrypt the at-rest secrets BEFORE any disk write (audit I2 / N07-2):
-                // when the data-loss gate refuses encryption (enc1: data exists but the
-                // key is unavailable) the write must be refused entirely — a freshly
-                // written subscription file without a matching DB row would leave the
-                // file store and Room out of sync.
-                val encryptedUrl = try {
-                    SecretsCipher.encryptIfSecret(effectiveUrl)
-                } catch (e: SecretsCipher.SecretEncryptException) {
-                    errorMessageFlow.value = context.getString(R.string.profiles_encrypt_failed)
-                    return@launch
-                }
-                val encryptedHeaders = try {
-                    SecretsCipher.encryptIfSecret(normalizedHeaders)
-                } catch (e: SecretsCipher.SecretEncryptException) {
-                    errorMessageFlow.value = context.getString(R.string.profiles_encrypt_failed)
-                    return@launch
-                }
-
-                val file = File(profileDir, "profile_${System.currentTimeMillis()}.yaml")
-                file.writeText(outcome.yaml)
-
-                // Name priority: explicit user input > panel `profile-title` > auto name from URL host.
-                val host = runCatching { java.net.URI(url).host }.getOrNull()?.removePrefix("www.") ?: ""
-                val resolvedName = when {
-                    name.isNotBlank() -> name.trim()
-                    !meta.profileTitle.isNullOrBlank() -> meta.profileTitle.trim()
-                    host.isNotBlank() -> context.getString(R.string.profile_auto_name, host)
-                    else -> context.getString(R.string.profile_auto_name_clipboard)
-                }
-
-                val isFirst = profileDao.getSelectedProfile() == null
-                val quota = download.userinfo
-                val entity = ProfileEntity(
-                    name = resolvedName,
-                    type = ProfileType.REMOTE,
-                    // Encrypted above, before the file write (see SecretsCipher).
-                    url = encryptedUrl,
-                    filePath = file.absolutePath,
-                    customHeaders = encryptedHeaders,
-                    isSelected = isFirst,
-                    uploadUsed = quota?.uploadUsed ?: 0,
-                    downloadUsed = quota?.downloadUsed ?: 0,
-                    trafficTotal = quota?.trafficTotal ?: 0,
-                    expireAt = quota?.expireAt ?: 0,
-                    // Panel-recommended auto-update interval (hours); 0 disables background refresh.
-                    updateIntervalHours = meta.updateIntervalHours
-                )
-                val newId = profileDao.insertProfile(entity)
-                if (isFirst) {
-                    profileDao.selectProfile(newId)
-                }
-                requestBehaviorConsent(newId, resolvedName, meta)
-                errorMessageFlow.value = null
-                successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_added, resolvedName), outcome)
-            } catch (e: Exception) {
-                errorMessageFlow.value = context.getString(R.string.profiles_add_failed, e.message ?: context.getString(R.string.profiles_unknown_error))
-            }
-        }
+        launchImport(url, name, customHeaders, remote = true)
     }
 
     fun addBlankProfile(name: String) {
-        viewModelScope.launch {
-            val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
-            val defaultYaml = context.assets.open("default_config.yaml").bufferedReader().use { it.readText() }
-            val file = File(profileDir, "profile_${System.currentTimeMillis()}.yaml")
-            file.writeText(defaultYaml)
-
-            val isFirst = profileDao.getSelectedProfile() == null
-            val entity = ProfileEntity(
-                name = name,
-                type = ProfileType.LOCAL,
-                filePath = file.absolutePath,
-                isSelected = isFirst
-            )
-            val newId = profileDao.insertProfile(entity)
-            if (isFirst) {
-                profileDao.selectProfile(newId)
+        launchImportJob({
+            val content = withContext(Dispatchers.IO) {
+                context.assets.open("default_config.yaml").bufferedReader().use { it.readText() }
             }
-        }
+            importContent(content, name, "{}", remote = false)
+        })
     }
 
-    /**
-     * Local profile from a picked file (WireGuard/AmneziaWG .conf, share-link
-     * list, Xray/sing-box JSON, Clash YAML — the converter dispatches by
-     * content). Same fail-closed gate as clipboard import: an import that
-     * yields no proxies/rules is rejected, nothing is persisted.
-     */
     fun addLocalProfile(name: String, fileContent: String) {
+        launchImport(fileContent, name, remote = false)
+    }
+
+    fun importFromClipboard(text: String, onSuccess: (String) -> Unit, onError: (String) -> Unit) {
+        if (text.isBlank()) { onError(context.getString(R.string.clipboard_empty)); return }
+        val payload = org.mihomet.app.core.DeepLinkParser.parse(text.trim()) ?: text.trim()
+        launchImport(payload, remote = payload.startsWith("https://", true) || payload.startsWith("http://", true),
+            onSuccess = onSuccess, onError = onError)
+    }
+
+    private fun launchImport(
+        source: String,
+        name: String = "",
+        headers: String = "{}",
+        remote: Boolean,
+        onSuccess: (String) -> Unit = { successMessageFlow.value = it },
+        onError: (String) -> Unit = { errorMessageFlow.value = it }
+    ) {
+        launchImportJob({ importContent(source, name, headers, remote) }, onSuccess, onError)
+    }
+
+    private fun launchImportJob(
+        action: suspend () -> Result<String>,
+        onSuccess: (String) -> Unit = { successMessageFlow.value = it },
+        onError: (String) -> Unit = { errorMessageFlow.value = it }
+    ) {
+        if (!importInProgressFlow.compareAndSet(false, true)) return
         viewModelScope.launch {
             try {
-                val outcome = withProfileKeyWarnings(
-                    UniversalConfigConverter.convertToMihomoYamlWithOutcome(fileContent)
-                )
-                if (!isValidGeneratedConfig(outcome.yaml)) {
-                    errorMessageFlow.value = context.getString(R.string.profiles_invalid_result)
-                    return@launch
-                }
-                val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
-                val file = File(profileDir, "profile_${System.currentTimeMillis()}.yaml")
-                file.writeText(outcome.yaml)
-
-                val isFirst = profileDao.getSelectedProfile() == null
-                val entity = ProfileEntity(
-                    name = name,
-                    type = ProfileType.LOCAL,
-                    filePath = file.absolutePath,
-                    isSelected = isFirst
-                )
-                val newId = profileDao.insertProfile(entity)
-                if (isFirst) {
-                    profileDao.selectProfile(newId)
-                }
-                errorMessageFlow.value = null
-                successMessageFlow.value =
-                    appendWarnings(context.getString(R.string.profiles_added, name), outcome)
+                action().fold(onSuccess) { onError(localizeError(it)) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                errorMessageFlow.value = context.getString(
-                    R.string.profiles_add_failed,
-                    e.message ?: context.getString(R.string.profiles_unknown_error)
-                )
+                onError(localizeError(e))
+            } finally {
+                importInProgressFlow.value = false
             }
         }
     }
 
-    fun importFromClipboard(
-        text: String,
-        onSuccess: (String) -> Unit,
-        onError: (String) -> Unit
-    ) {
-        val trimmed = text.trim()
-        if (trimmed.isBlank()) {
-            onError(context.getString(R.string.clipboard_empty))
-            return
-        }
-
-        viewModelScope.launch {
-            try {
-                if (trimmed.startsWith("http://", ignoreCase = true) || trimmed.startsWith("https://", ignoreCase = true)) {
-                    val url = trimmed.lines().first { it.isNotBlank() }.trim()
-                    val host = runCatching { java.net.URI(url).host }.getOrNull()?.removePrefix("www.") ?: ""
-                    val autoName = if (host.isNotBlank()) {
-                        context.getString(R.string.profile_auto_name, host)
-                    } else {
-                        context.getString(R.string.profile_auto_name_clipboard)
-                    }
-
-                    val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
-                    val download = subscriptionRepository.downloadAndConvert(url)
-                    // Profile-key whitelist warnings (audit P1 §2.1): never silent.
-                    val outcome = withProfileKeyWarnings(download.outcome)
-                    // Fail-closed: never persist a conversion result without proxies,
-                    // proxy-providers or rules — the core would route everything to DIRECT.
-                    if (!isValidGeneratedConfig(outcome.yaml)) {
-                        onError(context.getString(R.string.profiles_invalid_result))
-                        return@launch
-                    }
-                    val content = outcome.yaml
-                    // Encrypt the at-rest secret BEFORE any disk write (audit I2 /
-                    // N07-2): a refused encryption (enc1: data exists but the key is
-                    // unavailable) must not leave a written file behind without a
-                    // matching DB row — surface the error and keep nothing.
-                    val encryptedUrl = try {
-                        SecretsCipher.encryptIfSecret(url)
-                    } catch (e: SecretsCipher.SecretEncryptException) {
-                        onError(context.getString(R.string.profiles_encrypt_failed))
-                        return@launch
-                    }
-                    val file = File(profileDir, "profile_${System.currentTimeMillis()}.yaml")
-                    file.writeText(content)
-
-                    val isFirst = profileDao.getSelectedProfile() == null
-                    val entity = ProfileEntity(
-                        name = autoName,
-                        type = ProfileType.REMOTE,
-                        // Encrypted above, before the file write (see SecretsCipher);
-                        // blank stays blank.
-                        url = encryptedUrl,
-                        filePath = file.absolutePath,
-                        isSelected = isFirst
-                    )
-                    val newId = profileDao.insertProfile(entity)
-                    if (isFirst) {
-                        profileDao.selectProfile(newId)
-                    }
-                    onSuccess(
-                        appendWarnings(context.getString(R.string.profiles_imported, autoName), outcome)
-                    )
-                } else {
-                    val outcome = withContext(Dispatchers.Default) {
-                        UniversalConfigConverter.convertToMihomoYamlWithOutcome(trimmed)
-                    }
-                    // Profile-key whitelist warnings (audit P1 §2.1): never silent.
-                    val enrichedOutcome = withProfileKeyWarnings(outcome)
-                    val convertedYaml = enrichedOutcome.yaml
-
-                    val yaml = Yaml()
-                    val parsed = runCatching { yaml.load<Map<String, Any>>(convertedYaml) }.getOrNull()
-                    val proxies = (parsed?.get("proxies") as? List<*>) ?: emptyList<Any>()
-
-                    // Fail-closed: reject results without proxies / proxy-providers / rules
-                    // instead of persisting a config the core would turn into "all DIRECT".
-                    // rules-only results stay valid here (happ://routing deep-link imports).
-                    if (!isValidGeneratedConfig(convertedYaml)) {
-                        onError(context.getString(R.string.profiles_invalid_result))
-                        return@launch
-                    }
-
-                    val firstMap = proxies.firstOrNull() as? Map<*, *>
-                    val firstName = firstMap?.get("name")?.toString()
-                    val autoName = if (proxies.size == 1 && !firstName.isNullOrBlank()) {
-                        firstName
-                    } else if (proxies.isNotEmpty()) {
-                        context.resources.getQuantityString(R.plurals.profile_auto_name_import_count, proxies.size, proxies.size)
-                    } else {
-                        context.getString(R.string.profile_auto_name_import)
-                    }
-
-                    val profileDir = File(context.filesDir, "profiles").apply { mkdirs() }
-                    val file = File(profileDir, "profile_${System.currentTimeMillis()}.yaml")
-                    file.writeText(convertedYaml)
-
-                    val isFirst = profileDao.getSelectedProfile() == null
-                    val entity = ProfileEntity(
-                        name = autoName,
-                        type = ProfileType.LOCAL,
-                        filePath = file.absolutePath,
-                        isSelected = isFirst
-                    )
-                    val newId = profileDao.insertProfile(entity)
-                    if (isFirst) {
-                        profileDao.selectProfile(newId)
-                    }
-                    onSuccess(
-                        if (proxies.isNotEmpty()) {
-                            appendWarnings(context.getString(R.string.profiles_import_done, autoName), enrichedOutcome)
-                        } else {
-                            context.getString(R.string.profiles_config_added)
-                        }
-                    )
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                onError(context.getString(R.string.profiles_import_error, localizeError(e)))
+    private suspend fun importContent(source: String, name: String, headers: String, remote: Boolean): Result<String> {
+        return try {
+            val normalizedHeaders = SubscriptionHeaders.toJson(SubscriptionHeaders.parse(headers))
+            val download = if (remote) subscriptionRepository.downloadAndConvert(source.trim(), normalizedHeaders)
+            else SubscriptionDownload(withContext(Dispatchers.Default) {
+                UniversalConfigConverter.convertToMihomoYamlWithOutcome(source)
+            })
+            if (!isValidGeneratedConfig(download.outcome.yaml)) {
+                return Result.failure(IllegalArgumentException(context.getString(R.string.profiles_invalid_result)))
             }
+            val resolvedName = resolveImportName(name, source, remote, download)
+            val result = subscriptionRepository.addProfile(
+                resolvedName, if (remote) ProfileType.REMOTE else ProfileType.LOCAL,
+                download, if (remote) source.trim() else "", normalizedHeaders
+            )
+            requestBehaviorConsent(result.profile.id, result.profile.name, result.meta)
+            reportFlow.value = result.outcome.report?.takeIf { it.issues.isNotEmpty() }
+            errorMessageFlow.value = null
+            Result.success(appendWarnings(context.getString(R.string.profiles_added, resolvedName), result.outcome))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: SubscriptionHeaders.HeaderValidationException) {
+            Result.failure(IllegalArgumentException(headerViolationMessage(e.violation)))
+        } catch (e: Exception) {
+            Result.failure(IllegalArgumentException(context.getString(R.string.profiles_import_error, localizeError(e))))
         }
+    }
+
+    private fun resolveImportName(name: String, source: String, remote: Boolean, download: SubscriptionDownload): String {
+        if (name.isNotBlank()) return name.trim()
+        download.meta.profileTitle?.takeIf { it.isNotBlank() }?.let { return it }
+        if (remote) return previewImportName(source)
+        val parsed = runCatching { Yaml().load<Map<String, Any>>(download.outcome.yaml) }.getOrNull()
+        val proxies = (parsed?.get("proxies") as? List<*>).orEmpty()
+        val firstName = (proxies.firstOrNull() as? Map<*, *>)?.get("name")?.toString()
+        return if (proxies.size == 1 && !firstName.isNullOrBlank()) firstName
+        else if (proxies.isNotEmpty()) context.resources.getQuantityString(R.plurals.profile_auto_name_import_count, proxies.size, proxies.size)
+        else context.getString(R.string.profile_auto_name_import)
     }
 
     /**
@@ -455,7 +287,8 @@ class ProfilesViewModel(
         viewModelScope.launch {
             subscriptionRepository.refreshProfileWithOutcome(profile)
                 .onSuccess { result ->
-                    val outcome = withProfileKeyWarnings(result.outcome)
+                    val outcome = result.outcome
+                    reportFlow.value = outcome.report?.takeIf { it.issues.isNotEmpty() }
                     requestBehaviorConsent(result.profile.id, result.profile.name, result.meta)
                     errorMessageFlow.value = null
                     successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_updated), outcome)
@@ -557,23 +390,11 @@ class ProfilesViewModel(
      */
     private fun appendWarnings(message: String, outcome: ConversionOutcome): String {
         if (outcome.warnings.isEmpty()) return message
+        if (outcome.report != null) return "$message ${context.getString(R.string.profiles_warnings_suffix, outcome.warnings.size)}"
         val details = outcome.warnings.joinToString(separator = "\n") { warning ->
             org.mihomet.app.core.config.WarningLocalizer.localize(warning, context)
         }
         return "$message ${context.getString(R.string.profiles_warnings_suffix, outcome.warnings.size)}\n$details"
-    }
-
-    /**
-     * Appends the profile-key whitelist warnings (audit P1 §2.1) to a conversion
-     * outcome so unsafe top-level keys coming from a panel profile (`listeners`,
-     * `tunnels`, `external-ui`, `geox-url`, `interface-name`, …) are never dropped
-     * silently: the runtime generator removes them at core start regardless, and
-     * the user sees which keys were rejected at import/refresh time.
-     */
-    private fun withProfileKeyWarnings(outcome: ConversionOutcome): ConversionOutcome {
-        val extra = runCatching { ConfigGenerator.profileKeyWarnings(outcome.yaml) }
-            .getOrElse { emptyList() }
-        return if (extra.isEmpty()) outcome else outcome.copy(warnings = outcome.warnings + extra)
     }
 
     /**
@@ -670,9 +491,9 @@ class ProfilesViewModel(
         }
 
     fun deleteProfile(profile: ProfileEntity) {
-        viewModelScope.launch {
-            File(profile.filePath).delete()
+        viewModelScope.launch(Dispatchers.IO) {
             profileDao.deleteProfile(profile)
+            File(profile.filePath).delete()
         }
     }
 

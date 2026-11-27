@@ -12,6 +12,13 @@ import java.util.Base64
  */
 internal object ConverterSupport {
 
+    fun realityOptions(publicKey: String, shortId: String): Map<String, Any> = mapOf(
+        "public-key" to publicKey.trimEnd('='),
+        "short-id" to shortId,
+        // Current Xray requires the hybrid key share that the pinned core disables by default.
+        "support-x25519mlkem768" to true
+    )
+
     /**
      * Hardened SnakeYAML factory for user/panel-supplied YAML:
      * - maxAliasesForCollections raised above the default 50 — real panel
@@ -29,9 +36,12 @@ internal object ConverterSupport {
         return org.yaml.snakeyaml.Yaml(opts)
     }
 
+    @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
     val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
+        allowComments = true
+        allowTrailingComma = true
     }
 
     fun decodeBase64(str: String): String {

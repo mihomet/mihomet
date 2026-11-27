@@ -1,810 +1,399 @@
 package org.mihomet.app.core.config
 
-import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.*
 import org.mihomet.app.core.CoreConstants
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import org.yaml.snakeyaml.DumperOptions
 import org.yaml.snakeyaml.Yaml
-import java.io.StringWriter
 
-/**
- * Xray JSON branch of the converter (Happ/Incy/v2rayNG payloads, both the
- * JSON-array form and the single-object form): maps outbounds to Mihomo
- * proxies, rebuilds balancers as url-test groups and converts the routing
- * rules to Mihomo rule syntax.
- */
+/** Each Happ configuration has its own tag namespace; display names are never identifiers. */
 internal object XrayJsonConverter {
+    private val serviceProtocols = setOf("freedom", "blackhole", "dns", "dokodemo-door", "api")
+    private val empty = JsonObject(emptyMap())
 
-    /** Service/special outbound protocols that never become proxy nodes. */
-    private val SERVICE_PROTOCOLS = setOf("freedom", "blackhole", "dns", "dokodemo-door", "api")
+    fun isXrayJson(str: String): Boolean = runCatching {
+        fun matches(obj: JsonObject): Boolean = obj["protocol"] is JsonPrimitive ||
+            obj.array("outbounds").any { (it as? JsonObject)?.get("protocol") is JsonPrimitive } ||
+            obj.keys.any { it in setOf("routing", "observatory", "burstObservatory") }
+        when (val root = ConverterSupport.json.parseToJsonElement(str)) {
+            is JsonObject -> matches(root)
+            is JsonArray -> root.filterIsInstance<JsonObject>().any(::matches)
+            else -> false
+        }
+    }.getOrDefault(false)
 
-    fun isXrayJson(str: String): Boolean {
-        if (str.startsWith("[")) return true
-        if (!str.startsWith("{")) return false
-        return str.contains("\"routing\"") || str.contains("\"burstObservatory\"") || str.contains("\"observatory\"") ||
-                str.contains("\"vnext\"") || str.contains("\"streamSettings\"")
-    }
-
-    /**
-     * Converts Xray configurations (both JSON array from Happ/Incy/v2rayNG and single JSON object)
-     * into Mihomo YAML with all balancers, nodes, and routing rules preserved dynamically.
-     */
     fun convertXrayJsonToMihomoYaml(jsonStr: String, warnings: MutableList<ConversionWarning>? = null): String {
-        try {
-            val rootElement = ConverterSupport.json.parseToJsonElement(jsonStr)
-            val items: List<JsonObject> = when (rootElement) {
-                is JsonArray -> rootElement.filterIsInstance<JsonObject>()
-                is JsonObject -> listOf(rootElement)
-                else -> return jsonStr
-            }
+        val outcome = convert(jsonStr)
+        warnings?.addAll(outcome.warnings)
+        return outcome.yaml
+    }
 
-            // 1. Collect all individual proxy nodes and map their address:port to remarks
-            val proxies = mutableListOf<Map<String, Any>>()
-            val addrToRemarks = mutableMapOf<String, String>()
-            val serverNames = mutableListOf<String>()
+    fun convert(jsonStr: String): ConversionOutcome = try {
+        val root = ConverterSupport.json.parseToJsonElement(jsonStr)
+        val elements = when (root) {
+            is JsonObject -> listOf(root)
+            is JsonArray -> root.toList()
+            else -> emptyList()
+        }
+        val objects = elements.filterIsInstance<JsonObject>()
+        val outboundArray = objects.isNotEmpty() && objects.all { it["protocol"] != null }
+        val scopes = if (outboundArray) {
+            listOf(Scope(0, JsonObject(mapOf("outbounds" to JsonArray(elements)))))
+        } else elements.mapIndexedNotNull { index, item -> (item as? JsonObject)?.let { Scope(index, it) } }
+        val invalidConfigs = if (outboundArray) emptyList()
+            else elements.mapIndexedNotNull { index, item -> index.takeIf { item !is JsonObject } }
+        Graph(scopes, invalidConfigs).convert()
+    } catch (_: Exception) {
+        // Parser exceptions can contain the original JSON, including passwords.
+        ConversionOutcome("", listOf(ConversionWarning.XrayError(null)), ConversionReport(format = "xray"))
+    }
 
-            for (item in items) {
-                val remarks = item["remarks"]?.jsonPrimitive?.contentOrNull?.trim() ?: ""
-                val balancers = item["routing"]?.jsonObject?.get("balancers")?.jsonArray
-                val isBalancerItem = !balancers.isNullOrEmpty()
+    private class Scope(val index: Int, val item: JsonObject) {
+        val targets = linkedMapOf<String, String>()
+        val members = linkedMapOf<String, List<String>>()
+        val outbounds = item.array("outbounds")
+        val balancers = item.obj("routing").array("balancers").filterIsInstance<JsonObject>()
+        var defaultTarget: String? = null
 
-                if (!isBalancerItem && remarks.isNotBlank()) {
-                    val outbounds = item["outbounds"]?.jsonArray
-                    if (outbounds != null) {
-                        // Real outbounds of this item (service tags excluded). The
-                        // Remnawave/Happ list format is one node per item — the
-                        // node keeps the user-facing `remarks` name. A single item
-                        // carrying MULTIPLE real outbounds (some panels ship one
-                        // config with everything) converts each of them, named by
-                        // tag — previously only the first survived (break).
-                        val realOutbounds = outbounds.mapNotNull { it as? JsonObject }.filter { ob ->
-                            val tag = ob["tag"]?.jsonPrimitive?.contentOrNull ?: ""
-                            val protocol = ob["protocol"]?.jsonPrimitive?.contentOrNull ?: ""
-                            tag !in setOf("direct", "block", "dns-out", "api") &&
-                                    protocol.lowercase() !in SERVICE_PROTOCOLS
-                        }
-                        val useRemarksName = realOutbounds.size == 1
-                        for (ob in realOutbounds) {
-                            val tag = ob["tag"]?.jsonPrimitive?.contentOrNull ?: ""
-                            val protocol = ob["protocol"]?.jsonPrimitive?.contentOrNull ?: ""
-
-                            val settings = ob["settings"]?.jsonObject ?: JsonObject(emptyMap())
-                            val streamSettings = ob["streamSettings"]?.jsonObject ?: JsonObject(emptyMap())
-
-                            val nodeName = if (useRemarksName) remarks else tag.ifBlank { remarks }
-                            val proxyMap = parseXrayOutboundToMihomo(nodeName, protocol, settings, streamSettings, ob)
-                            if (proxyMap == null) {
-                                warnings?.add(
-                                    ConversionWarning.ProxyParseError(
-                                        tag.ifBlank { protocol },
-                                        "unsupported protocol or malformed settings"
-                                    )
-                                )
-                            }
-                            if (proxyMap != null) {
-                                val srv = proxyMap["server"]?.toString() ?: ""
-                                val port = proxyMap["port"]?.toString() ?: ""
-                                if (srv.isNotBlank() && port.isNotBlank()) {
-                                    addrToRemarks["$srv:$port"] = nodeName
-                                }
-                                proxies.add(proxyMap)
-                                serverNames.add(nodeName)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // If no separate items had remarks (e.g. single config with tag-based outbounds):
-            if (proxies.isEmpty()) {
-                for (item in items) {
-                    val outbounds = item["outbounds"]?.jsonArray ?: continue
-                    for (obEl in outbounds) {
-                        val ob = obEl as? JsonObject ?: continue
-                        val tag = ob["tag"]?.jsonPrimitive?.contentOrNull ?: ""
-                        if (tag.isBlank() || tag == "direct" || tag == "block" || tag == "dns-out" || tag == "api") continue
-
-                        val protocol = ob["protocol"]?.jsonPrimitive?.contentOrNull ?: ""
-                        if (protocol.lowercase() in SERVICE_PROTOCOLS) continue
-
-                        val settings = ob["settings"]?.jsonObject ?: JsonObject(emptyMap())
-                        val streamSettings = ob["streamSettings"]?.jsonObject ?: JsonObject(emptyMap())
-
-                        val proxyMap = parseXrayOutboundToMihomo(tag, protocol, settings, streamSettings, ob)
-                        if (proxyMap == null) {
-                            warnings?.add(
-                                ConversionWarning.ProxyParseError(
-                                    tag,
-                                    "unsupported protocol or malformed settings"
-                                )
-                            )
-                        }
-                        if (proxyMap != null) {
-                            proxies.add(proxyMap)
-                            serverNames.add(tag)
-                            val srv = proxyMap["server"]?.toString() ?: ""
-                            val port = proxyMap["port"]?.toString() ?: ""
-                            if (srv.isNotBlank() && port.isNotBlank()) {
-                                addrToRemarks["$srv:$port"] = tag
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (serverNames.isEmpty()) {
-                warnings?.add(ConversionWarning.NoNodesXray)
-                return jsonStr
-            }
-
-            // 2. Extract Balancers from items
-            val proxyGroups = mutableListOf<Map<String, Any>>()
-            val balancerNames = mutableListOf<String>()
-            val balancerTagToGroupName = mutableMapOf<String, String>()
-            val rawRulesList = mutableListOf<JsonObject>()
-
-            for (item in items) {
-                val remarks = item["remarks"]?.jsonPrimitive?.contentOrNull?.trim() ?: ""
-                val routing = item["routing"]?.jsonObject ?: continue
-                val balancers = routing["balancers"]?.jsonArray
-
-                // Collect routing rules
-                routing["rules"]?.jsonArray?.filterIsInstance<JsonObject>()?.let {
-                    rawRulesList.addAll(it)
-                }
-
-                if (!balancers.isNullOrEmpty()) {
-                    val burstPing = item["burstObservatory"]?.jsonObject?.get("pingConfig")?.jsonObject
-                        ?: item["observatory"]?.jsonObject?.get("pingConfig")?.jsonObject
-
-                    val destUrl = burstPing?.get("destination")?.jsonPrimitive?.contentOrNull
-                        ?: CoreConstants.AUTO_PROBE_URL
-
-                    val intervalStr = burstPing?.get("interval")?.jsonPrimitive?.contentOrNull ?: "300s"
-                    val intervalSec = ConverterSupport.parseSeconds(intervalStr, default = 300)
-
-                    // Map item outbounds tags to node names, synthesizing missing nodes if any
-                    val itemTagToName = mutableMapOf<String, String>()
-                    item["outbounds"]?.jsonArray?.filterIsInstance<JsonObject>()?.forEach { ob ->
-                        val tag = ob["tag"]?.jsonPrimitive?.contentOrNull ?: return@forEach
-                        if (tag == "direct" || tag == "block" || tag == "dns-out") return@forEach
-                        val proto = ob["protocol"]?.jsonPrimitive?.contentOrNull ?: ""
-                        val sett = ob["settings"]?.jsonObject ?: JsonObject(emptyMap())
-                        val (addr, port) = extractAddressAndPort(proto, sett)
-                        if (addr != null && port != null && addrToRemarks.containsKey("$addr:$port")) {
-                            itemTagToName[tag] = addrToRemarks["$addr:$port"]!!
-                        } else {
-                            itemTagToName[tag] = tag
-                        }
-                    }
-
-                    for (balEl in balancers) {
-                        val bal = balEl as? JsonObject ?: continue
-                        val bTag = bal["tag"]?.jsonPrimitive?.contentOrNull ?: "balancer"
-                        val groupName = if (remarks.isNotBlank()) remarks else bTag
-                        balancerTagToGroupName[bTag] = groupName
-                        if (!balancerNames.contains(groupName)) {
-                            balancerNames.add(groupName)
-                        }
-
-                        val selectors = bal["selector"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList()
-                        val selectedNodes = mutableListOf<String>()
-
-                        for (sel in selectors) {
-                            if (itemTagToName.containsKey(sel)) {
-                                val resolved = itemTagToName[sel]!!
-                                if (serverNames.contains(resolved) && !selectedNodes.contains(resolved)) {
-                                    selectedNodes.add(resolved)
-                                }
-                            } else {
-                                // Match prefix or contains in serverNames
-                                val matched = serverNames.filter { it.contains(sel, ignoreCase = true) }
-                                matched.forEach { if (!selectedNodes.contains(it)) selectedNodes.add(it) }
-                            }
-                        }
-
-                        // If strategy specifies high costs (e.g. ^TIER2 has cost 1,000,000,000 as emergency fallback),
-                        // filter out high cost nodes from url-test pool if low cost nodes exist
-                        val strategySettings = bal["strategy"]?.jsonObject?.get("settings")?.jsonObject
-                        val costs = strategySettings?.get("costs")?.jsonArray
-                        val highCostPatterns = mutableListOf<Regex>()
-                        costs?.filterIsInstance<JsonObject>()?.forEach { c ->
-                            val v = c["value"]?.jsonPrimitive?.contentOrNull?.toLongOrNull() ?: 0L
-                            val m = c["match"]?.jsonPrimitive?.contentOrNull ?: ""
-                            if (v >= 1000L && m.isNotBlank()) {
-                                runCatching { highCostPatterns.add(Regex(m)) }
-                            }
-                        }
-
-                        val nonHighCostNodes = if (highCostPatterns.isNotEmpty()) {
-                            selectedNodes.filter { nodeName ->
-                                val origTag = itemTagToName.entries.firstOrNull { it.value == nodeName }?.key ?: nodeName
-                                highCostPatterns.none { it.containsMatchIn(origTag) }
-                            }
-                        } else emptyList()
-
-                        val finalProxies = when {
-                            nonHighCostNodes.size >= 2 -> nonHighCostNodes
-                            selectedNodes.isNotEmpty() -> selectedNodes
-                            else -> serverNames
-                        }
-
-                        val autoGroup = mutableMapOf<String, Any>(
-                            "name" to groupName,
-                            "type" to "url-test",
-                            "url" to destUrl,
-                            "interval" to intervalSec,
-                            "tolerance" to 50,
-                            "proxies" to finalProxies
-                        )
-                        proxyGroups.add(autoGroup)
-                    }
-                }
-            }
-
-            // 3. Create Standard Selector Group (PROXY)
-            val mainGroupName = "PROXY"
-            val mainProxies = (balancerNames + serverNames).distinct()
-            proxyGroups.add(
-                mutableMapOf(
-                    "name" to mainGroupName,
-                    "type" to "select",
-                    "proxies" to mainProxies
-                )
-            )
-
-            // 4. Convert Xray routing rules to Mihomo rules
-            val mihomoRules = mutableListOf<String>()
-            val primaryTarget = mainGroupName
-
-            for (r in rawRulesList) {
-                val bTag = r["balancerTag"]?.jsonPrimitive?.contentOrNull
-                val obTag = r["outboundTag"]?.jsonPrimitive?.contentOrNull
-
-                val target = when {
-                    bTag != null -> primaryTarget
-                    obTag == "direct" -> "DIRECT"
-                    obTag == "block" -> "REJECT"
-                    obTag != null && serverNames.contains(obTag) -> obTag
-                    else -> continue
-                }
-
-                // IP rules
-                r["ip"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }?.forEach { ip ->
-                    if (ip.startsWith("geoip:")) {
-                        mihomoRules.add("GEOIP,${ip.removePrefix("geoip:").uppercase()},$target")
-                    } else if (ip.contains("/")) {
-                        mihomoRules.add("IP-CIDR,$ip,$target,no-resolve")
-                    }
-                }
-
-                // Domain rules
-                r["domain"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }?.forEach { d ->
-                    when {
-                        d.startsWith("geosite:") -> mihomoRules.add("GEOSITE,${d.removePrefix("geosite:")},$target")
-                        d.startsWith("domain:") -> mihomoRules.add("DOMAIN-SUFFIX,${d.removePrefix("domain:")},$target")
-                        d.startsWith("full:") -> mihomoRules.add("DOMAIN,${d.removePrefix("full:")},$target")
-                        d.startsWith("regexp:.*\\.") -> {
-                            val suffix = d.removePrefix("regexp:.*\\.").removeSuffix("$").replace("\\", "")
-                            if (suffix.isNotBlank()) mihomoRules.add("DOMAIN-SUFFIX,$suffix,$target")
-                        }
-                    }
-                }
-            }
-
-            if (mihomoRules.none { it.startsWith("MATCH,") }) {
-                mihomoRules.add("MATCH,$primaryTarget")
-            }
-
-            val rootConfig = mutableMapOf<String, Any>(
-                "mixed-port" to 7890,
-                "allow-lan" to false,
-                "mode" to "rule",
-                "log-level" to "info",
-                "proxies" to proxies,
-                "proxy-groups" to proxyGroups,
-                "rules" to mihomoRules
-            )
-
-            val dumperOptions = DumperOptions().apply {
-                defaultFlowStyle = DumperOptions.FlowStyle.BLOCK
-                isPrettyFlow = true
-                indent = 2
-            }
-            val writer = StringWriter()
-            Yaml(dumperOptions).dump(rootConfig, writer)
-            return writer.toString()
-        } catch (e: Exception) {
-            warnings?.add(ConversionWarning.XrayError(e.message))
-            return jsonStr
+        fun registerTarget(index: Int, tag: String, target: String) {
+            if (index == 0) defaultTarget = target
+            if (tag.isNotBlank()) targets[tag] = target
         }
     }
 
-    private fun parseXrayOutboundToMihomo(
-        name: String,
-        protocol: String,
-        settings: JsonObject,
-        streamSettings: JsonObject,
-        outbound: JsonObject = JsonObject(emptyMap())
-    ): Map<String, Any>? {
-        // Newer Xray (24.x+) renamed network→method and tcp→raw; panels emit both
-        val netRaw = streamSettings["network"]?.jsonPrimitive?.contentOrNull
-            ?: streamSettings["method"]?.jsonPrimitive?.contentOrNull ?: "tcp"
-        val net = when (netRaw) {
-            "raw" -> "tcp"
-            "websocket" -> "ws"
-            else -> netRaw
+    private class Graph(private val scopes: List<Scope>, invalidConfigs: List<Int>) {
+        private val nodes = linkedMapOf<String, MutableMap<String, Any>>()
+        private val groups = linkedMapOf<String, MutableMap<String, Any>>()
+        private val usedNames = mutableSetOf("DIRECT", "REJECT", "GLOBAL", "COMPATIBLE", "dns-out")
+        private val equivalent = hashMapOf<Map<String, Any>, String>()
+        private val chains = mutableListOf<Triple<Scope, String, String>>()
+        private val issues = invalidConfigs.map { ConversionIssue(ConversionIssueCode.INVALID_NODE, "configs[$it]") }.toMutableList()
+        private var sourceNodes = invalidConfigs.size
+        private var duplicates = 0
+        private var sourceRules = 0
+        private var importedRules = 0
+
+        private fun issue(code: ConversionIssueCode, path: String) {
+            issues.add(ConversionIssue(code, path))
         }
-        val security = streamSettings["security"]?.jsonPrimitive?.contentOrNull ?: ""
 
-        return when (protocol.lowercase()) {
-            "vless" -> {
-                // Standard Xray form: settings.vnext[i] = {address, port, users:[{id, flow}]},
-                // plus the flat 3x-ui export form: settings = {address, port, id, flow} directly.
-                val vnextItem = (settings["vnext"] as? JsonArray)?.firstOrNull() as? JsonObject
-                val record: JsonObject? =
-                    (vnextItem?.get("users") as? JsonArray)?.firstOrNull() as? JsonObject
-                val address = (vnextItem?.get("address") ?: settings["address"])?.jsonPrimitive?.contentOrNull
-                    ?: return null
-                val port = (vnextItem?.get("port") ?: settings["port"])?.jsonPrimitive?.intOrNull ?: 443
-                val uuid = (record?.get("id") ?: settings["id"])?.jsonPrimitive?.contentOrNull ?: return null
-                val flow = (record?.get("flow") ?: settings["flow"])?.jsonPrimitive?.contentOrNull ?: ""
+        private fun name(raw: String): String {
+            // Native rule strings use commas to separate the target from rule parameters.
+            val base = raw.filterNot { it.isISOControl() }.replace(',', '，').trim()
+                .take(160).trimEnd { it.isHighSurrogate() }.ifBlank { "Node" }
+            var result = base
+            var index = 2
+            while (!usedNames.add(result)) result = "$base (${index++})"
+            return result
+        }
 
-                val map = mutableMapOf<String, Any>(
-                    "name" to name,
-                    "type" to "vless",
-                    "server" to address,
-                    "port" to port,
-                    "uuid" to uuid,
-                    "network" to if (net == "splithttp") "xhttp" else net
-                )
-                val encryption = settings["encryption"]?.jsonPrimitive?.contentOrNull
-                if (encryption != null && encryption != "none") map["encryption"] = encryption
-                if (flow.isNotBlank()) map["flow"] = flow
-                applyStreamSecurityAndTransport(map, net, security, streamSettings, address, flow)
-                applyMux(map, outbound, flow)
-                map
-            }
-            "hysteria" -> {
-                // mihomo supports hysteria v1 natively — do NOT mislabel it as hysteria2.
-                val address = settings["address"]?.jsonPrimitive?.contentOrNull
-                    ?: (settings["servers"] as? JsonArray)?.firstOrNull()?.jsonObject?.get("address")?.jsonPrimitive?.contentOrNull
-                    ?: return null
-                val port = settings["port"]?.jsonPrimitive?.intOrNull
-                    ?: (settings["servers"] as? JsonArray)?.firstOrNull()?.jsonObject?.get("port")?.jsonPrimitive?.intOrNull
-                    ?: 443
-                val auth = settings["auth"]?.jsonPrimitive?.contentOrNull
-                    ?: settings["auth_str"]?.jsonPrimitive?.contentOrNull
-                    ?: settings["password"]?.jsonPrimitive?.contentOrNull
-                    ?: (settings["servers"] as? JsonArray)?.firstOrNull()?.jsonObject?.get("password")?.jsonPrimitive?.contentOrNull
-                    ?: ""
-                val up = settings["up"]?.jsonPrimitive?.contentOrNull
-                    ?: settings["up_mbps"]?.jsonPrimitive?.intOrNull?.let { "$it Mbps" }
-                    ?: "50 Mbps"
-                val down = settings["down"]?.jsonPrimitive?.contentOrNull
-                    ?: settings["down_mbps"]?.jsonPrimitive?.intOrNull?.let { "$it Mbps" }
-                    ?: "100 Mbps"
-                val tlsSettings = streamSettings["tlsSettings"] as? JsonObject ?: JsonObject(emptyMap())
+        fun convert(): ConversionOutcome {
+            sourceRules = scopes.sumOf { it.item.obj("routing").array("rules").size }
+            // Prefer individual Happ remarks when a separate balancer config repeats the same nodes.
+            scopes.sortedBy { it.balancers.isNotEmpty() }.forEach(::collectNodes)
+            scopes.forEach(::collectBalancers)
+            resolveChains()
+            removeBrokenDependencies()
+            if (nodes.isEmpty()) return result("")
 
-                val map = mutableMapOf<String, Any>(
-                    "name" to name,
-                    "type" to "hysteria",
-                    "server" to address,
-                    "port" to port,
-                    "udp" to true,
-                    "up" to up,
-                    "down" to down
-                )
-                if (auth.isNotBlank()) map["password"] = auth
-                val sni = tlsSettings["serverName"]?.jsonPrimitive?.contentOrNull ?: address
-                if (sni.isNotBlank() && !sni.matches(Regex("^[0-9.]+$"))) map["sni"] = sni
-                map["alpn"] = listOf("h3")
-                val allowInsecure = tlsSettings["allowInsecure"]?.jsonPrimitive?.booleanOrNull == true
-                if (allowInsecure) map["skip-cert-verify"] = true
-                map
-            }
-            "hysteria2" -> {
-                val address = settings["address"]?.jsonPrimitive?.contentOrNull
-                    ?: (settings["servers"] as? JsonArray)?.firstOrNull()?.jsonObject?.get("address")?.jsonPrimitive?.contentOrNull
-                    ?: return null
-                val port = settings["port"]?.jsonPrimitive?.intOrNull
-                    ?: (settings["servers"] as? JsonArray)?.firstOrNull()?.jsonObject?.get("port")?.jsonPrimitive?.intOrNull
-                    ?: 443
-                val hysteriaSettings = streamSettings["hysteriaSettings"] as? JsonObject ?: JsonObject(emptyMap())
-                val auth = hysteriaSettings["auth"]?.jsonPrimitive?.contentOrNull
-                    ?: settings["password"]?.jsonPrimitive?.contentOrNull
-                    ?: (settings["servers"] as? JsonArray)?.firstOrNull()?.jsonObject?.get("password")?.jsonPrimitive?.contentOrNull
-                    ?: ""
-                val tlsSettings = streamSettings["tlsSettings"] as? JsonObject ?: JsonObject(emptyMap())
+            val mainName = name("PROXY")
+            val balancers = groups.values.filter { it["type"] != "select" }.map { it["name"].toString() }
+            val firstScope = scopes.firstOrNull()
+            val firstTarget = firstScope?.defaultTarget
+            val defaultTarget = firstTarget?.takeIf { scopes.size == 1 && exists(it) }
+            val mainMembers = (listOfNotNull(defaultTarget) + balancers + nodes.keys).distinct()
+            groups[mainName] = linkedMapOf("name" to mainName, "type" to "select", "proxies" to mainMembers)
 
-                val map = mutableMapOf<String, Any>(
-                    "name" to name,
-                    "type" to "hysteria2",
-                    "server" to address,
-                    "port" to port,
-                    "password" to auth,
-                    "udp" to true
-                )
-                val sni = tlsSettings["serverName"]?.jsonPrimitive?.contentOrNull ?: address
-                if (sni.isNotBlank() && !sni.matches(Regex("^[0-9.]+$"))) map["sni"] = sni
-                map["alpn"] = listOf("h3")
-
-                val allowInsecure = tlsSettings["allowInsecure"]?.jsonPrimitive?.booleanOrNull == true
-                if (allowInsecure) map["skip-cert-verify"] = true
-                map
-            }
-            "vmess" -> {
-                // Standard vnext[] form + flat 3x-ui export form (see vless note).
-                val vnextItem = (settings["vnext"] as? JsonArray)?.firstOrNull() as? JsonObject
-                val record: JsonObject? =
-                    (vnextItem?.get("users") as? JsonArray)?.firstOrNull() as? JsonObject
-                val address = (vnextItem?.get("address") ?: settings["address"])?.jsonPrimitive?.contentOrNull
-                    ?: return null
-                val port = (vnextItem?.get("port") ?: settings["port"])?.jsonPrimitive?.intOrNull ?: 443
-                val uuid = (record?.get("id") ?: settings["id"])?.jsonPrimitive?.contentOrNull ?: return null
-                val alterId = (record?.get("alterId") ?: settings["alterId"])?.jsonPrimitive?.intOrNull ?: 0
-                val cipher = (record?.get("security") ?: settings["security"])?.jsonPrimitive?.contentOrNull
-                    ?: "auto"
-
-                val map = mutableMapOf<String, Any>(
-                    "name" to name,
-                    "type" to "vmess",
-                    "server" to address,
-                    "port" to port,
-                    "uuid" to uuid,
-                    "alterId" to alterId,
-                    "cipher" to cipher,
-                    "network" to if (net == "splithttp") "xhttp" else net
-                )
-                applyStreamSecurityAndTransport(map, net, security, streamSettings, address)
-                applyMux(map, outbound)
-            map
-            }
-            "shadowsocks" -> {
-                val servers = settings["servers"] as? JsonArray ?: return null
-                val srv = servers.firstOrNull() as? JsonObject ?: return null
-                val address = srv["address"]?.jsonPrimitive?.contentOrNull ?: return null
-                val port = srv["port"]?.jsonPrimitive?.intOrNull ?: return null
-                val method = srv["method"]?.jsonPrimitive?.contentOrNull ?: return null
-                val password = srv["password"]?.jsonPrimitive?.contentOrNull ?: return null
-
-                mutableMapOf(
-                    "name" to name,
-                    "type" to "ss",
-                    "server" to address,
-                    "port" to port,
-                    "cipher" to method,
-                    "password" to password
-                )
-            }
-            "trojan" -> {
-                val servers = settings["servers"] as? JsonArray ?: return null
-                val srv = servers.firstOrNull() as? JsonObject ?: return null
-                val address = srv["address"]?.jsonPrimitive?.contentOrNull ?: return null
-                val port = srv["port"]?.jsonPrimitive?.intOrNull ?: 443
-                val password = srv["password"]?.jsonPrimitive?.contentOrNull ?: return null
-
-                val map = mutableMapOf<String, Any>(
-                    "name" to name,
-                    "type" to "trojan",
-                    "server" to address,
-                    "port" to port,
-                    "password" to password,
-                    "network" to if (net == "splithttp") "xhttp" else net
-                )
-                applyStreamSecurityAndTransport(map, net, security, streamSettings, address)
-                applyMux(map, outbound)
-            map
-            }
-            "http" -> {
-                // Xray http outbound -> mihomo http proxy (with optional basic auth).
-                val address = settings["address"]?.jsonPrimitive?.contentOrNull ?: return null
-                val port = settings["port"]?.jsonPrimitive?.intOrNull ?: 8080
-                val map = mutableMapOf<String, Any>(
-                    "name" to name,
-                    "type" to "http",
-                    "server" to address,
-                    "port" to port
-                )
-                val users = settings["users"] as? JsonArray
-                val user = users?.firstOrNull() as? JsonObject
-                user?.get("user")?.jsonPrimitive?.contentOrNull
-                    ?.takeIf { it.isNotBlank() }?.let { map["username"] = it }
-                user?.get("pass")?.jsonPrimitive?.contentOrNull
-                    ?.takeIf { it.isNotBlank() }?.let { map["password"] = it }
-                val tlsSettings = streamSettings["tlsSettings"] as? JsonObject ?: JsonObject(emptyMap())
-                if (security == "tls") {
-                    map["tls"] = true
-                    val sni = tlsSettings["serverName"]?.jsonPrimitive?.contentOrNull ?: address
-                    if (sni.isNotBlank() && !sni.matches(Regex("^[0-9.]+$"))) map["sni"] = sni
+            val rules = linkedSetOf<String>()
+            val routingScope = scopes.maxWithOrNull(compareBy<Scope> { it.balancers.isNotEmpty() }
+                .thenBy { it.item.obj("routing").array("rules").size })
+            for (scope in scopes) {
+                if (scope !== routingScope && scope.item.obj("routing").array("rules").isNotEmpty()) {
+                    issue(ConversionIssueCode.UNSUPPORTED_FIELD, "configs[${scope.index}].routing")
+                    continue
                 }
-                map
-            }
-            "socks" -> {
-                // Xray socks outbound -> mihomo socks5.
-                val address = settings["address"]?.jsonPrimitive?.contentOrNull ?: return null
-                val port = settings["port"]?.jsonPrimitive?.intOrNull ?: 1080
-                val map = mutableMapOf<String, Any>(
-                    "name" to name,
-                    "type" to "socks5",
-                    "server" to address,
-                    "port" to port
-                )
-                val users = settings["users"] as? JsonArray
-                val user = users?.firstOrNull() as? JsonObject
-                user?.get("user")?.jsonPrimitive?.contentOrNull
-                    ?.takeIf { it.isNotBlank() }?.let { map["username"] = it }
-                user?.get("pass")?.jsonPrimitive?.contentOrNull
-                    ?.takeIf { it.isNotBlank() }?.let { map["password"] = it }
-                map
-            }
-            "tuic" -> {
-                val address = settings["address"]?.jsonPrimitive?.contentOrNull ?: return null
-                val port = settings["port"]?.jsonPrimitive?.intOrNull ?: 443
-                val uuid = settings["uuid"]?.jsonPrimitive?.contentOrNull ?: ""
-                val password = settings["password"]?.jsonPrimitive?.contentOrNull ?: ""
-                val congestion = settings["congestion_controller"]?.jsonPrimitive?.contentOrNull ?: "bbr"
-                val tlsSettings = streamSettings["tlsSettings"] as? JsonObject ?: JsonObject(emptyMap())
-
-                val map = mutableMapOf<String, Any>(
-                    "name" to name,
-                    "type" to "tuic",
-                    "server" to address,
-                    "port" to port,
-                    "uuid" to uuid,
-                    "password" to password,
-                    "congestion-controller" to congestion
-                )
-                settings["udp_relay_mode"]?.jsonPrimitive?.contentOrNull
-                    ?.takeIf { it.isNotBlank() }?.let { map["udp-relay-mode"] = it }
-                if (settings["reduce_rtt"]?.jsonPrimitive?.booleanOrNull == true) map["reduce-rtt"] = true
-                if (settings["disable_sni"]?.jsonPrimitive?.booleanOrNull == true) map["disable-sni"] = true
-                val sni = tlsSettings["serverName"]?.jsonPrimitive?.contentOrNull ?: address
-                if (sni.isNotBlank() && !sni.matches(Regex("^[0-9.]+$"))) map["sni"] = sni
-                val alpn = tlsSettings["alpn"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }
-                if (!alpn.isNullOrEmpty()) map["alpn"] = alpn
-                val allowInsecure = tlsSettings["allowInsecure"]?.jsonPrimitive?.booleanOrNull == true
-                if (allowInsecure) map["skip-cert-verify"] = true
-                map
-            }
-            "wireguard" -> {
-                val address = settings["address"]?.jsonPrimitive?.contentOrNull ?: return null
-                val port = settings["port"]?.jsonPrimitive?.intOrNull ?: 51820
-                val secretKey = settings["secretKey"]?.jsonPrimitive?.contentOrNull ?: ""
-                val peers = settings["peers"] as? JsonArray
-                val firstPeer = peers?.firstOrNull()?.jsonObject
-                val publicKey = firstPeer?.get("publicKey")?.jsonPrimitive?.contentOrNull ?: ""
-                val presharedKey = firstPeer?.get("presharedKey")?.jsonPrimitive?.contentOrNull
-
-                val map = mutableMapOf<String, Any>(
-                    "name" to name,
-                    "type" to "wireguard",
-                    "server" to address,
-                    "port" to port,
-                    "private-key" to secretKey,
-                    "public-key" to publicKey
-                )
-                if (!presharedKey.isNullOrBlank()) map["preshared-key"] = presharedKey
-                map
-            }
-            else -> null
-        }
-    }
-
-    private fun applyStreamSecurityAndTransport(
-        map: MutableMap<String, Any>,
-        net: String,
-        security: String,
-        streamSettings: JsonObject,
-        address: String,
-        flow: String = ""
-    ) {
-        if (security == "xtls") {
-            // Deprecated pre-reality XTLS: port as plain TLS, the flow field
-            // (xtls-rprx-vision/xtls-rprx-direct) survives via the users record.
-            map["tls"] = true
-            val tlsSettings = streamSettings["tlsSettings"] as? JsonObject ?: JsonObject(emptyMap())
-            map["servername"] = tlsSettings["serverName"]?.jsonPrimitive?.contentOrNull ?: address
-            if (tlsSettings["allowInsecure"]?.jsonPrimitive?.booleanOrNull == true ||
-                streamSettings["allowInsecure"]?.jsonPrimitive?.booleanOrNull == true
-            ) map["skip-cert-verify"] = true
-        } else if (security == "reality") {
-            map["tls"] = true
-            val realitySettings = streamSettings["realitySettings"] as? JsonObject ?: JsonObject(emptyMap())
-            map["servername"] = realitySettings["serverName"]?.jsonPrimitive?.contentOrNull ?: address
-            val realityOpts = mutableMapOf<String, Any>(
-                "public-key" to (realitySettings["publicKey"]?.jsonPrimitive?.contentOrNull ?: ""),
-                "short-id" to (realitySettings["shortId"]?.jsonPrimitive?.contentOrNull ?: "")
-            )
-            val spiderX = realitySettings["spiderX"]?.jsonPrimitive?.contentOrNull
-            if (!spiderX.isNullOrBlank()) realityOpts["spider-x"] = spiderX
-            map["reality-opts"] = realityOpts
-            val fp = realitySettings["fingerprint"]?.jsonPrimitive?.contentOrNull ?: ""
-            if (fp.isNotBlank()) map["client-fingerprint"] = fp
-        } else if (security == "tls") {
-            map["tls"] = true
-            val tlsSettings = streamSettings["tlsSettings"] as? JsonObject ?: JsonObject(emptyMap())
-            map["servername"] = tlsSettings["serverName"]?.jsonPrimitive?.contentOrNull ?: address
-            val fp = tlsSettings["fingerprint"]?.jsonPrimitive?.contentOrNull ?: ""
-            if (fp.isNotBlank()) map["client-fingerprint"] = fp
-            val alpn = tlsSettings["alpn"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }
-            if (!alpn.isNullOrEmpty()) map["alpn"] = alpn
-            val allowInsecure = tlsSettings["allowInsecure"]?.jsonPrimitive?.booleanOrNull
-                ?: streamSettings["allowInsecure"]?.jsonPrimitive?.booleanOrNull
-                ?: false
-            if (allowInsecure) map["skip-cert-verify"] = true
-        }
-
-        // WS Settings
-        if (net == "ws") {
-            val wsSettings = streamSettings["wsSettings"] as? JsonObject
-            val path = wsSettings?.get("path")?.jsonPrimitive?.contentOrNull ?: "/"
-            val wsOpts = mutableMapOf<String, Any>("path" to path)
-            val wsHeaders = wsSettings?.get("headers")?.jsonObject
-            if (wsHeaders != null && wsHeaders.isNotEmpty()) {
-                wsOpts["headers"] = wsHeaders.entries.associate { (k, v) ->
-                    k to (v.jsonPrimitive.contentOrNull ?: "")
-                }
-            }
-            val maxEarly = wsSettings?.get("maxEarlyData")?.jsonPrimitive?.intOrNull
-                ?: wsSettings?.get("maxEarlyDataPx")?.let { null }
-            if (maxEarly != null && maxEarly > 0) {
-                wsOpts["max-early-data"] = maxEarly
-                val earlyHeader = wsSettings?.get("earlyDataHeaderName")?.jsonPrimitive?.contentOrNull
-                if (!earlyHeader.isNullOrBlank()) wsOpts["early-data-header-name"] = earlyHeader
-            }
-            map["ws-opts"] = wsOpts
-        }
-
-        // gRPC Settings
-        if (net == "grpc") {
-            val grpcSettings = streamSettings["grpcSettings"] as? JsonObject
-            val svc = grpcSettings?.get("serviceName")?.jsonPrimitive?.contentOrNull ?: ""
-            if (svc.isNotBlank()) {
-                val grpcOpts = mutableMapOf<String, Any>("grpc-service-name" to svc)
-                if (grpcSettings?.get("multiMode")?.jsonPrimitive?.booleanOrNull == true) {
-                    grpcOpts["grpc-multi-mode"] = true
-                }
-                map["grpc-opts"] = grpcOpts
-            }
-        }
-
-        // TCP with HTTP obfs header (header.type == "http") -> mihomo http-opts
-        // (legacy tcpSettings; newer Xray calls it rawSettings)
-        if (net == "tcp") {
-            val tcpHeader = (streamSettings["tcpSettings"] ?: streamSettings["rawSettings"])
-                ?.jsonObject?.get("header")?.jsonObject
-            if (tcpHeader?.get("type")?.jsonPrimitive?.contentOrNull == "http") {
-                val request = tcpHeader["request"]?.jsonObject
-                val httpOpts = mutableMapOf<String, Any>()
-                request?.get("method")?.jsonPrimitive?.contentOrNull
-                    ?.takeIf { it.isNotBlank() }?.let { httpOpts["method"] = it }
-                val paths = request?.get("path")?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }
-                if (!paths.isNullOrEmpty()) httpOpts["path"] = paths
-                val headers = request?.get("headers")?.jsonObject
-                if (headers != null && headers.isNotEmpty()) {
-                    val headerMap = headers.entries.associate { (k, v) ->
-                        val list = (v as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull }
-                            ?: listOfNotNull(v.jsonPrimitive.contentOrNull)
-                        k to list
+                val source = scope.item.obj("routing").array("rules")
+                source.forEachIndexed { index, element ->
+                    val path = "configs[${scope.index}].routing.rules[$index]"
+                    val rule = element as? JsonObject
+                    val target = rule?.text("balancerTag")?.takeIf { it.isNotBlank() }
+                        ?.let { scope.targets["balancer:$it"] }
+                        ?: rule?.text("outboundTag")?.takeIf { it.isNotBlank() }?.let { scope.targets[it] }
+                    if (rule == null || target == null || !exists(target)) {
+                        issue(ConversionIssueCode.UNRESOLVED_REFERENCE, path)
+                    } else {
+                        val translated = XrayRouting.convert(rule, target)
+                        if (translated == null) issue(ConversionIssueCode.UNSUPPORTED_RULE, path)
+                        else { rules.add(translated); importedRules++ }
                     }
-                    httpOpts["headers"] = headerMap
                 }
-                map["http-opts"] = httpOpts
+                val routing = scope.item.obj("routing")
+                if (routing.text("domainStrategy").let { it.isNotEmpty() && it != "AsIs" }) {
+                    issue(ConversionIssueCode.UNSUPPORTED_FIELD, "configs[${scope.index}].routing.domainStrategy")
+                }
+                if (scope.item["dns"] != null) issue(ConversionIssueCode.UNSUPPORTED_FIELD, "configs[${scope.index}].dns")
+            }
+            if (rules.none { it.startsWith("MATCH,") }) rules.add("MATCH,$mainName")
+            val options = DumperOptions().apply { defaultFlowStyle = DumperOptions.FlowStyle.BLOCK; indent = 2 }
+            val yaml = Yaml(options).dump(linkedMapOf(
+                "proxies" to nodes.values.toList(), "proxy-groups" to (listOf(groups.getValue(mainName)) + groups.filterKeys { it != mainName }.values), "rules" to rules.toList()
+            ))
+            return result(yaml)
+        }
+
+        private fun result(yaml: String): ConversionOutcome {
+            val report = ConversionReport("xray", sourceNodes, nodes.size, duplicates, sourceRules, importedRules, issues.distinct())
+            val warnings = report.issues.map { ConversionWarning.XrayLoss(it) }.toMutableList<ConversionWarning>()
+            if (nodes.isEmpty()) warnings.add(ConversionWarning.NoNodesXray)
+            return ConversionOutcome(yaml, warnings, report)
+        }
+
+        private fun collectNodes(scope: Scope) {
+            val real = scope.outbounds.filter { (it as? JsonObject)?.text("protocol")?.lowercase() !in serviceProtocols }
+            scope.outbounds.forEachIndexed { index, element ->
+                val path = "configs[${scope.index}].outbounds[$index]"
+                val ob = element as? JsonObject
+                if (ob == null) {
+                    sourceNodes++
+                    issue(ConversionIssueCode.INVALID_NODE, path)
+                    return@forEachIndexed
+                }
+                val tag = ob.text("tag")
+                when (ob.text("protocol").lowercase()) {
+                    "freedom" -> {
+                        scope.registerTarget(index, tag, "DIRECT")
+                        ob.obj("settings").filterNot { (key, value) ->
+                            key == "domainStrategy" && (value as? JsonPrimitive)?.contentOrNull == "AsIs" ||
+                                key == "userLevel" && (value as? JsonPrimitive)?.intOrNull == 0
+                        }.keys.forEach { issue(ConversionIssueCode.UNSUPPORTED_FIELD, "$path.settings.${XraySourceFields.safeName(it)}") }
+                        return@forEachIndexed
+                    }
+                    "blackhole" -> {
+                        scope.registerTarget(index, tag, "REJECT")
+                        if (ob.obj("settings").obj("response").text("type").let { it.isNotBlank() && it != "none" }) {
+                            issue(ConversionIssueCode.UNSUPPORTED_FIELD, "$path.settings.response")
+                        }
+                        return@forEachIndexed
+                    }
+                    in serviceProtocols -> return@forEachIndexed
+                }
+                val names = mutableListOf<String>()
+                val label = if (real.size == 1) scope.item.text("remarks").ifBlank { tag } else tag
+                val expanded = expand(ob)
+                var variants = 0
+                expanded.forEachIndexed { variant, settings ->
+                    variants++
+                    sourceNodes++
+                    val variantPath = "$path.settings[$variant]"
+                    if (settings == null) {
+                        issue(ConversionIssueCode.INVALID_NODE, variantPath)
+                        return@forEachIndexed
+                    }
+                    val map = parseNode(ob, settings, label, variantPath) ?: return@forEachIndexed
+                    val chain = map["dialer-proxy"] as? String
+                    val key = map.filterKeys { it != "name" } + if (chain != null) mapOf("scope" to scope.index) else emptyMap()
+                    val existing = equivalent[key]
+                    if (existing != null) { duplicates++; names.add(existing) }
+                    else {
+                        val nodeName = name(label.ifBlank { "Node ${scope.index + 1}.${index + 1}" })
+                        map["name"] = nodeName
+                        nodes[nodeName] = map
+                        equivalent[key] = nodeName
+                        names.add(nodeName)
+                        if (chain != null) chains.add(Triple(scope, nodeName, chain))
+                    }
+                }
+                if (variants == 0) {
+                    sourceNodes++
+                    issue(ConversionIssueCode.INVALID_NODE, "$path.settings")
+                }
+                if (names.isEmpty()) return@forEachIndexed
+                scope.members[tag] = names.distinct()
+                val target = if (names.distinct().size == 1) names.first() else {
+                    val groupName = name(tag.ifBlank { label })
+                    groups[groupName] = linkedMapOf("name" to groupName, "type" to "select", "proxies" to names.distinct())
+                    groupName
+                }
+                scope.registerTarget(index, tag, target)
             }
         }
 
-        // xhttp / splithttp Settings
-        if (net == "xhttp" || net == "splithttp") {
-            val xhttpSettings = streamSettings["xhttpSettings"] as? JsonObject
-                ?: streamSettings["splithttpSettings"] as? JsonObject
-            val path = xhttpSettings?.get("path")?.jsonPrimitive?.contentOrNull ?: "/"
-            val host = xhttpSettings?.get("host")?.jsonPrimitive?.contentOrNull ?: ""
-            val xhttpOpts = mutableMapOf<String, Any>("path" to path)
-            if (host.isNotBlank()) xhttpOpts["host"] = host
-            val mode = xhttpSettings?.get("mode")?.jsonPrimitive?.contentOrNull
-            if (!mode.isNullOrBlank()) xhttpOpts["mode"] = mode
-            // mihomo supports the panel-tunable XHTTP extras
-            if (xhttpSettings?.get("noGrpcHeader")?.jsonPrimitive?.booleanOrNull == true) {
-                xhttpOpts["no-grpc-header"] = true
+        private fun parseNode(ob: JsonObject, settings: JsonObject, label: String, path: String): MutableMap<String, Any>? {
+            val protocol = ob.text("protocol").lowercase()
+            if (!XraySourceFields.validShape(ob)) {
+                issue(ConversionIssueCode.INVALID_NODE, path)
+                return null
             }
-            xhttpSettings?.get("xPaddingBytes")?.jsonPrimitive?.contentOrNull
-                ?.takeIf { it.isNotBlank() }?.let { xhttpOpts["x-padding-bytes"] = it }
-            val extraHeaders = xhttpSettings?.get("extra")?.jsonObject
-            if (extraHeaders != null && extraHeaders.isNotEmpty()) {
-                xhttpOpts["headers"] = extraHeaders.entries.associate { (k, v) ->
-                    k to (v.jsonPrimitive.contentOrNull ?: "")
+            val stream = ob.obj("streamSettings")
+            if (!XrayTransportOptions.validReality(stream)) {
+                issue(ConversionIssueCode.INVALID_NODE, "$path.streamSettings.realitySettings")
+                return null
+            }
+            if (settings["port"] != null && (settings["port"] as? JsonPrimitive)?.intOrNull !in 1..65535) {
+                issue(ConversionIssueCode.INVALID_NODE, "$path.port")
+                return null
+            }
+            if (!XrayTransportOptions.supported(protocol, stream)) {
+                issue(ConversionIssueCode.UNSUPPORTED_TRANSPORT, "$path.streamSettings")
+                return null
+            }
+            val map = runCatching { XrayOutboundParser.parse(label, protocol, settings, stream)?.toMutableMap() }.getOrNull()
+            if (map == null || map["server"].toString().isBlank() || (map["port"] as? Int) !in 1..65535) {
+                issue(ConversionIssueCode.INVALID_NODE, path)
+                return null
+            }
+            try {
+                XraySourceFields.reportUnmappedFields(ob, settings) { field ->
+                    issue(ConversionIssueCode.UNSUPPORTED_FIELD, "$path.$field")
+                }
+                XrayTransportOptions.apply(map, protocol, settings, stream) { field ->
+                    issue(ConversionIssueCode.UNSUPPORTED_FIELD, "$path.$field")
+                }
+            } catch (_: IllegalArgumentException) {
+                issue(ConversionIssueCode.UNSUPPORTED_TRANSPORT, path)
+                return null
+            }
+            val mux = ob.obj("mux")["enabled"]
+            if (mux != null && (mux as? JsonPrimitive)?.booleanOrNull == null) {
+                issue(ConversionIssueCode.UNSUPPORTED_FIELD, "$path.mux.enabled")
+            }
+            if ((mux as? JsonPrimitive)?.booleanOrNull == true) {
+                issue(ConversionIssueCode.MUX_UNSUPPORTED, "$path.mux")
+            }
+            val dialer = ob.obj("proxySettings").text("tag").ifBlank { stream.obj("sockopt").text("dialerProxy") }
+            if (dialer.isNotBlank()) map["dialer-proxy"] = dialer
+            if ((ob.obj("proxySettings")["transportLayer"] as? JsonPrimitive)?.booleanOrNull == false) {
+                issue(ConversionIssueCode.UNSUPPORTED_FIELD, "$path.proxySettings.transportLayer")
+            }
+            return map
+        }
+
+        private fun collectBalancers(scope: Scope) {
+            scope.balancers.forEachIndexed { index, balancer ->
+                val path = "configs[${scope.index}].routing.balancers[$index]"
+                val selectors = balancer.array("selector").mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+                val members = scope.members.filterKeys { tag -> selectors.any { tag.startsWith(it) } }.values.flatten().distinct()
+                val fallback = scope.targets[balancer.text("fallbackTag")]
+                val selected = members.ifEmpty { if (fallback != null && exists(fallback)) listOf(fallback) else emptyList() }
+                if (selected.isEmpty()) { issue(ConversionIssueCode.UNRESOLVED_REFERENCE, path); return@forEachIndexed }
+                val strategy = balancer.obj("strategy").text("type").ifBlank { "random" }
+                if (strategy !in setOf("leastPing", "leastLoad", "random")) {
+                    issue(ConversionIssueCode.UNSUPPORTED_FIELD, "$path.strategy"); return@forEachIndexed
+                }
+                val tag = balancer.text("tag").ifBlank { "balancer-${index + 1}" }
+                val groupName = name(scope.item.text("remarks").takeIf { scope.balancers.size == 1 }.orEmpty().ifBlank { tag })
+                val observatory = scope.item.obj("burstObservatory").ifEmpty { scope.item.obj("observatory") }
+                val ping = observatory.obj("pingConfig")
+                val group = linkedMapOf<String, Any>(
+                    "name" to groupName, "type" to if (strategy == "random") "load-balance" else "url-test",
+                    "proxies" to selected,
+                    "url" to ping.text("destination").ifBlank { observatory.text("probeURL").ifBlank { CoreConstants.AUTO_PROBE_URL } },
+                    "interval" to ConverterSupport.parseSeconds(ping.text("interval").ifBlank { observatory.text("probeInterval") }, 300).coerceAtLeast(1)
+                )
+                if (strategy == "random") group["strategy"] = "round-robin" else group["tolerance"] = 50
+                if (strategy != "leastPing") issue(ConversionIssueCode.BALANCER_APPROXIMATION, "$path.strategy")
+                if (balancer.obj("strategy").obj("settings").isNotEmpty()) issue(ConversionIssueCode.UNSUPPORTED_FIELD, "$path.strategy.settings")
+                groups[groupName] = group
+                scope.targets["balancer:$tag"] = groupName
+            }
+        }
+
+        private fun resolveChains() {
+            for ((scope, node, tag) in chains) {
+                val target = scope.targets[tag]
+                when {
+                    target == "DIRECT" -> nodes[node]?.remove("dialer-proxy")
+                    target != null && exists(target) -> nodes[node]?.set("dialer-proxy", target)
+                    else -> {
+                        nodes.remove(node)
+                        issue(ConversionIssueCode.UNRESOLVED_REFERENCE, "configs[${scope.index}].dialer-proxy")
+                    }
                 }
             }
-            map["xhttp-opts"] = xhttpOpts
         }
 
-        // HTTP / h2 Settings
-        if (net == "http" || net == "h2") {
-            val httpSettings = streamSettings["httpSettings"] as? JsonObject
-            val path = httpSettings?.get("path")?.jsonPrimitive?.contentOrNull ?: "/"
-            val host = httpSettings?.get("host")?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList()
-            val h2Opts = mutableMapOf<String, Any>("path" to path)
-            if (host.isNotEmpty()) h2Opts["host"] = host
-            map["h2-opts"] = h2Opts
-        }
+        private fun exists(target: String): Boolean = target == "DIRECT" || target == "REJECT" || target in nodes || target in groups
 
-        // HTTPUpgrade Settings
-        if (net == "httpupgrade") {
-            val upSettings = streamSettings["httpupgradeSettings"] as? JsonObject
-            val path = upSettings?.get("path")?.jsonPrimitive?.contentOrNull ?: "/"
-            val host = upSettings?.get("host")?.jsonPrimitive?.contentOrNull ?: ""
-            val opts = mutableMapOf<String, Any>("path" to path)
-            if (host.isNotBlank()) opts["host"] = host
-            map["httpupgrade-opts"] = opts
-        }
+        private fun dependencies(target: String): List<String> = nodes[target]?.get("dialer-proxy")?.let { listOf(it.toString()) }
+            ?: (groups[target]?.get("proxies") as? List<*>)?.map { it.toString() }.orEmpty()
 
-        // mKCP: Xray kcpSettings → mihomo mkcp-opts (current wiki name)
-        if (net == "kcp" || net == "mkcp") {
-            val kcp = (streamSettings["kcpSettings"] ?: streamSettings["mkcpSettings"])
-                ?.jsonObject ?: JsonObject(emptyMap())
-            val opts = mutableMapOf<String, Any>()
-            kcp["mtu"]?.jsonPrimitive?.intOrNull?.let { opts["mtu"] = it }
-            kcp["tti"]?.jsonPrimitive?.intOrNull?.let { opts["tti"] = it }
-            kcp["uplinkCapacity"]?.jsonPrimitive?.intOrNull?.let { opts["uplink-capacity"] = it }
-            kcp["downlinkCapacity"]?.jsonPrimitive?.intOrNull?.let { opts["downlink-capacity"] = it }
-            kcp["congestion"]?.jsonPrimitive?.booleanOrNull?.let { opts["congestion"] = it }
-            kcp["writeBufferSize"]?.jsonPrimitive?.intOrNull?.let { opts["write-buffer"] = it }
-            kcp["readBufferSize"]?.jsonPrimitive?.intOrNull?.let { opts["read-buffer"] = it }
-            kcp["seed"]?.jsonPrimitive?.contentOrNull
-                ?.takeIf { it.isNotBlank() }?.let { opts["seed"] = it }
-            kcp["header"]?.jsonObject?.get("type")?.jsonPrimitive?.contentOrNull
-                ?.takeIf { it.isNotBlank() && it != "none" }?.let { opts["header"] = it }
-            if (opts.isNotEmpty()) map["mkcp-opts"] = opts
+        private fun removeBrokenDependencies() {
+            val all = (nodes.keys + groups.keys).toSet()
+            val remaining = all.associateWith { dependencies(it).count { dependency -> dependency in all } }.toMutableMap()
+            val parents = mutableMapOf<String, MutableList<String>>()
+            for (target in all) for (dependency in dependencies(target)) {
+                if (dependency in all) parents.getOrPut(dependency) { mutableListOf() }.add(target)
+            }
+            val ready = ArrayDeque(remaining.filterValues { it == 0 }.keys)
+            while (ready.isNotEmpty()) {
+                val done = ready.removeFirst()
+                for (parent in parents[done].orEmpty()) {
+                    val count = remaining.getValue(parent) - 1
+                    remaining[parent] = count
+                    if (count == 0) ready.addLast(parent)
+                }
+            }
+            val cyclic = remaining.filterValues { it > 0 }.keys
+            if (cyclic.isNotEmpty()) {
+                cyclic.forEach { nodes.remove(it); groups.remove(it) }
+                issue(ConversionIssueCode.REFERENCE_CYCLE, "outbounds.dialer-proxy")
+            }
+            do {
+                var changed = false
+                val invalidNodes = nodes.filterValues { proxy -> (proxy["dialer-proxy"] as? String)?.let { !exists(it) } == true }.keys
+                invalidNodes.toList().forEach { nodes.remove(it); changed = true }
+                for ((_, group) in groups) {
+                    val members = (group["proxies"] as List<*>).map { it.toString() }
+                    val valid = members.filter(::exists)
+                    if (valid != members) { group["proxies"] = valid; changed = true }
+                }
+                val emptyGroups = groups.filterValues { (it["proxies"] as List<*>).isEmpty() }.keys.toList()
+                emptyGroups.forEach { groups.remove(it); changed = true }
+                if (changed) issue(ConversionIssueCode.UNRESOLVED_REFERENCE, "outbounds.dependencies")
+            } while (changed)
         }
-
-        // sockopt.dialerProxy chains one outbound behind another (mihomo dialer-proxy)
-        streamSettings["sockopt"]?.jsonObject?.get("dialerProxy")
-            ?.jsonPrimitive?.contentOrNull
-            ?.takeIf { it.isNotBlank() }?.let { map["dialer-proxy"] = it }
     }
 
-    /**
-     * Xray MuxObject → mihomo smux. Never emitted for a VLESS vision flow —
-     * smux and vision are incompatible (Xray ignores the combination anyway).
-     */
-    private fun applyMux(map: MutableMap<String, Any>, outbound: JsonObject, flow: String = "") {
-        val mux = outbound["mux"]?.jsonObject ?: return
-        if (mux["enabled"]?.jsonPrimitive?.booleanOrNull != true) return
-        if (flow.contains("vision")) return
-        val smux = mutableMapOf<String, Any>(
-            "enabled" to true,
-            "protocol" to "smux"
-        )
-        mux["concurrency"]?.jsonPrimitive?.intOrNull
-            ?.takeIf { it > 0 }?.let { smux["max-connections"] = it.coerceIn(1, 8) }
-        map["smux"] = smux
+    private fun expand(ob: JsonObject): Sequence<JsonObject?> {
+        val settings = ob.obj("settings")
+        val servers = settings["vnext"]
+        if (servers != null && servers !is JsonNull) {
+            if (servers !is JsonArray) return sequenceOf(null)
+            return servers.asSequence().flatMap { element ->
+                val server = element as? JsonObject ?: return@flatMap sequenceOf(null)
+                val users = server["users"] as? JsonArray ?: return@flatMap sequenceOf(null)
+                if (users.isEmpty()) return@flatMap sequenceOf(null)
+                users.asSequence().map { user ->
+                    if (user !is JsonObject) null else JsonObject((settings - "vnext") + (server - "users") + user)
+                }
+            }
+        }
+        val generic = settings["servers"]
+        if (generic != null && generic !is JsonNull) {
+            if (generic !is JsonArray) return sequenceOf(null)
+            return generic.asSequence().flatMap { element ->
+                val server = element as? JsonObject ?: return@flatMap sequenceOf(null)
+                val userField = server["users"]
+                if (userField != null && userField !is JsonNull && userField !is JsonArray) return@flatMap sequenceOf(null)
+                val users = (userField as? JsonArray).orEmpty().ifEmpty { listOf(empty) }
+                users.asSequence().map { user ->
+                    if (user !is JsonObject) return@map null
+                    val merged = JsonObject(server + if (user.isEmpty()) emptyMap() else mapOf("users" to JsonArray(listOf(user))))
+                    if (ob.text("protocol").lowercase() in setOf("trojan", "shadowsocks")) JsonObject(settings + ("servers" to JsonArray(listOf(merged))))
+                    else JsonObject((settings - "servers") + merged)
+                }
+            }
+        }
+        val users = settings["users"]
+        if (ob.text("protocol").lowercase() in setOf("http", "socks") && users != null && users !is JsonNull) {
+            if (users !is JsonArray) return sequenceOf(null)
+            if (users.isNotEmpty()) return users.asSequence().map { user ->
+                if (user !is JsonObject) null else JsonObject(settings + ("users" to JsonArray(listOf(user))))
+            }
+        }
+        return sequenceOf(settings)
     }
 
-    private fun extractAddressAndPort(protocol: String, settings: JsonObject): Pair<String?, Int?> {
-        return when (protocol) {
-            "vless", "vmess" -> {
-                val vnext = (settings["vnext"] as? JsonArray)?.firstOrNull() as? JsonObject
-                vnext?.get("address")?.jsonPrimitive?.contentOrNull to vnext?.get("port")?.jsonPrimitive?.intOrNull
-            }
-            "hysteria", "hysteria2" -> {
-                val addr = settings["address"]?.jsonPrimitive?.contentOrNull
-                    ?: (settings["servers"] as? JsonArray)?.firstOrNull()?.jsonObject?.get("address")?.jsonPrimitive?.contentOrNull
-                val port = settings["port"]?.jsonPrimitive?.intOrNull
-                    ?: (settings["servers"] as? JsonArray)?.firstOrNull()?.jsonObject?.get("port")?.jsonPrimitive?.intOrNull
-                addr to port
-            }
-            "trojan", "shadowsocks" -> {
-                val srv = (settings["servers"] as? JsonArray)?.firstOrNull() as? JsonObject
-                srv?.get("address")?.jsonPrimitive?.contentOrNull to srv?.get("port")?.jsonPrimitive?.intOrNull
-            }
-            else -> null to null
-        }
-    }
+    internal fun JsonObject.text(key: String): String = (this[key] as? JsonPrimitive)?.contentOrNull.orEmpty()
+    internal fun JsonObject.obj(key: String): JsonObject = this[key] as? JsonObject ?: empty
+    internal fun JsonObject.array(key: String): List<JsonElement> = (this[key] as? JsonArray)?.toList().orEmpty()
 }

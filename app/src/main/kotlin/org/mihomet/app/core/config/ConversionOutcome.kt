@@ -12,5 +12,6 @@ package org.mihomet.app.core.config
  */
 data class ConversionOutcome(
     val yaml: String,
-    val warnings: List<ConversionWarning> = emptyList()
+    val warnings: List<ConversionWarning> = emptyList(),
+    val report: ConversionReport? = null
 )

@@ -10,6 +10,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -386,70 +387,72 @@ class CoreManager(private val context: Context) {
     ): Result<T> = withContext(Dispatchers.IO) {
         runCatching {
             val binaryPath = getBundledLibraryPath()
-            val probeDir = File(context.cacheDir, "core_probe").apply {
-                if (exists()) deleteRecursively()
-                mkdirs()
-            }
-
-            // Audit P1 §2.2: per-run random secret + ephemeral free port. The probe
-            // core is a fully functional mihomo instance — a static secret baked into
-            // the APK (or a fixed port) would let any local app reach its controller
-            // API and would race with other listeners.
-            val probePort = CoreConstants.findFreePort()
-            val probeSecret = CoreConstants.generateRandomHexSecret()
-            val probeConfig = ConfigGenerator.generateRuntimeConfig(
-                profileYamlContent = rawYaml,
-                settings = AppSettings(
-                    mixedPort = 17895,
-                    dnsPort = 11053,
-                    tproxyPort = 17893,
-                    controllerPort = probePort,
-                    controllerSecret = probeSecret
-                ),
-                tunFd = null
-            )
-
-            val testConfigFile = File(probeDir, "config.yaml").apply { writeText(probeConfig) }
-            val testLogFile = File(probeDir, "probe.log")
-
-            val pb = ProcessBuilder(
-                binaryPath,
-                "-d", probeDir.absolutePath,
-                "-f", testConfigFile.absolutePath
-            ).redirectErrorStream(true)
-             .redirectOutput(testLogFile)
-
-            pb.environment()["HOME"] = probeDir.absolutePath
-            pb.environment()["TMPDIR"] = context.cacheDir.absolutePath
-
-            val process = pb.start()
-            val probeApiClient = MihomoApiClient(
-                host = "127.0.0.1",
-                port = probePort,
-                secret = probeSecret
-            )
-
+            val probeDir = File(context.cacheDir, "core_probe_${java.util.UUID.randomUUID()}").apply { mkdirs() }
             try {
-                var ready = false
-                val start = System.currentTimeMillis()
-                while (System.currentTimeMillis() - start < 3000) {
-                    if (probeApiClient.getVersion().isSuccess) {
-                        ready = true
-                        break
-                    }
-                    delay(80)
-                }
-                if (!ready) {
-                    throw IllegalStateException("Core probe failed to initialize in time")
-                }
 
-                block(probeApiClient)
+                // Audit P1 §2.2: per-run random secret + ephemeral free port. The probe
+                // core is a fully functional mihomo instance — a static secret baked into
+                // the APK (or a fixed port) would let any local app reach its controller
+                // API and would race with other listeners.
+                val probePort = CoreConstants.findFreePort()
+                val probeSecret = CoreConstants.generateRandomHexSecret()
+                val probeConfig = ConfigGenerator.generateProbeConfig(
+                    profileYamlContent = rawYaml,
+                    settings = AppSettings(
+                        controllerPort = probePort,
+                        controllerSecret = probeSecret
+                    )
+                )
+
+                ensureGeoDatabases(probeDir)
+
+                val testConfigFile = File(probeDir, "config.yaml").apply { writeText(probeConfig) }
+                val testLogFile = File(probeDir, "probe.log")
+
+                val pb = ProcessBuilder(
+                    binaryPath,
+                    "-d", probeDir.absolutePath,
+                    "-f", testConfigFile.absolutePath
+                ).redirectErrorStream(true)
+                 .redirectOutput(testLogFile)
+
+                pb.environment()["HOME"] = probeDir.absolutePath
+                pb.environment()["TMPDIR"] = context.cacheDir.absolutePath
+
+                val probeApiClient = MihomoApiClient(
+                    host = "127.0.0.1",
+                    port = probePort,
+                    secret = probeSecret
+                )
+
+                try {
+                    val process = pb.start()
+                    try {
+                        var ready = false
+                        val start = System.currentTimeMillis()
+                        while (process.isAlive && System.currentTimeMillis() - start < 10000) {
+                            if (probeApiClient.getVersion().isSuccess) {
+                                ready = true
+                                break
+                            }
+                            delay(80)
+                        }
+                        if (!ready) {
+                            throw IllegalStateException("Core probe failed to initialize in time")
+                        }
+
+                        block(probeApiClient)
+                    } finally {
+                        process.destroy()
+                        if (!process.waitFor(500, java.util.concurrent.TimeUnit.MILLISECONDS)) process.destroyForcibly()
+                    }
+                } finally {
+                    // Release the probe client's Ktor engine (short-lived client, single probe run).
+                    probeApiClient.close()
+                }
             } finally {
-                process.destroy()
-                // Release the probe client's Ktor engine (short-lived client, single probe run).
-                probeApiClient.close()
-                runCatching { probeDir.deleteRecursively() }
+                probeDir.deleteRecursively()
             }
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 }

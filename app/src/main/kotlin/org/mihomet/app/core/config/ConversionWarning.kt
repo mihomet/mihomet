@@ -14,6 +14,8 @@ package org.mihomet.app.core.config
  */
 sealed interface ConversionWarning {
 
+    data class XrayLoss(val issue: ConversionIssue) : ConversionWarning
+
     /** A share-link URI whose scheme is not recognized — the line was skipped. */
     data class UnrecognizedNode(val uri: String) : ConversionWarning
 
@@ -56,6 +58,7 @@ sealed interface ConversionWarning {
      * leave the process or be persisted; localized text never does.
      */
     fun toStableKey(): String = when (this) {
+        is XrayLoss -> "xray_loss|${issue.code.name}|${issue.path}"
         is UnrecognizedNode -> "unrecognized_node|$uri"
         is ProxyParseError -> "proxy_parse_error|$uri|${reason.orEmpty()}"
         is YamlError -> "yaml_error|${message.orEmpty()}"
@@ -79,6 +82,9 @@ sealed interface ConversionWarning {
             val code = key.substringBefore('|')
             val body = key.substringAfter('|', "")
             return when (code) {
+                "xray_loss" -> runCatching {
+                    XrayLoss(ConversionIssue(ConversionIssueCode.valueOf(body.substringBefore('|')), body.substringAfter('|')))
+                }.getOrNull()
                 "unrecognized_node" -> UnrecognizedNode(body)
                 "proxy_parse_error" -> {
                     val uri = body.substringBefore('|')

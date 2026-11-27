@@ -32,7 +32,7 @@ class RoomMigrationInstrumentedTest {
                 autoUpdateMinutes, updateIntervalHours, uploadUsed, downloadUsed,
                 trafficTotal, expireAt, overridePatch)
                VALUES (?, 'MigrationSmoke', 'REMOTE', ?, '', ?, 0, 1, 0, 0, 0, 0, 0, 0, '')""",
-            arrayOf(id, url, headers)
+            arrayOf<Any>(id, url, headers)
         )
     }
 
@@ -90,7 +90,7 @@ class RoomMigrationInstrumentedTest {
 
         val migrated = helper.runMigrationsAndValidate(
             "enc-mig-2-current",
-            5,
+            6,
             true,
             *AppDatabase.MIGRATIONS
         )
@@ -108,6 +108,19 @@ class RoomMigrationInstrumentedTest {
             assertEquals(listOf(""), patch)
             val interval = queryStrings(db, "SELECT updateIntervalHours FROM profiles")
             assertEquals(listOf("0"), interval)
+            assertEquals(listOf(""), queryStrings(db, "SELECT conversionReport FROM profiles"))
+        }
+    }
+
+    @Test
+    fun migration5to6PreservesOpaqueSecretsAndAddsEmptyReport() {
+        helper.createDatabase("report-mig-5-6", 5).use { created ->
+            insertV4Row(created, 1L, "enc1:opaque-url", "enc1:opaque-headers")
+        }
+        helper.runMigrationsAndValidate("report-mig-5-6", 6, true, AppDatabase.MIGRATION_5_6).use { db ->
+            assertEquals(listOf("enc1:opaque-url"), queryStrings(db, "SELECT url FROM profiles"))
+            assertEquals(listOf("enc1:opaque-headers"), queryStrings(db, "SELECT customHeaders FROM profiles"))
+            assertEquals(listOf(""), queryStrings(db, "SELECT conversionReport FROM profiles"))
         }
     }
 

@@ -13,7 +13,7 @@
   - **Non-Root (VPN):** стандартный Android `VpnService` со стеком TUN/gVisor (не требует root-прав).
   - **Root (TProxy):** прозрачное проксирование трафика через `iptables` / `nftables` с минимальной нагрузкой на батарею.
 - **Интерфейс Material 3 Expressive:**
-  - Тактильная плавающая навигация и интерактивные виджеты управления.
+  - Нативная выразительная навигация, группы кнопок, плавающие действия и индикаторы; Material You при первой установке.
   - Настоящая глубокая **AMOLED-тема** (чистый OLED `#000000` и нейтральные графитовые контейнеры без лишних цветовых примесей).
   - Плавные кинематические переходы между экранами (Shared-Axis motion).
   - График трафика и мониторинг скорости в реальном времени.
@@ -22,6 +22,7 @@
   - VLESS (Reality, Vision), VMess, Shadowsocks (включая 2022), Trojan, Hysteria 2, Hysteria (v1), TUIC.
 - **Универсальные подписки:**
   - Автоматическая конвертация форматов (Base64, Sing-box JSON, Clash YAML, ссылки `vless://`/`tuic://`/`hysteria://` и др.).
+  - Xray JSONC/Happ-массивы: отдельные пространства тегов, все серверы/пользователи, совместимая маршрутизация. Сохранённый отчёт объясняет пропущенные узлы, правила и параметры; непереносимые требования проверки сервера отклоняются. Clash/Mihomo YAML сохраняется в нативном формате.
   - Поддержка пользовательских заголовков при загрузке (`x-hwid` для Remnawave, кастомный `User-Agent` и формат JSON / `Ключ: Значение`).
   - Свои заголовки у каждой подписки (например, токен доступа панели) — шифруются вместе с URL.
   - Глобальные настройки идентификации: свой `User-Agent`, вкл/выкл `x-hwid` и своё значение hwid.
@@ -30,7 +31,7 @@
   - Выбор языка приложения независимо от системы (Android 13+).
 - **Надёжность как у больших клиентов:**
   - Watchdog ядра: крэш mihomo — авторестарт с backoff (VPN и root-демон), без ручного тыка.
-  - Автообновление подписок в фоне по `profile-update-interval` (WorkManager, минимум раз в 6 ч).
+  - Автообновление подписок в фоне по `profile-update-interval` (WorkManager, поддержка интервала от 1 ч).
   - Always-on VPN: системный рестарт сервиса и `onRevoke` обрабатываются корректно.
 - **Однотапный импорт и совместимость с экосистемой:**
   - Deep-links: `happ://add/…`, `happ://routing/…`, `incy://add|import/…`, `clash://install-config`, `clashmeta://`, `flclash://`, `v2rayng://install-sub`, `sing-box://import-remote` и «Поделиться → Mihomet» из браузера.
@@ -94,14 +95,14 @@
 
 # Сборка Debug APK
 ./gradlew assembleDebug
-# Результат: app/build/outputs/apk/debug/app-debug.apk
+# Результат: app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
 
 # Сборка Release APK (без переменных окружения — unsigned)
 ./gradlew assembleRelease
-# Результат: app/build/outputs/apk/release/app-release-unsigned.apk
+# Результат: app/build/outputs/apk/release/app-<abi>-release-unsigned.apk
 
 # Установка на подключенное устройство через ADB
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
 ```
 
 Release-подпись задаётся переменными окружения `KEYSTORE_FILE`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` (в CI — секретами репозитория).
@@ -110,13 +111,13 @@ Release-подпись задаётся переменными окружени�
 
 ## 🏗 Архитектура и стек
 
-- **Язык:** Kotlin 2.1 (Coroutines, Flow, Serialization)
-- **UI:** Jetpack Compose (BOM 2026.06), Material 3 Expressive
+- **Язык:** Kotlin 2.3.20 (Coroutines, Flow, Serialization)
+- **UI:** Jetpack Compose (BOM 2026.09.00; Material 3 1.5.0), Material 3 Expressive
 - **DI:** Koin 4.1
 - **Хранение данных:** Room 2.8 (профили и сессии; URL/заголовки шифруются), DataStore Preferences (настройки)
 - **Сетевой клиент:** Ktor (загрузка подписок, WebSocket трафика, REST API ядра)
 - **Ядро:** `libmihomo.so` — пропатченная сборка [mihomet/core](https://github.com/mihomet/core), скачивается при сборке (см. выше)
-- **Качество:** 450+ unit-тестов, 14 instrumented-тестов в CI-эмуляторе (API 29/35), Android Lint + detekt
+- **Качество:** 630+ unit-тестов, 14 instrumented-тестов в CI-эмуляторе (API 29/35), Android Lint + detekt
 - **Документация для агентов и контрибьюторов:** [AGENTS.md](AGENTS.md)
 
 ---

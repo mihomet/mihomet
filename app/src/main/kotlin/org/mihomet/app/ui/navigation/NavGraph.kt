@@ -4,6 +4,9 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -21,6 +24,7 @@ import org.mihomet.app.ui.screens.proxies.ProxiesScreen
 import org.mihomet.app.ui.screens.routing.RoutingScreen
 import org.mihomet.app.ui.screens.routing.SiteRulesScreen
 import org.mihomet.app.ui.screens.settings.SettingsScreen
+import org.mihomet.app.core.DeepLinkBus
 
 private fun getNavTabOrder(route: String?): Int {
     return when (route) {
@@ -35,6 +39,7 @@ private fun getNavTabOrder(route: String?): Int {
 private fun isDetailRoute(route: String?): Boolean {
     return route != null && (
         route == Screen.Routing.route ||
+        route == Screen.SiteRules.route ||
         route == Screen.Connections.route ||
         route == Screen.Logs.route ||
         route.startsWith("yaml_editor")
@@ -46,6 +51,17 @@ fun AppNavGraph(
     navController: NavHostController,
     paddingValues: PaddingValues
 ) {
+    val importNavigation by DeepLinkBus.navigationRequest.collectAsStateWithLifecycle()
+    LaunchedEffect(importNavigation) {
+        if (importNavigation != 0L) {
+            navController.navigate(Screen.Profiles.route) {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+            DeepLinkBus.acknowledgeNavigation(importNavigation)
+        }
+    }
     NavHost(
         navController = navController,
         startDestination = Screen.Dashboard.route,
