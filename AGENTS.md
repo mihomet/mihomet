@@ -10,8 +10,9 @@
   1. **Non-Root VPN**: Android `VpnService` (TUN interface + gVisor stack).
   2. **Root TProxy**: `su` root shell with `iptables` / `nftables` transparent proxying.
 - **OS range**: minSdk **26** (Android 8.0) → targetSdk 36 (compileSdk 37).
-- **Language**: Kotlin 2.1, Coroutines/Flow, kotlinx.serialization, Ktor 3.3 client.
-- **UI**: Jetpack Compose (BOM 2026.06), **Material 3 Expressive**.
+- **Language**: Kotlin 2.3.20, Coroutines/Flow, kotlinx.serialization, Ktor 3.3 client.
+- **UI**: Jetpack Compose (BOM 2026.09.00), Material 3 1.5.0 **Expressive**.
+- **Build**: AGP 9.1.0 (built-in Kotlin), Gradle 9.3.1, JDK 21.
 - **Localization**: strings live in resources — `values/strings.xml` (**EN**, default) and `values-ru/` (Russian).
   New UI text **must** go through `stringResource`, never hardcoded, and must be added to **both** locales.
   Converter warnings are localized at display time by `core/config/WarningLocalizer.kt` (RU/EN pattern list).
@@ -34,6 +35,8 @@ app/src/main/kotlin/org/mihomet/app/
 │   ├── OemHints.kt              # OEM-specific firewall hints (MIUI battery killers etc.)
 │   ├── config/                  # ConfigGenerator (runtime YAML), UniversalConfigConverter,
 │   │                            #   ConversionOutcome (convertToMihomoYamlWithOutcome → warnings),
+│   │                            #   XrayJsonConverter + scoped outbound/transport/routing mapping,
+│   │                            #   ConversionReport (losses persisted with the profile),
 │   │                            #   WarningLocalizer (display-time RU/EN warning translation)
 │   ├── dns/DnsPresets.kt        # DNS server presets + custom DNS setting
 │   ├── firewall/                # FirewallManager + IptablesEngine / NftablesEngine
@@ -121,10 +124,10 @@ Always run these before finishing a task:
 
 ```bash
 ./gradlew compileDebugKotlin      # 1. compile check
-./gradlew testDebugUnitTest       # 2. unit tests (51 classes / 500+ @Test, incl. strict suites)
+./gradlew testDebugUnitTest       # 2. unit tests (incl. XTLS corpus and strict suites)
 ./gradlew assembleDebug           # 3. debug APK → app/build/outputs/apk/debug/
 ./gradlew assembleRelease         # 4. release APK (unsigned without KEYSTORE_* env vars)
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/debug/app-arm64-v8a-debug.apk # use the device ABI
 ```
 
 Requires **JDK 21** (CI pins it). If the system default JDK is newer (e.g. 27), set

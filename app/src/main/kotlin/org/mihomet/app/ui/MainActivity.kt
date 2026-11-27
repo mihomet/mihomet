@@ -1,16 +1,34 @@
 package org.mihomet.app.ui
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -18,6 +36,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -70,9 +89,8 @@ class MainActivity : ComponentActivity() {
             }
             android.content.Intent.ACTION_SEND -> {
                 intent.getStringExtra(android.content.Intent.EXTRA_TEXT)?.let { text ->
-                    org.mihomet.app.core.DeepLinkParser.parse(text)?.let {
-                        org.mihomet.app.core.DeepLinkBus.post(it, describeSource())
-                    }
+                    val payload = org.mihomet.app.core.DeepLinkParser.parse(text) ?: text
+                    queueImport(payload)
                 }
             }
         }
@@ -96,11 +114,17 @@ class MainActivity : ComponentActivity() {
     /** Raw source description carried with import payloads into the confirm dialog. */
     private fun describeSource(): String? = referrer?.toString()
 
+    private fun queueImport(payload: String) {
+        if (payload.isNotBlank() && !org.mihomet.app.core.DeepLinkBus.post(payload, describeSource())) {
+            android.widget.Toast.makeText(this, R.string.import_queue_full, android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
     private fun handleControlLink(raw: String, origin: org.mihomet.app.core.DeepLinkPolicy.IntentOrigin) {
         val scheme = raw.substringBefore("://").lowercase()
         if (scheme != "incy" && scheme != "mihomet") {
             org.mihomet.app.core.DeepLinkParser.parse(raw)?.let {
-                org.mihomet.app.core.DeepLinkBus.post(it, describeSource())
+                queueImport(it)
             }
             return
         }
@@ -112,7 +136,7 @@ class MainActivity : ComponentActivity() {
                 val payload = raw.substringAfter('/', "")
                     .takeIf { it.startsWith("http") || it.isNotBlank() }
                 if (!payload.isNullOrBlank()) {
-                    org.mihomet.app.core.DeepLinkBus.post(payload, describeSource())
+                    queueImport(payload)
                 }
             }
             org.mihomet.app.core.DeepLinkPolicy.isControlVerb(action) -> {
@@ -135,7 +159,7 @@ class MainActivity : ComponentActivity() {
             }
             // Unknown action — fall back to import parsing (confirmed before use).
             else -> org.mihomet.app.core.DeepLinkParser.parse(raw)?.let {
-                org.mihomet.app.core.DeepLinkBus.post(it, describeSource())
+                queueImport(it)
             }
         }
     }
@@ -166,7 +190,7 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        handleImportIntent(intent)
+        if (savedInstanceState == null) handleImportIntent(intent)
 
         // Request POST_NOTIFICATIONS on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -176,7 +200,7 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            val settings by settingsRepository.settingsFlow.collectAsState(initial = org.mihomet.app.data.preferences.AppSettings())
+            val settings by settingsRepository.settingsFlow.collectAsStateWithLifecycle(initialValue = org.mihomet.app.data.preferences.AppSettings())
             val navController = rememberNavController()
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
@@ -189,35 +213,59 @@ class MainActivity : ComponentActivity() {
                 amoledBlack = settings.amoledBlack,
                 accentColorId = settings.accentColor
             ) {
+                val systemBarBackground = MaterialTheme.colorScheme.background.toArgb()
+                SideEffect {
+                    enableEdgeToEdge(
+                        statusBarStyle = SystemBarStyle.auto(
+                            android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT
+                        ) { settings.darkTheme },
+                        navigationBarStyle = SystemBarStyle.auto(
+                            systemBarBackground, systemBarBackground
+                        ) { settings.darkTheme }
+                    )
+                }
+                val density = LocalDensity.current
+                val layoutDirection = LocalLayoutDirection.current
+                var bottomBarHeight by remember { mutableStateOf(0.dp) }
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     containerColor = MaterialTheme.colorScheme.background,
-                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
-                    bottomBar = {
-                        if (showBottomBar) {
+                    contentWindowInsets = WindowInsets.safeDrawing
+                ) { innerPadding ->
+                    Box(Modifier.fillMaxSize()) {
+                        AppNavGraph(
+                            navController = navController,
+                            paddingValues = PaddingValues(
+                                start = innerPadding.calculateStartPadding(layoutDirection),
+                                top = innerPadding.calculateTopPadding(),
+                                end = innerPadding.calculateEndPadding(layoutDirection),
+                                bottom = innerPadding.calculateBottomPadding()
+                            ),
+                            bottomBarPadding = (bottomBarHeight - innerPadding.calculateBottomPadding()).coerceAtLeast(0.dp)
+                        )
+                        AnimatedVisibility(
+                            visible = showBottomBar,
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                            enter = slideInVertically(tween(300, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(300)),
+                            exit = slideOutVertically(tween(300, easing = FastOutSlowInEasing)) { it } + fadeOut(tween(300))
+                        ) {
                             ExpressiveNavigationBar(
                                 items = bottomNavItems,
                                 currentRoute = currentRoute,
                                 onItemSelected = { screen ->
                                     navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                         launchSingleTop = true
                                         restoreState = true
                                     }
                                 },
-                                modifier = Modifier.navigationBarsPadding()
+                                modifier = Modifier.onSizeChanged { size ->
+                                    bottomBarHeight = with(density) { size.height.toDp() }
+                                }.navigationBarsPadding()
                             )
                         }
                     }
-                ) { innerPadding ->
-                    AppNavGraph(
-                        navController = navController,
-                        paddingValues = innerPadding
-                    )
                 }
-            }
 
             // Battery-optimization prompt (FlClash BatteryPlugin pattern): shown at
             // most ONCE per install when the system does not already whitelist the
@@ -285,6 +333,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 )
+            }
             }
         }
     }

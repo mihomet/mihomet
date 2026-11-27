@@ -1,4 +1,6 @@
 <resources>
+    <string name="import_queue_full">Завершите ожидающие импорты, затем откройте эту ссылку ещё раз.</string>
+    <string name="profiles_importing">Импорт подписки…</string>
     <string name="app_name">Mihomet</string>
     <string name="tile_label">Mihomet</string>
     <string name="vpn_service_title">Mihomet Proxy Service</string>
@@ -62,10 +64,10 @@
     <string name="dashboard_traffic_activity">Активность трафика</string>
     <string name="graph_placeholder">Запустите VPN, чтобы увидеть трафик</string>
     <string name="cd_dashboard_connect">Подключение</string>
-    <string name="dashboard_status_connecting">ПОДКЛЮЧЕНИЕ...</string>
-    <string name="dashboard_status_disconnecting">ОТКЛЮЧЕНИЕ...</string>
-    <string name="dashboard_status_protected">ЗАЩИЩЕНО</string>
-    <string name="dashboard_status_disconnected">НЕ ПОДКЛЮЧЕНО</string>
+    <string name="dashboard_status_connecting">Подключение…</string>
+    <string name="dashboard_status_disconnecting">Отключение…</string>
+    <string name="dashboard_status_protected">Подключено</string>
+    <string name="dashboard_status_disconnected">Не подключено</string>
     <string name="dashboard_active_server">Активный сервер</string>
     <string name="dashboard_select_server">Выбрать сервер</string>
     <string name="dashboard_subscription_label">Подписка: %1$s</string>
@@ -499,4 +501,35 @@
     <string name="settings_auto_balancer_prefer">Включать Авто по умолчанию</string>
     <string name="settings_auto_balancer_prefer_desc">AUTO станет выбором по умолчанию в первой select-группе панели</string>
     <string name="proxies_empty_hint">Импортируйте подписку в Профилях или проверьте выбранный профиль — узлы появятся здесь.</string>
+    <string name="conv_xray_invalid_node">Не удалось импортировать узел: %1$s</string>
+    <string name="conv_xray_transport">Это сочетание протокола и транспорта не поддерживается ядром: %1$s</string>
+    <string name="conv_xray_field">Настройка не переносится и была пропущена: %1$s</string>
+    <string name="conv_xray_rule">Правило нельзя сохранить точно; оно пропущено целиком: %1$s</string>
+    <string name="conv_xray_reference">Неразрешимая ссылка удалена: %1$s</string>
+    <string name="conv_xray_cycle">Циклическая зависимость прокси удалена: %1$s</string>
+    <string name="conv_xray_balancer">Стратегия балансировщика заменена приближением Mihomo: %1$s</string>
+    <string name="conv_xray_mux">Мультиплексирование Xray несовместимо с smux и отключено: %1$s</string>
+    <string name="conversion_report_title">Отчёт о конвертации</string>
+    <string name="conversion_report_nodes">Импортировано узлов: %1$d из %2$d</string>
+    <string name="conversion_report_rules">Сохранено исходных правил: %1$d из %2$d</string>
+    <string name="conversion_report_duplicates">Объединено одинаковых подключений: %1$d</string>
+    <string name="conversion_report_complete">Все поддерживаемые настройки сохранены</string>
+    <string name="conversion_report_warning_count">Замечаний при конвертации: %1$d</string>
+    <string name="profile_auto_update_note">Android может отложить фоновое обновление для экономии заряда.</string>
+    <string name="settings_category_connection">VPN, root-режим и автозапуск</string>
+    <string name="settings_category_routing">Режим подключения, приложения и правила сайтов</string>
+    <string name="settings_category_subscriptions">User-Agent, идентификатор устройства и совместимость</string>
+    <string name="settings_category_appearance">Цвета обоев, тёмная тема и язык</string>
+    <string name="settings_category_notifications">Статус подключения и текущая скорость</string>
+    <string name="settings_category_advanced">DNS, туннель, диагностика и обновление ядра</string>
+    <string name="profile_delete_title">Удалить профиль?</string>
+    <string name="profile_delete_message">Удалить «%1$s» и его локальную конфигурацию?</string>
+    <string name="profiles_err_refresh_removed">Профиль удалён во время обновления подписки.</string>
+    <string name="logs_retained_count">Последних записей: %1$d · получено: %2$d</string>
+    <string name="conversion_report_failed">Не удалось импортировать или преобразовать конфигурацию</string>
+    <string name="conversion_report_privacy">Отчёт не содержит ссылок подписки, учётных данных и исходных фрагментов ошибок парсера.</string>
+    <string name="diagnostic_save">Сохранить отчёт</string>
+    <string name="diagnostic_share">Поделиться отчётом</string>
+    <string name="diagnostic_export_failed">Не удалось экспортировать отчёт. Попробуйте ещё раз.</string>
+    <string name="diagnostic_detail_omitted">[скрыто]</string>
 </resources>

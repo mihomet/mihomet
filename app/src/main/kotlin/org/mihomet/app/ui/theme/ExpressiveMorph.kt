@@ -1,8 +1,8 @@
 package org.mihomet.app.ui.theme
 
-import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.ui.geometry.Size
@@ -117,15 +117,12 @@ object ExpressiveMorph {
         }
     }
 
-    /** Animated 0..1 morph progress with the M3E bouncy spring. */
+    /** Bounded progress avoids clipping an overshooting spring at either endpoint. */
     @Composable
     fun progress(target: Float): State<Float> =
         animateFloatAsState(
             targetValue = target,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMediumLow
-            ),
+            animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
             label = "morphProgress"
         )
 }

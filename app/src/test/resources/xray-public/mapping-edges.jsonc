@@ -1,0 +1,32 @@
+// Project-authored native decoder regressions; these endpoints are never contacted.
+{
+  "outbounds": [
+    {
+      "tag": "split-plaintext-download", "protocol": "vless",
+      "settings": {"address":"example.com", "port":443, "id":"11111111-2222-4333-8444-555555555555"},
+      "streamSettings": {
+        "network":"xhttp", "security":"tls", "tlsSettings":{"allowInsecure":true},
+        "xhttpSettings":{"path":"/upload", "mode":"stream-up", "extra":{"downloadSettings":{
+          "address":"download.example", "port":80, "network":"xhttp", "security":"none"
+        }}}
+      }
+    },
+    {
+      "tag": "split-tls-download", "protocol": "vless",
+      "settings": {"address":"example.com", "port":443, "id":"11111111-2222-4333-8444-555555555555"},
+      "streamSettings": {
+        "network":"xhttp", "security":"reality",
+        "realitySettings":{"publicKey":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "shortId":"ab12"},
+        "xhttpSettings":{"path":"/upload", "mode":"stream-up", "extra":{"downloadSettings":{
+          "address":"download.example", "port":443, "network":"xhttp", "security":"tls",
+          "tlsSettings":{"serverName":"cdn.example", "fingerprint":"chrome", "alpn":["h2"]}
+        }}}
+      }
+    },
+    {
+      "tag":"partial-xmux", "protocol":"vless",
+      "settings":{"address":"example.com", "port":80, "id":"11111111-2222-4333-8444-555555555555"},
+      "streamSettings":{"network":"xhttp", "xhttpSettings":{"path":"/fixture", "extra":{"xmux":{"maxConcurrency":"4-8"}}}}
+    }
+  ]
+}

@@ -1,37 +1,35 @@
 # M3 Expressive study — PixelPlayer patterns in Mihomet
 
-Study notes from the "real MD3E" redesign task (06.11). Source of truth:
-[PixelPlayerHQ/PixelPlayerOSS](https://github.com/PixelPlayerHQ/PixelPlayerOSS)
-(GPL-3.0, the only variant we may port code from) and
-[theovilardo/PixelPlayer](https://github.com/theovilardo/PixelPlayer)
-(proPRIETARY — study only, never copy).
+Reference: [PixelPlayerHQ/PixelPlayerOSS](https://github.com/PixelPlayerHQ/PixelPlayerOSS/tree/1664e8e636b57655a4f47dc9f3325b081cb02fc9)
+at `1664e8e636b57655a4f47dc9f3325b081cb02fc9` (GPL-3.0). The implementation uses
+Mihomet's own controls, content and navigation. No code from the proprietary
+PixelPlayer variant is incorporated.
 
-## Version gate (important)
+## Build gate resolved
 
-- material3 **1.5.x** (full Expressive components: LoadingIndicator, FloatingToolbar,
-  FlexibleBottomSheet, ButtonGroup, SplitButton, wavy progress, MaterialShapes,
-  public `MotionScheme.expressive()`) declares
-  `minAndroidGradlePluginVersion=9.1.0` and drags compose **1.12.0-alpha**
-  transitives. Our AGP is 8.13.2 → `checkDebugAarMetadata` fails. There is no
-  suppress flag for the AGP part.
-- material3 **1.4.0** (our BOM) ships `MotionScheme`/`MaterialExpressiveTheme`
-  as **internal** — the expressive motionScheme parameter is unusable there.
-- Decision: stay on 1.4.0 + standalone `androidx.graphics:graphics-shapes:1.1.0`
-  (AGP 8.1.1) and hand-build the signature pieces. Revisit everything with the
-  AGP 9.1 / Kotlin upgrade (see TODO.md).
+The project now uses AGP 9.1.0 / Gradle 9.3.1, built-in Kotlin 2.3.20, Compose
+BOM 2026.09.00 and Material 3 1.5.0. The former Material 3 1.4 restrictions no
+longer justify imitating components that are available natively.
 
-## What shipped in Mihomet
+## Implemented patterns
 
-| Pattern (PixelPlayer) | Our implementation |
+| Pattern | Mihomet implementation |
 |---|---|
-| Cookie-morph hero (`ShapeCache`, MaterialShapes) | `ui/theme/ExpressiveMorph.kt` — Square↔Cookie12 via cached `Morph`, per-frame fitted path on `graphicsLayer{shape}` (Surface/clip cannot morph). Polygon gotcha: `rectangle(w,h)` spans `-w/2..w/2`; corner radius is absolute → side 2 + radius 0.62, otherwise it clamps to a circle. |
-| Asymmetric parallax push (Transitions.kt) | `ui/navigation/Transitions.kt` — detail enter: slide 100% + scale 0.92 on EmphasizedDecelerate; exit: parallax −25% + fade at HALF duration on EmphasizedAccelerate; tabs: 50% parallax, no scale; pop mirrors. |
-| Bounce navbar pill | already in `ExpressiveNavigationBar` (spring pill scale + color). |
-| Sheet-first forms | `AddProfileDialog` → `ModalBottomSheet` (1.4.0 has no FlexibleBottomSheet; param is `skipPartiallyExpanded`, not `skipHiddenState`). |
-| Palette styles from a seed | material-kolor 2.1.1 (MIT): `dynamicColorScheme(seed, isDark, isAmoled, style)` — whole scheme from the accent tone; accent picker finally wired to UI (Settings → Appearance); system dynamic colors keep precedence. |
+| Expressive theme and motion | `MaterialExpressiveTheme`, `MotionScheme.expressive()`, shared-axis destination transitions |
+| Wallpaper colors | Material You by default only when the stored preference is absent; existing preferences remain authoritative |
+| AMOLED | Black background and neutral graphite surface containers; selected accent colors remain available to controls |
+| Navigation | Native `ShortNavigationBar` / `ShortNavigationBarItem` in the shared rounded shell |
+| Hero | Cached square/cookie morph without a shadow on the concave path; native `LoadingIndicator` for transitions |
+| Routing mode | Native expressive `ButtonGroup` |
+| Server actions | Native `HorizontalFloatingToolbar` and shared connected rows |
+| Profile actions | Named FAB, native list content, delete confirmation and a persistent conversion report sheet |
+| Inactive selection cards | `surfaceContainerHighest` and `outlineVariant` border, as required by the project guide |
+| Settings | Six categories with detail pages and system Back handling, shared titles and row geometry |
+| Insets and lifecycle | Root shell owns system insets; screen flows use lifecycle-aware collection |
 
-## Deferred (until AGP 9.1)
-
-LoadingIndicator / wavy progress / FloatingToolbar / ButtonGroup /
-FlexibleBottomSheet / public MotionScheme; ScreenWrapper depth (blur+dim on the
-covered screen — needs AnimatedContentScope per destination, RenderNode cost).
+Root and detail screens have been rendered on API 35, including RU, the soft
+keyboard and 320 dp width at 150% font scale. The final R8 APK was checked on API
+26 and API 35 for selection cards, reports, theme changes and matching system
+bars. Results and hardware limits are recorded in
+[the verification report](verification-2026-11-27.md). Expensive screen-wide blur
+remains a separate deferred feature.

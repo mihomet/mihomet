@@ -45,10 +45,10 @@ fun D2StatBlock(
                 )
                 Spacer(modifier = Modifier.width(7.dp))
                 Text(
-                    text = label.uppercase(),
+                    text = label,
                     style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.4.sp,
+                    fontWeight = FontWeight.SemiBold,
+
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -59,8 +59,8 @@ fun D2StatBlock(
 
             Text(
                 text = value,
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Black,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
                 letterSpacing = (-0.5).sp,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,

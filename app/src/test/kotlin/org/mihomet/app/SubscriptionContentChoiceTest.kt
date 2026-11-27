@@ -6,6 +6,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mihomet.app.data.subs.SubscriptionContentChoice
 import org.mihomet.app.data.subs.SubscriptionContentChoice.ChannelQuality
+import org.mihomet.app.core.config.ConversionIssue
+import org.mihomet.app.core.config.ConversionIssueCode
+import org.mihomet.app.core.config.ConversionReport
 
 /**
  * Strict coverage of the content-aware UA fallback decision (quality-tiered):
@@ -105,6 +108,33 @@ class SubscriptionContentChoiceTest {
         assertFalse(d.accept)
         assertFalse(d.stop)
         assertEquals(ChannelQuality.RICH, d.sawQuality)
+    }
+
+    private fun lossyReport(count: Int) = ConversionReport(issues = List(count) {
+        ConversionIssue(ConversionIssueCode.UNSUPPORTED_FIELD, "configs[0].field[$it]")
+    })
+
+    @Test
+    fun `lossless rich response replaces a partial rich response before stopping`() {
+        val first = SubscriptionContentChoice.evaluate(false, ChannelQuality.PLAIN, false, balancer, lossyReport(2))
+        assertTrue(first.accept)
+        assertFalse(first.stop)
+        val next = SubscriptionContentChoice.evaluate(true, first.sawQuality, false, balancer,
+            currentReport = lossyReport(2))
+        assertTrue(next.accept)
+        assertTrue(next.stop)
+    }
+
+    @Test
+    fun `rich candidates keep the smallest loss report`() {
+        val better = SubscriptionContentChoice.evaluate(true, ChannelQuality.RICH, false, balancer,
+            attemptReport = lossyReport(1), currentReport = lossyReport(2))
+        assertTrue(better.accept)
+        assertFalse(better.stop)
+        val worse = SubscriptionContentChoice.evaluate(true, ChannelQuality.RICH, false, balancer,
+            attemptReport = lossyReport(3), currentReport = lossyReport(1))
+        assertFalse(worse.accept)
+        assertFalse(worse.stop)
     }
 
     @Test

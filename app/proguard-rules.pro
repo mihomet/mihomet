@@ -35,3 +35,8 @@
 #     at runtime — silence the compile-time references only (no keep needed). ---
 -dontwarn java.beans.**
 
+# SnakeYAML's logger initializers call Class.getPackage().getName(). On Android
+# 8, getPackage() is null after R8 moves these classes into the default package.
+# Keep only these class names; members can still be optimized and removed.
+-keepnames class org.yaml.snakeyaml.TypeDescription
+-keepnames class org.yaml.snakeyaml.introspector.PropertySubstitute

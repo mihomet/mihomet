@@ -107,6 +107,10 @@ object ConfigGenerator {
         profileYamlContent, settings, tunFd, overridePatch
     ).yaml
 
+    /** A controller-only core for latency checks: no VPN, root or unauthenticated proxy listeners. */
+    internal fun generateProbeConfig(profileYamlContent: String, settings: AppSettings): String =
+        generateRuntimeConfigWithOutcome(profileYamlContent, settings, forProbe = true).yaml
+
     /**
      * Same generation as [generateRuntimeConfig], returning the dropped-profile-key
      * warnings alongside the YAML ([ConversionOutcome] — the same warnings channel the
@@ -117,7 +121,8 @@ object ConfigGenerator {
         profileYamlContent: String,
         settings: AppSettings,
         tunFd: Int? = null,
-        overridePatch: String = ""
+        overridePatch: String = "",
+        forProbe: Boolean = false
     ): ConversionOutcome {
         // Fail-closed (P0): a broken or blank profile must NEVER degrade into an
         // empty config (no proxies/rules) — the core would start and route ALL
@@ -180,7 +185,12 @@ object ConfigGenerator {
         configMap.remove("mixed-port")
         configMap.remove("port")
         configMap.remove("socks-port")
-        if (tunFd == null || tunFd < 0) {
+        if (forProbe) {
+            configMap.remove("tproxy-port")
+            configMap.remove("redir-port")
+            configMap.remove("routing-mark")
+            configMap.remove("tun")
+        } else if (tunFd == null || tunFd < 0) {
             // Root mode can use TProxy and Redir, and SO_MARK for iptables loop prevention
             configMap["tproxy-port"] = settings.tproxyPort
             configMap["redir-port"] = CoreConstants.DEFAULT_REDIR_PORT
@@ -246,7 +256,8 @@ object ConfigGenerator {
         // firewall parameter — the firewall only needs the tproxy port.
         val existingDns = (configMap["dns"] as? Map<String, Any>)?.toMutableMap() ?: mutableMapOf()
         existingDns["enable"] = true
-        existingDns["listen"] = "${CoreConstants.DEFAULT_CONTROLLER_HOST}:${settings.dnsPort}"
+        if (forProbe) existingDns.remove("listen")
+        else existingDns["listen"] = "${CoreConstants.DEFAULT_CONTROLLER_HOST}:${settings.dnsPort}"
         existingDns["ipv6"] = settings.ipv6Enabled
         if (!existingDns.containsKey("enhanced-mode")) {
             existingDns["enhanced-mode"] = "fake-ip"

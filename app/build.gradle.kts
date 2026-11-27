@@ -5,7 +5,6 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
@@ -118,8 +117,8 @@ android {
         applicationId = "org.mihomet.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "1.3.7"
+        versionCode = 14
+        versionName = "1.3.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -157,14 +156,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
-    kotlinOptions {
-        jvmTarget = "21"
-        // M3 Expressive components (material3 1.5.0-beta02) are gated behind the
-        // experimental opt-in; the app adopts them app-wide (MD3E redesign).
-        freeCompilerArgs += listOf(
-            "-opt-in=androidx.compose.material3.ExperimentalMaterial3ExpressiveApi"
-        )
-    }
 
     buildFeatures {
         compose = true
@@ -213,7 +204,15 @@ android {
     sourceSets {
         getByName("androidTest") {
             assets.srcDir("$projectDir/schemas")
+            assets.srcDir("$projectDir/src/test/resources/xray-public")
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+        optIn.add("androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")
     }
 }
 
@@ -234,6 +233,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
     
@@ -295,6 +295,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(libs.room.testing)
     androidTestImplementation(libs.mockwebserver)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     androidTestImplementation(libs.kotlinx.coroutines.test)
@@ -313,7 +314,7 @@ tasks.register("jacocoUnitTestReport", JacocoReport::class) {
     executionData(fileTree(layout.buildDirectory.dir("jacoco")) { include("**/*.exec") })
     sourceDirectories.setFrom(files("$projectDir/src/main/kotlin"))
     classDirectories.setFrom(
-        fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/debug")) {
+        fileTree(layout.buildDirectory.dir("intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes")) {
             exclude(
                 "**/*Test*.*",
                 "**/di/**",

@@ -1,17 +1,16 @@
 package org.mihomet.app.ui.screens.profiles
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,7 +24,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -41,29 +39,27 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.mihomet.app.data.subs.SubscriptionRepository
 import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.R
+import org.mihomet.app.core.config.ConversionReport
 import org.mihomet.app.data.db.ProfileEntity
 import org.mihomet.app.data.db.ProfileType
 import org.mihomet.app.ui.components.CountBadge
 import org.mihomet.app.ui.components.ExpressiveSnackbarHost
-import org.mihomet.app.ui.components.rememberPressScale
 import org.mihomet.app.ui.design2.D2
 import org.mihomet.app.ui.design2.D2IconAction
 import org.mihomet.app.ui.design2.D2Panel
 import org.mihomet.app.ui.design2.D2ScreenTitle
-import org.mihomet.app.ui.theme.AccentOrange
-import org.mihomet.app.ui.theme.AccentRed
 import org.mihomet.app.ui.theme.AppHaptics
 import org.mihomet.app.ui.theme.ExpressiveShapes
 import org.mihomet.app.ui.theme.HapticType
-import org.mihomet.app.ui.theme.PrimaryViolet
-import org.mihomet.app.ui.theme.SecondaryTeal
 import java.util.*
-import java.util.concurrent.TimeUnit
 
 /** Hard cap for text read from a picked local profile file (matches subscription byte cap spirit). */
-private const val MAX_LOCAL_IMPORT_CHARS = 1_000_000
+private const val MAX_LOCAL_IMPORT_BYTES = SubscriptionRepository.MAX_SUBSCRIPTION_BYTES
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,7 +67,7 @@ fun ProfilesScreen(
     onEditProfileYaml: (Long) -> Unit,
     viewModel: ProfilesViewModel = koinViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
     // Profile whose override patch is being edited (P7)
     var patchDialogProfile by remember { mutableStateOf<ProfileEntity?>(null) }
@@ -125,16 +121,20 @@ fun ProfilesScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { ExpressiveSnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(
+            ExtendedFloatingActionButton(
                 onClick = {
-                    AppHaptics.perform(context, HapticType.CLICK, view)
-                    showAddDialog = true
+                    if (!state.importInProgress) {
+                        AppHaptics.perform(context, HapticType.CLICK, view)
+                        showAddDialog = true
+                    }
                 },
                 shape = D2.Container,
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_profiles_add), modifier = Modifier.size(24.dp))
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(24.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.profiles_add_title))
             }
         }
     ) { innerPadding ->
@@ -142,7 +142,6 @@ fun ProfilesScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .statusBarsPadding()
         ) {
             // ── Header: big display title + round tonal import action ────────
             Row(
@@ -165,6 +164,15 @@ fun ProfilesScreen(
                         onClick = importFromClipboard
                     )
                 }
+            }
+
+            if (state.importInProgress) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 12.dp))
+                Text(
+                    stringResource(R.string.profiles_importing),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = D2.ScreenH, vertical = 8.dp)
+                )
             }
 
             if (state.profiles.isEmpty()) {
@@ -273,6 +281,7 @@ fun ProfilesScreen(
                                 // through state.errorMessage as a snackbar.
                             }
                         },
+                        onReport = { viewModel.showReport(ConversionReport.fromJson(profile.conversionReport)) },
                         onUpdate = {
                             AppHaptics.perform(context, HapticType.CLICK, view)
                             viewModel.updateProfile(profile)
@@ -318,6 +327,7 @@ fun ProfilesScreen(
                 title = { Text(stringResource(R.string.profile_auto_update_title), fontWeight = FontWeight.Bold) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.profile_auto_update_note), style = MaterialTheme.typography.bodySmall)
                         intervals.forEach { (hours, label) ->
                             val isSelected = targetProfile.updateIntervalHours == hours
                             Surface(
@@ -396,6 +406,9 @@ fun ProfilesScreen(
         }
 
         // Audit P0 §1.1: every external import waits for explicit confirmation.
+        state.conversionDiagnostic?.takeIf { state.behaviorConsent == null }?.let { diagnostic ->
+            ConversionReportSheet(diagnostic, viewModel::dismissDiagnostic)
+        }
         state.pendingImport?.let { pending ->
             DeepLinkImportDialog(
                 pending = pending,
@@ -445,7 +458,7 @@ fun DeepLinkImportDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = pending.text,
+                    text = pending.text.take(2048),
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -566,326 +579,69 @@ private fun ConsentBullet(text: String) {
 
 @Composable
 fun ExpressiveProfileCard(
-    profile: ProfileEntity,
-    onSelect: () -> Unit,
-    onEditYaml: () -> Unit,
-    onEditPatch: () -> Unit,
-    onEditHeaders: () -> Unit,
-    onEditInterval: () -> Unit = {},
-    onShowQr: () -> Unit,
-    onUpdate: () -> Unit,
-    onDelete: () -> Unit
+    profile: ProfileEntity, onSelect: () -> Unit, onEditYaml: () -> Unit, onEditPatch: () -> Unit,
+    onEditHeaders: () -> Unit, onEditInterval: () -> Unit = {}, onShowQr: () -> Unit,
+    onUpdate: () -> Unit, onDelete: () -> Unit, onReport: () -> Unit = {}
 ) {
-    var showMenu by remember { mutableStateOf(false) }
-    // Locale-aware: RU shows "01.11.2026, 14:23", EN shows "11/1/26, 2:23 PM".
-    val dateFormat = remember {
-        java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT, Locale.getDefault())
+    var menu by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    val dates = remember { java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT) }
+    val expiry = remember { java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM) }
+    val report = remember(profile.conversionReport) { ConversionReport.fromJson(profile.conversionReport) }
+    Surface(onClick = onSelect, shape = ExpressiveShapes.Large,
+        color = if (profile.isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+        border = if (profile.isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(selected = profile.isSelected, onClick = null)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(profile.name, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(stringResource(if (profile.type == ProfileType.REMOTE) R.string.profile_type_remote else R.string.profile_type_local),
+                        style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                }
+                Box {
+                    IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, stringResource(R.string.cd_menu)) }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        if (profile.type == ProfileType.REMOTE) {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.profiles_update_now)) }, onClick = { menu = false; onUpdate() }, leadingIcon = { Icon(Icons.Default.Sync, null) })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.profile_headers_menu)) }, onClick = { menu = false; onEditHeaders() }, leadingIcon = { Icon(Icons.Default.Badge, null) })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.profile_auto_update_menu)) }, onClick = { menu = false; onEditInterval() }, leadingIcon = { Icon(Icons.Default.Schedule, null) })
+                            if (profile.url.isNotBlank()) DropdownMenuItem(text = { Text(stringResource(R.string.profile_show_qr)) }, onClick = { menu = false; onShowQr() }, leadingIcon = { Icon(Icons.Default.QrCode2, null) })
+                        }
+                        if (report != null) DropdownMenuItem(text = { Text(stringResource(R.string.conversion_report_title)) }, onClick = { menu = false; onReport() }, leadingIcon = { Icon(Icons.Default.Info, null) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.profiles_edit_yaml)) }, onClick = { menu = false; onEditYaml() }, leadingIcon = { Icon(Icons.Default.Edit, null) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.profile_patch_menu)) }, onClick = { menu = false; onEditPatch() }, leadingIcon = { Icon(Icons.Default.Tune, null) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error) }, onClick = { menu = false; confirmDelete = true }, leadingIcon = { Icon(Icons.Default.Delete, null) })
+                    }
+                }
+            }
+            Text(dates.format(Date(profile.lastUpdated)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (report != null && report.issues.isNotEmpty()) {
+                AssistChip(onClick = onReport, label = { Text(stringResource(R.string.conversion_report_warning_count, report.issues.size)) },
+                    leadingIcon = { Icon(Icons.Default.Info, null, Modifier.size(18.dp)) })
+            }
+            val used = (profile.uploadUsed.toDouble() + profile.downloadUsed.toDouble()).coerceAtLeast(0.0)
+            if (profile.trafficTotal > 0) {
+                val fraction = (used / profile.trafficTotal).coerceIn(0.0, 1.0).toFloat()
+                Text(stringResource(R.string.profile_quota_used, formatTrafficBytes(used.toLong()), formatTrafficBytes(profile.trafficTotal), (fraction * 100).toInt()), style = MaterialTheme.typography.bodyMedium)
+                LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
+            } else if (used > 0) Text(stringResource(R.string.profile_quota_used_only, formatTrafficBytes(used.toLong())), style = MaterialTheme.typography.bodyMedium)
+            if (profile.expireAt > 0) Text(stringResource(R.string.profile_expires_at, expiry.format(Date(profile.expireAt))),
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (profile.expireAt < System.currentTimeMillis()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
-    val expireDateFormat = remember { java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, Locale.getDefault()) }
-
-    val cardInteraction = remember { MutableInteractionSource() }
-    val cardPressScale = rememberPressScale(cardInteraction, pressedScale = 0.98f)
-    val cardColor by animateColorAsState(
-        targetValue = if (profile.isSelected) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
-        },
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
-        label = "profileCardColor"
+    if (confirmDelete) AlertDialog(
+        onDismissRequest = { confirmDelete = false },
+        title = { Text(stringResource(R.string.profile_delete_title)) },
+        text = { Text(stringResource(R.string.profile_delete_message, profile.name)) },
+        confirmButton = { TextButton(onClick = { confirmDelete = false; onDelete() }) { Text(stringResource(R.string.action_delete)) } },
+        dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.action_cancel)) } }
     )
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(cardPressScale)
-            .clip(D2.Container)
-            .clickable(interactionSource = cardInteraction, onClick = onSelect),
-        shape = D2.Container,
-        color = cardColor,
-        // Border is reserved for the selected state (Edition 2 rule).
-        border = if (profile.isSelected) {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
-        } else {
-            null
-        }
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    // Type Squircle Icon
-                    Surface(
-                        shape = ExpressiveShapes.Small,
-                        color = if (profile.isSelected) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerHighest
-                        },
-                        modifier = Modifier.size(42.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = if (profile.type == ProfileType.REMOTE) Icons.Default.CloudDownload else Icons.Default.Description,
-                                contentDescription = null,
-                                tint = if (profile.isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = profile.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        Spacer(modifier = Modifier.height(2.dp))
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Surface(
-                                shape = CircleShape,
-                                color = if (profile.type == ProfileType.REMOTE) SecondaryTeal.copy(alpha = 0.15f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-                            ) {
-                                Text(
-                                    text = if (profile.type == ProfileType.REMOTE) stringResource(R.string.profile_type_remote) else stringResource(R.string.profile_type_local),
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (profile.type == ProfileType.REMOTE) SecondaryTeal else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            Text(
-                                text = dateFormat.format(Date(profile.lastUpdated)),
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                            )
-                        }
-                    }
-                }
-
-                // Selection Radio Pill & Menu
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (profile.isSelected) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                            }
-                        }
-                    } else {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color.Transparent,
-                            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outlineVariant),
-                            modifier = Modifier.size(22.dp)
-                        ) {}
-                    }
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.cd_menu), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            if (profile.type == ProfileType.REMOTE) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.profiles_update_now)) },
-                                    onClick = {
-                                        showMenu = false
-                                        onUpdate()
-                                    },
-                                    leadingIcon = { Icon(Icons.Default.Sync, contentDescription = null) }
-                                )
-                                // Custom per-subscription HTTP headers (remote profiles only)
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.profile_headers_menu)) },
-                                    onClick = {
-                                        showMenu = false
-                                        onEditHeaders()
-                                    },
-                                    leadingIcon = { Icon(Icons.Default.Subject, contentDescription = null) }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.profile_auto_update_menu)) },
-                                    onClick = {
-                                        showMenu = false
-                                        onEditInterval()
-                                    },
-                                    leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null) }
-                                )
-                                // QR sharing only makes sense for a subscription URL
-                                // (remote profile with a non-blank stored url).
-                                if (profile.url.isNotBlank()) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.profile_show_qr)) },
-                                        onClick = {
-                                            showMenu = false
-                                            onShowQr()
-                                        },
-                                        leadingIcon = { Icon(Icons.Default.QrCode2, contentDescription = null) }
-                                    )
-                                }
-                            }
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.profiles_edit_yaml)) },
-                                onClick = {
-                                    showMenu = false
-                                    onEditYaml()
-                                },
-                                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.profile_patch_menu)) },
-                                onClick = {
-                                    showMenu = false
-                                    onEditPatch()
-                                },
-                                leadingIcon = { Icon(Icons.Default.Tune, contentDescription = null) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error) },
-                                onClick = {
-                                    showMenu = false
-                                    onDelete()
-                                },
-                                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Subscription quota & expiration (Subscription-Userinfo header).
-            // The panel may omit the total (trafficTotal == 0) while still sending
-            // upload/download usage and the expire date — show whatever is known.
-            val usedTraffic = profile.uploadUsed + profile.downloadUsed
-            val hasQuotaTotal = profile.trafficTotal > 0
-            val hasUsage = usedTraffic > 0
-            val hasExpireDate = profile.expireAt > 0
-            if (hasQuotaTotal || hasUsage || hasExpireDate) {
-                val now = System.currentTimeMillis()
-                val usedFraction = if (hasQuotaTotal) {
-                    (usedTraffic.toDouble() / profile.trafficTotal).coerceIn(0.0, 1.0).toFloat()
-                } else 0f
-                val usedPercent = if (hasQuotaTotal) (usedTraffic * 100 / profile.trafficTotal).toInt() else 0
-                val expireBadgeColor = when {
-                    profile.expireAt <= 0L -> null
-                    profile.expireAt <= now -> AccentRed
-                    profile.expireAt - now <= TimeUnit.DAYS.toMillis(14) -> AccentOrange
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (hasQuotaTotal) {
-                        Text(
-                            text = stringResource(
-                                R.string.profile_quota_used,
-                                formatTrafficBytes(usedTraffic),
-                                formatTrafficBytes(profile.trafficTotal),
-                                usedPercent
-                            ),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.weight(1f)
-                        )
-                    } else if (hasUsage) {
-                        // No total from the panel — show bare usage without a progress bar
-                        Text(
-                            text = stringResource(
-                                R.string.profile_quota_used_only,
-                                formatTrafficBytes(usedTraffic)
-                            ),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    if (expireBadgeColor != null) {
-                        if (hasQuotaTotal || hasUsage) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
-                        Surface(
-                            shape = CircleShape,
-                            color = expireBadgeColor.copy(alpha = 0.15f)
-                        ) {
-                            Text(
-                                text = stringResource(
-                                    R.string.profile_expires_at,
-                                    expireDateFormat.format(Date(profile.expireAt))
-                                ),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = expireBadgeColor,
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                }
-
-                if (hasQuotaTotal) {
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // Thin branded-violet usage bar
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .fillMaxWidth(usedFraction)
-                                .clip(CircleShape)
-                                .background(PrimaryViolet)
-                        )
-                    }
-                }
-            }
-        }
-    }
 }
 
-/**
- * Per-profile subscription headers editor ("Name: Value" lines): stored
- * encrypted at rest and sent with every download of this subscription on top
- * of the global identity settings (Settings → Subscriptions). Validation is
- * strict (SubscriptionHeaders): a rejected input keeps the dialog open.
- */
 @Composable
 fun SubscriptionHeadersDialog(
     initialHeaders: String,
@@ -1076,34 +832,41 @@ fun AddProfileDialog(
     val context = LocalContext.current
     val view = LocalView.current
 
-    val filePickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        val picked = runCatching {
-            val text = context.contentResolver.openInputStream(uri)
-                ?.bufferedReader()?.use { it.readText() } ?: ""
-            val fileName = context.contentResolver
-                .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-                ?.use { c -> if (c.moveToFirst()) c.getString(0) ?: "" else "" } ?: ""
-            text to fileName
-        }.getOrNull()
-        if (picked == null || picked.first.isBlank()) {
-            pickFailed = true
-        } else {
-            pickFailed = false
-            // Hard cap: subscriptions are capped too; a multi-MB file is a mistake.
-            localContent = picked.first.take(MAX_LOCAL_IMPORT_CHARS)
-            localFileName = picked.second
-            if (name.isBlank()) {
-                name = picked.second.substringBeforeLast('.')
+    val fileScope = rememberCoroutineScope()
+    var readingFile by remember { mutableStateOf(false) }
+    val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) fileScope.launch {
+            readingFile = true
+            val picked = withContext(Dispatchers.IO) {
+                runCatching {
+                    val text = context.contentResolver.openInputStream(uri)?.use { input ->
+                        val bytes = java.io.ByteArrayOutputStream()
+                        val buffer = ByteArray(64 * 1024)
+                        var total = 0L
+                        while (true) {
+                            val read = input.read(buffer)
+                            if (read < 0) break
+                            total += read
+                            require(total <= MAX_LOCAL_IMPORT_BYTES) { "Local profile exceeds the import size limit" }
+                            bytes.write(buffer, 0, read)
+                        }
+                        bytes.toString("UTF-8")
+                    }.orEmpty()
+                    val fileName = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                        ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0).orEmpty() else "" }.orEmpty()
+                    text to fileName
+                }.getOrNull()
+            }
+            readingFile = false
+            pickFailed = picked == null || picked.first.isBlank()
+            if (!pickFailed && picked != null) {
+                localContent = picked.first
+                localFileName = picked.second
+                if (name.isBlank()) name = picked.second.substringBeforeLast('.')
             }
         }
     }
 
-    // M3E form container: bottom sheet (expressive motion via the theme motion
-    // scheme) instead of a centered dialog — matches PixelPlayer's sheet-first UX.
-    // Edition 2: filled tonal surface with the big hero radius, no outline.
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1280,20 +1043,10 @@ fun AddProfileDialog(
                 }
                 Button(
                     onClick = {
-                        if (name.isNotBlank()) {
-                            if (isRemote && url.isNotBlank()) {
-                                val headers = customHeaders.ifBlank { "{}" }
-                                onAddRemote(name, url, headers)
-                            } else if (!isRemote) {
-                                val content = localContent
-                                if (content != null) {
-                                    onAddLocal(name, content)
-                                } else {
-                                    onAddBlank(name)
-                                }
-                            }
-                        }
+                        if (isRemote) onAddRemote(name, url, customHeaders.ifBlank { "{}" })
+                        else localContent?.let { onAddLocal(name, it) } ?: onAddBlank(name)
                     },
+                    enabled = !readingFile && if (isRemote) url.isNotBlank() else localContent != null || name.isNotBlank(),
                     shape = ExpressiveShapes.Small
                 ) {
                     Text(stringResource(R.string.action_add), fontWeight = FontWeight.Bold)

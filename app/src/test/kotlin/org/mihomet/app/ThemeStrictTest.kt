@@ -68,4 +68,14 @@ class ThemeStrictTest {
         assertTrue("Base < High", base < high)
         assertTrue("High < Highest", high < highest)
     }
+    @Test
+    fun `amoled surfaces retain the selected Material You accent`() {
+        val source = androidx.compose.material3.darkColorScheme(primary = PrimaryViolet)
+        val amoled = source.withAmoledSurfaces()
+        assertEquals(source.primary, amoled.primary)
+        assertEquals(Color.Black, amoled.background)
+        assertEquals(amoled.surfaceContainer.red, amoled.surfaceContainer.green, 0.001f)
+        assertEquals(amoled.surfaceContainer.green, amoled.surfaceContainer.blue, 0.001f)
+    }
+
 }

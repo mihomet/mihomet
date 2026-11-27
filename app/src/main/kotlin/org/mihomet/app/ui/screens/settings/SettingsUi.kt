@@ -39,7 +39,7 @@ internal val SettingsRowSpacing: Dp = 12.dp
 @Composable
 fun SettingsSectionTitle(title: String) {
     Text(
-        text = title.uppercase(),
+        text = title,
         style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.Black,
         letterSpacing = 1.6.sp,

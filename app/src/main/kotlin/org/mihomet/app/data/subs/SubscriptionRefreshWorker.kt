@@ -2,6 +2,8 @@ package org.mihomet.app.data.subs
 
 import android.content.Context
 import android.util.Log
+import androidx.work.Constraints
+import androidx.work.NetworkType
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -76,7 +78,7 @@ class SubscriptionRefreshWorker(
         const val WORK_TAG = "subscription_refresh"
 
         /** Wall-clock period of the scheduling pass. */
-        const val PERIODIC_INTERVAL_HOURS = 6L
+        const val PERIODIC_INTERVAL_HOURS = 1L
 
         /** Manual Koin resolution (avoids a CustomWorkerFactory); null when DI is unavailable. */
         internal fun resolveDependencies(): Pair<ProfileDao, SubscriptionRepository>? =
@@ -86,18 +88,19 @@ class SubscriptionRefreshWorker(
             }.getOrNull()
 
         /**
-         * Idempotently schedules the periodic refresh (6 h, KEEP policy — an
-         * already-enqueued identical periodic work is preserved).
+         * Idempotently schedules the periodic refresh (approximately hourly; Android may defer it).
+         * UPDATE also upgrades the schedule already installed by older app versions.
          */
         fun schedulePeriodicRefresh(context: Context) {
             val request = PeriodicWorkRequestBuilder<SubscriptionRefreshWorker>(
                 PERIODIC_INTERVAL_HOURS, TimeUnit.HOURS
             )
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .addTag(WORK_TAG)
                 .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 UNIQUE_WORK_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
+                ExistingPeriodicWorkPolicy.UPDATE,
                 request
             )
         }

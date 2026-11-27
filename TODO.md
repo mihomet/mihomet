@@ -2,7 +2,10 @@
 
 ## 🎯 Active Milestone: Full Panel Compatibility for the Subscription Converter
 
-**Objective**: Guarantee 100% accurate subscription fetching and format conversion for all popular VPN panels by testing against real Docker deployments and recorded fixtures.
+**Objective**: Make Xray/Happ subscription fetching and conversion reliable against
+public examples, recorded panel fixtures and the pinned Mihomo core. Preserve
+compatible content, report every known loss, and reject unusable results. Full
+cross-core equivalence is not assumed; broader sing-box expansion is deferred.
 
 ### Supported / target panels matrix
 
@@ -18,7 +21,7 @@
 | Hiddify Panel | ✅ tested | fixture; 96 links incl. ssh/snell/wg, expiry pseudo-link dropped with warning |
 | Sub-Store | ✅ tested | fixture (mihomo/sing-box/v2ray targets); legacy `target=Clash` drops nodes — documented |
 | subconverter | ⏸ skipped | legacy tool, rarely used by RU services in 2026; re-open on demand |
-| Behavior headers (subscription-autoconnect / per-app-proxy-mode+list / tun-mode) | Happ zero-touch | ✅ applied on import/refresh |
+| Behavior headers (subscription-autoconnect / per-app-proxy-mode+list / tun-mode) | Consent required | ✅ requested on import/refresh |
 | Keyring UI for crypto keys | Settings → Advanced | ✅ |
 | Desktop widget + toggle | ✅ MihometWidgetProvider (v1.1.1) |
 | Log export/sharing + core memory on the dashboard | ✅ (v1.1.1) |
@@ -28,10 +31,11 @@
 | Subscription QR code + 20 MB streaming limit | ✅ zxing + streamed reading |
 | Deep-link import (happ/incy/clash/v2rayng/sing-box) | ✅ implemented | `core/DeepLinkParser.kt`, live-tested on emulator |
 | Link-based control (incy://connect|toggle, mihomet://) | ✅ implemented | MainActivity.handleControlLink |
-| Automatic subscription refresh (profile-update-interval) | ✅ implemented | WorkManager 6h, Room v3 |
+| Automatic subscription refresh (profile-update-interval) | ✅ implemented | WorkManager 1h pass, per-profile interval, UPDATE existing work |
 | M3 Expressive wave 1 (cookie-morph hero, parallax transitions, sheet forms) | ✅ (0a626e0) | `ui/theme/ExpressiveMorph.kt`, `ui/navigation/Transitions.kt`; PixelPlayer study patterns |
 | Generated color schemes: accent picker + Material You palette styles | ✅ (0331f5a) | material-kolor; whole scheme from the accent seed |
-| Full material3 1.5.x Expressive components (LoadingIndicator, FloatingToolbar, FlexibleBottomSheet, ButtonGroup, wavy progress) | ⏸ blocked | requires AGP 9.1 + compose 1.12-alpha transitives; do together with the AGP/Kotlin upgrade (material3 aar-metadata `minAndroidGradlePluginVersion=9.1.0`); `MotionScheme` is also internal in 1.4.0 |
+| Native Material 3 1.5 Expressive | ✅ implemented, emulator QA complete | MaterialExpressiveTheme, expressive motion, ShortNavigationBar, LoadingIndicator, ButtonGroup, HorizontalFloatingToolbar; AGP 9.1 / Kotlin 2.3.20 |
+| Xray/Happ conversion reports | ✅ implemented | Scoped graph, compatible rule translation, persistent Room v6 report, non-destructive 5→6 migration |
 | ScreenWrapper depth effect (blur/dim on the covered screen) | ⏸ deferred | heavier RenderNode work; see docs note from the PixelPlayer study |
 
 ### Phase 1: Docker test bench — ✅ done
@@ -73,11 +77,24 @@
 ---
 
 ### Feature ideas (from live bench testing)
-- [ ] Instrumented UI test for the import flow: deep-link → confirmation dialog →
-  Add → assert the profile appears (a night e2e attempt via adb taps failed on
-  Compose dialog/IME/timing flakiness — needs Espresso with precise dialog
-  semantics). Include a MockWebServer-backed variant asserting the content-aware
-  UA fallback end-to-end on-device.
+- [x] Instrumented UI import tests: VIEW intent from Dashboard → navigation →
+  separate confirmation per link → HTTP → exactly one encrypted profile per
+  confirmation; cancellation makes no HTTP request (API 35).
+- [x] Real repository UA fallback tests, including a less lossy same-tier
+  response with matching metadata, and native core configuration checks for the
+  sanitized XTLS corpus (API 35).
+- [x] Controlled local Xray wire round trips: 16 cases against Xray 26.10.31 and
+  25.3.6 on API 35, including authenticated flat outbounds and HTTPUpgrade.
+- [x] Visual checks on API 35: light/dark/AMOLED, populated profile/server lists,
+  persistent report, RU detail screens and YAML editor, import with soft keyboard,
+  and 320 dp width at 150% font scale (bounded navigation labels).
+- [x] API 26 + 35: final debug instrumentation (25 mandatory cases per API;
+  optional wire case run separately), including delayed-refresh edit/delete races,
+  plus 16 local wire cases against each Xray version above on each API.
+- [x] Final release/R8, static checks, packaged core checksums and device smoke:
+  664 JVM tests, detekt/lint, six pinned core checksums, final imports/reports and
+  clean VPN start/stop on API 26 + 35. See [verification](docs/verification-2026-11-27.md)
+  for the matrix and physical ARM/root hardware limits.
 
 ## 🔍 Security review (31.10.2026, 24 findings) — closure status
 
@@ -199,7 +216,8 @@ Verification: `./gradlew compileDebugKotlin testDebugUnitTest` green; build with
   kotlinx-serialization 1.8.1, Koin 4.1.1, splashscreen 1.2.0, AGP 8.13.2 + Gradle 8.13,
   **Ktor 2.3.12 → 3.3.3** (latest consumable on Kotlin 2.1; 3.4+ needs the Kotlin bump),
   MockWebServer 5.2.1; ben-manes versions plugin + weekly `dependencyUpdates` CI job.
-  Deliberately deferred: Kotlin 2.3 / AGP 9 (their own migration steps).
+  The follow-up migration is now complete: Kotlin 2.3.20 / AGP 9.1.0 /
+  Gradle 9.3.1, Compose BOM 2026.09.00 and Material 3 1.5.0.
 - [x] **P2.5** compileSdk 37, targetSdk 36.
 - [x] **P2.7** CI: Android Lint (baseline 109 pre-existing) + detekt (baseline 70 IDs, file/function
   size limits) — new code must be clean.
@@ -208,8 +226,9 @@ Verification: `./gradlew compileDebugKotlin testDebugUnitTest` green; build with
   (toybox/iputils/busybox).
 - [x] **P2.10** ABI splits: per-ABI APKs, no universal (arm64 install ≈ half the old fat APK).
 - [x] **P2.11** Shotgun R8 keeps removed; verified by a SIGNED release APK smoke test on the emulator
-  (launch, screens, profile import, real VPN connect, clean stop; 0 stripped-code crashes; no keeps
-  re-added). Bonus find: YAML editor crashed on every profile (highlighter didn't mirror the original
+  (launch, screens, profile import, real VPN connect, clean stop). The API 26 pass
+  requires two narrow SnakeYAML class-name rules for package-sensitive initializers.
+  Bonus find: YAML editor crashed on every profile (highlighter didn't mirror the original
   text) — fixed in the same milestone.
 - [x] **P1.3** Instrumented tests: 14 tests / 4 classes (Room migrations incl. Keystore round trip,
   deep-link manifest contract, VpnService manifest contract, ConfigGenerator on-device whitelist

@@ -1,0 +1,12 @@
+{
+  "outbounds": [{"tag":"proxy", "protocol":"vless", "settings":{
+    "address":"example.com", "port":443, "id":"11111111-2222-4333-8444-555555555555"}}],
+  "routing": {"balancers":[{"tag":"auto", "selector":["proxy"], "strategy":{"type":"leastPing"}}],
+    "rules":[
+      {"domain":["domain:example.com", "full:example.net"], "port":"443", "network":"tcp", "outboundTag":"proxy"},
+      {"ip":["2001:db8::/32"], "outboundTag":"proxy"},
+      {"domain":["regexp:^news\\.(com|net)$"], "outboundTag":"proxy"},
+      {"domain":["regexp:^News\\(foo[)]{1,3}$", "regexp:^(?P<label>www)\\.example$"], "port":"443", "outboundTag":"proxy"},
+      {"network":"tcp,udp", "balancerTag":"auto"}
+    ]}
+}

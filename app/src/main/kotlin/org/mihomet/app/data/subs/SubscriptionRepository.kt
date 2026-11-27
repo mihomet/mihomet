@@ -14,12 +14,15 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.mihomet.app.BuildConfig
 import org.mihomet.app.R
 import org.mihomet.app.core.AppErrorCode
 import org.mihomet.app.core.AppException
 import org.mihomet.app.core.HappCrypto
 import org.mihomet.app.core.HwidProvider
+import org.mihomet.app.core.config.ConfigGenerator
 import org.mihomet.app.core.config.ConversionOutcome
 import org.mihomet.app.core.config.UniversalConfigConverter
 import org.mihomet.app.data.db.ProfileDao
@@ -93,6 +96,8 @@ class SubscriptionRepository(
     private val settingsRepository: SettingsRepository
 ) {
 
+    private val importMutex = Mutex()
+
     private val httpClient = HttpClient {
         install(HttpTimeout) {
             connectTimeoutMillis = 15000
@@ -128,13 +133,11 @@ class SubscriptionRepository(
             val identity = SubscriptionIdentitySettings.of(settingsRepository.settingsFlow.first())
             val plan = SubscriptionRequestPlan.build(profileHeaders, identity, hwid)
             val userAgentsToTry = plan.userAgentsToTry
-            val hwidHeader = plan.hwidHeader
 
-            var responseText = ""
+            var chosenOutcome: ConversionOutcome? = null
             var userinfo: SubscriptionUserinfo? = null
             var meta = SubscriptionMeta()
             var lastException: Exception? = null
-            var encryptTag: String? = null
             // Content-aware acceptance: the first response that converts WITH
             // proxy-groups beats a group-less one (panels that serve a bare URI
             // list to unknown User-Agents). A group-less success is kept as a
@@ -193,15 +196,22 @@ class SubscriptionRepository(
                         )
                     }
                     if (attempt != null) {
+                        val payload = decryptAttempt(attempt, url)
+                        val outcome = UniversalConfigConverter.convertToMihomoYamlWithOutcome(payload)
+                        if (!ProfileValidation.isValid(outcome.yaml)) {
+                            lastException = AppException(AppErrorCode.IMPORT_NO_COMPATIBLE_CONFIG)
+                            continue
+                        }
                         val decision = SubscriptionContentChoice.evaluate(
-                            currentHasResponse = responseText.isNotEmpty(),
+                            currentHasResponse = chosenOutcome != null,
                             currentSawQuality = sawQuality,
-                            attemptEncrypted = attempt.encryptTag != null,
-                            attemptText = attempt.text
+                            attemptEncrypted = false,
+                            attemptText = outcome.yaml,
+                            attemptReport = outcome.report,
+                            currentReport = chosenOutcome?.report
                         )
                         if (decision.accept) {
-                            responseText = attempt.text
-                            encryptTag = attempt.encryptTag
+                            chosenOutcome = outcome
                             userinfo = attempt.userinfo
                             meta = attempt.meta
                             sawQuality = decision.sawQuality
@@ -218,34 +228,25 @@ class SubscriptionRepository(
                 }
             }
 
-            if (responseText.isBlank()) {
+            if (chosenOutcome == null) {
                 if (lastException != null) throw lastException
                 throw IllegalStateException("Empty or unsuccessful response from subscription URL")
             }
 
-            // Happ encrypted subscription (AES-128-GCM): body = base64(ciphertext),
-            // the GCM tag arrives separately in `encrypt-tag`, and the URL carries
-            // only the key id (?key=keyNN) — the key itself lives in the client
-            // keyring (out-of-band distribution). Decryption yields the plaintext
-            // URI list / JSON directly, so no further Base64 decoding is needed.
-            val trimmed = responseText.trim()
-            val tag = encryptTag
-            val decrypted: String? = if (tag != null) {
-                val keyId = HappCrypto.keyIdFromUrl(url)
-                    ?: throw AppException(AppErrorCode.ENC_SUB_NO_KEY)
-                val key = settingsRepository.getCryptoKeys()[keyId]
-                    ?: throw AppException(AppErrorCode.ENC_SUB_UNKNOWN_KEY, keyId)
-                HappCrypto.decrypt(trimmed, tag, key.toByteArray(Charsets.UTF_8))
-                    ?: throw AppException(AppErrorCode.ENC_SUB_DECRYPT_FAILED, keyId)
-            } else {
-                null
-            }
-
-            val payload = decrypted ?: responseText
-            UniversalConfigConverter.convertToMihomoYamlWithOutcome(payload).let { outcome ->
-                SubscriptionDownload(outcome = outcome, userinfo = userinfo, meta = meta)
-            }
+            SubscriptionDownload(
+                outcome = chosenOutcome,
+                userinfo = userinfo,
+                meta = meta
+            )
         }
+
+    private suspend fun decryptAttempt(attempt: SubscriptionAttempt, url: String): String {
+        val tag = attempt.encryptTag ?: return attempt.text
+        val keyId = HappCrypto.keyIdFromUrl(url) ?: throw AppException(AppErrorCode.ENC_SUB_NO_KEY)
+        val key = settingsRepository.getCryptoKeys()[keyId] ?: throw AppException(AppErrorCode.ENC_SUB_UNKNOWN_KEY, keyId)
+        return HappCrypto.decrypt(attempt.text.trim(), tag, key.toByteArray(Charsets.UTF_8))
+            ?: throw AppException(AppErrorCode.ENC_SUB_DECRYPT_FAILED, keyId)
+    }
 
     /**
      * Refreshes a remote profile: re-downloads the subscription, rewrites the
@@ -272,6 +273,57 @@ class SubscriptionRepository(
             }
         }
 
+    /** All import entry points share validation, encrypted metadata and atomic file persistence. */
+    suspend fun addProfile(
+        name: String,
+        type: ProfileType,
+        download: SubscriptionDownload,
+        url: String = "",
+        headers: String = "{}"
+    ): ProfileRefreshResult = withContext(Dispatchers.IO) {
+        importMutex.withLock {
+            val outcome = enrichOutcome(download.outcome)
+            if (!ProfileValidation.isValid(outcome.yaml)) throw AppException(AppErrorCode.REFRESH_REJECTED_INVALID_CONFIG)
+            val effectiveUrl = download.meta.redirectUrl ?: url
+            val encryptedUrl: String
+            val encryptedHeaders: String
+            try {
+                encryptedUrl = SecretsCipher.encryptIfSecret(effectiveUrl)
+                encryptedHeaders = SecretsCipher.encryptIfSecret(headers)
+            } catch (e: SecretsCipher.SecretEncryptException) {
+                throw AppException(AppErrorCode.SUBSCRIPTION_ENCRYPT_FAILED, cause = e)
+            }
+            val directory = File(context.filesDir, "profiles").apply { mkdirs() }
+            val file = File(directory, "profile_${java.util.UUID.randomUUID()}.yaml")
+            val quota = download.userinfo
+            val entity = ProfileEntity(
+                name = name,
+                type = type,
+                url = encryptedUrl,
+                filePath = file.absolutePath,
+                customHeaders = encryptedHeaders,
+                uploadUsed = quota?.uploadUsed ?: 0,
+                downloadUsed = quota?.downloadUsed ?: 0,
+                trafficTotal = quota?.trafficTotal ?: 0,
+                expireAt = quota?.expireAt ?: 0,
+                updateIntervalHours = download.meta.updateIntervalHours,
+                conversionReport = outcome.report?.toJson().orEmpty()
+            )
+            try {
+                atomicWriteText(file, outcome.yaml)
+                val inserted = profileDao.insertProfileSelectingFirst(entity)
+                ProfileRefreshResult(inserted, outcome, download.meta)
+            } catch (e: Exception) {
+                file.delete()
+                throw e
+            }
+        }
+    }
+
+    private fun enrichOutcome(outcome: ConversionOutcome): ConversionOutcome = outcome.copy(
+        warnings = (outcome.warnings + ConfigGenerator.profileKeyWarnings(outcome.yaml)).distinct()
+    )
+
     private suspend fun performRefresh(profile: ProfileEntity): ProfileRefreshResult {
         // url / custom_headers are encrypted at rest — decrypt before use; the
         // migrated URL is re-encrypted on write below.
@@ -285,7 +337,7 @@ class SubscriptionRepository(
         } catch (e: org.mihomet.app.data.crypto.SecretsCipher.SecretDecryptException) {
             throw AppException(AppErrorCode.SUBSCRIPTION_UNDECRYPTABLE, cause = e)
         }
-        val download = downloadAndConvert(url, headers)
+        val download = downloadAndConvert(url, headers).let { it.copy(outcome = enrichOutcome(it.outcome)) }
         // Fail-closed: a refresh (including the background worker) must never
         // clobber a working profile with a degenerate payload (e.g. `proxies: []`
         // + `rules: []` from a broken panel) — the core would route everything
@@ -308,21 +360,25 @@ class SubscriptionRepository(
         } catch (e: SecretsCipher.SecretEncryptException) {
             throw AppException(AppErrorCode.SUBSCRIPTION_ENCRYPT_FAILED, cause = e)
         }
-        atomicWriteText(File(profile.filePath), download.outcome.yaml)
         // If the server sent no Subscription-Userinfo this time, keep the previous quota.
         val quota = download.userinfo
-        val updated = profile.copy(
-            url = encryptedUrl,
-            lastUpdated = System.currentTimeMillis(),
-            uploadUsed = quota?.uploadUsed ?: profile.uploadUsed,
-            downloadUsed = quota?.downloadUsed ?: profile.downloadUsed,
-            trafficTotal = quota?.trafficTotal ?: profile.trafficTotal,
-            expireAt = quota?.expireAt ?: profile.expireAt,
-            // Absent profile-update-interval keeps the previously stored interval.
-            updateIntervalHours = download.meta.updateIntervalHours
-                .takeIf { it > 0 } ?: profile.updateIntervalHours
-        )
-        profileDao.updateProfile(updated)
+        val updated = profileDao.updateProfileAfterRefresh(profile.id) { current ->
+            // The row may have changed while HTTP was pending; never restore its old selection/settings.
+            atomicWriteText(File(current.filePath), download.outcome.yaml)
+            current.copy(
+                url = encryptedUrl,
+                lastUpdated = System.currentTimeMillis(),
+                uploadUsed = quota?.uploadUsed ?: current.uploadUsed,
+                downloadUsed = quota?.downloadUsed ?: current.downloadUsed,
+                trafficTotal = quota?.trafficTotal ?: current.trafficTotal,
+                expireAt = quota?.expireAt ?: current.expireAt,
+                conversionReport = download.outcome.report?.toJson().orEmpty(),
+                // A manual interval change made during the request wins over the panel suggestion.
+                updateIntervalHours = download.meta.updateIntervalHours
+                    .takeIf { it > 0 && current.updateIntervalHours == profile.updateIntervalHours }
+                    ?: current.updateIntervalHours
+            )
+        } ?: throw AppException(AppErrorCode.REFRESH_PROFILE_REMOVED)
         return ProfileRefreshResult(updated, download.outcome, download.meta)
     }
 
@@ -332,19 +388,14 @@ class SubscriptionRepository(
         /**
          * Crash-safe profile persistence (single owner of profile file writes):
          * writes [content] to a sibling temp file (`.tmp-<name>`) and renames it
-         * over [target], so a crash / OOM mid-write can never leave a torn
-         * (half-written) profile file behind. `renameTo` can fail on some
-         * filesystems (foreign mount points, exotic FUSE daemons) — in that case
-         * the write degrades to a direct rewrite of [target] and the temp file
-         * is removed.
+         * over [target]. A failed rename leaves the existing profile intact;
+         * concurrent writers use distinct temporary files.
          */
         internal fun atomicWriteText(target: File, content: String) {
-            val tmp = File(target.parentFile, ".tmp-${target.name}")
+            val tmp = File(target.parentFile, ".tmp-${target.name}-${java.util.UUID.randomUUID()}")
             try {
                 tmp.writeText(content)
-                if (!tmp.renameTo(target)) {
-                    target.writeText(content)
-                }
+                if (!tmp.renameTo(target)) throw java.io.IOException("Atomic profile replacement failed")
             } finally {
                 if (tmp.exists()) tmp.delete()
             }
@@ -389,7 +440,7 @@ class SubscriptionRepository(
         }
 
         /** Minimum panel interval (hours) eligible for background auto-refresh; guards against overly chatty panels. */
-        const val MIN_AUTO_UPDATE_HOURS = 6
+        const val MIN_AUTO_UPDATE_HOURS = 1
 
         private const val MILLIS_PER_HOUR = 3_600_000L
 

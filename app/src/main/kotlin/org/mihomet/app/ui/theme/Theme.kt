@@ -109,6 +109,17 @@ private val ExpressiveLightColorScheme = lightColorScheme(
     onErrorContainer = Color(0xFF410002)
 )
 
+/** AMOLED changes surfaces only; Material You keeps its expressive control colors. */
+fun ColorScheme.withAmoledSurfaces(): ColorScheme = copy(
+    background = Color.Black, surface = Color.Black,
+    surfaceDim = Color.Black, surfaceBright = Color(0xFF242424),
+    surfaceContainerLowest = Color.Black, surfaceContainerLow = Color(0xFF080808),
+    surfaceContainer = Color(0xFF101010), surfaceContainerHigh = Color(0xFF181818),
+    surfaceContainerHighest = Color(0xFF242424), surfaceVariant = Color(0xFF242424),
+    outline = Color(0xFF666666), outlineVariant = Color(0xFF303030)
+)
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MihometTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -118,30 +129,21 @@ fun MihometTheme(
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
-
-    val baseScheme = when {
-        darkTheme && amoledBlack -> ExpressiveAmoledColorScheme
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+    val base = when {
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> ExpressiveDarkColorScheme
-        else -> ExpressiveLightColorScheme
+        else -> if (darkTheme) ExpressiveDarkColorScheme else ExpressiveLightColorScheme
     }
-    val finalColorScheme = AccentPresets.byId(accentColorId)?.let { preset ->
+    val preset = AccentPresets.byId(accentColorId)
+    val selected = if (!dynamicColor && preset != null) {
         val accent = if (darkTheme) preset.dark else preset.light
-        baseScheme.copy(
-            primary = accent.primary,
-            onPrimary = accent.onPrimary,
-            primaryContainer = accent.primaryContainer,
-            onPrimaryContainer = accent.onPrimaryContainer
-        )
-    } ?: baseScheme
-
-    // Note: material3 1.4.0 ships MotionScheme/MaterialExpressiveTheme as internal —
-    // the expressive motionScheme parameter arrives with the 1.5/AGP-9.1 upgrade.
-    // The Expressive feel comes from our own morphs/transitions meanwhile.
-    MaterialTheme(
-        colorScheme = finalColorScheme,
+        base.copy(primary = accent.primary, onPrimary = accent.onPrimary,
+            primaryContainer = accent.primaryContainer, onPrimaryContainer = accent.onPrimaryContainer)
+    } else base
+    val scheme = if (darkTheme && amoledBlack) selected.withAmoledSurfaces() else selected
+    MaterialExpressiveTheme(
+        colorScheme = scheme,
+        motionScheme = MotionScheme.expressive(),
         typography = Typography,
         shapes = MihometShapes,
         content = content

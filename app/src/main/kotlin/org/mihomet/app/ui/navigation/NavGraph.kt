@@ -2,10 +2,16 @@ package org.mihomet.app.ui.navigation
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -21,20 +27,17 @@ import org.mihomet.app.ui.screens.proxies.ProxiesScreen
 import org.mihomet.app.ui.screens.routing.RoutingScreen
 import org.mihomet.app.ui.screens.routing.SiteRulesScreen
 import org.mihomet.app.ui.screens.settings.SettingsScreen
+import org.mihomet.app.core.DeepLinkBus
 
-private fun getNavTabOrder(route: String?): Int {
-    return when (route) {
-        Screen.Dashboard.route -> 0
-        Screen.Proxies.route -> 1
-        Screen.Profiles.route -> 2
-        Screen.Settings.route -> 3
-        else -> -1
-    }
-}
+internal fun getNavTabOrder(route: String?): Int = bottomNavItems.indexOfFirst { it.route == route }
+
+internal fun tabMovesForward(fromRoute: String?, toRoute: String?): Boolean =
+    getNavTabOrder(toRoute) > getNavTabOrder(fromRoute)
 
 private fun isDetailRoute(route: String?): Boolean {
     return route != null && (
         route == Screen.Routing.route ||
+        route == Screen.SiteRules.route ||
         route == Screen.Connections.route ||
         route == Screen.Logs.route ||
         route.startsWith("yaml_editor")
@@ -44,8 +47,20 @@ private fun isDetailRoute(route: String?): Boolean {
 @Composable
 fun AppNavGraph(
     navController: NavHostController,
-    paddingValues: PaddingValues
+    paddingValues: PaddingValues,
+    bottomBarPadding: Dp = 0.dp
 ) {
+    val importNavigation by DeepLinkBus.navigationRequest.collectAsStateWithLifecycle()
+    LaunchedEffect(importNavigation) {
+        if (importNavigation != 0L) {
+            navController.navigate(Screen.Profiles.route) {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+            DeepLinkBus.acknowledgeNavigation(importNavigation)
+        }
+    }
     NavHost(
         navController = navController,
         startDestination = Screen.Dashboard.route,
@@ -57,7 +72,7 @@ fun AppNavGraph(
             when {
                 isDetailRoute(targetRoute) -> AppTransitions.detailEnter()
                 fromIndex == toIndex && fromIndex != -1 -> EnterTransition.None
-                else -> AppTransitions.tabEnter(toIndex >= fromIndex)
+                else -> AppTransitions.tabEnter(tabMovesForward(initialState.destination.route, targetState.destination.route))
             }
         },
         exitTransition = {
@@ -67,7 +82,7 @@ fun AppNavGraph(
             when {
                 isDetailRoute(targetRoute) -> AppTransitions.detailExit()
                 fromIndex == toIndex && fromIndex != -1 -> ExitTransition.None
-                else -> AppTransitions.tabExit(toIndex >= fromIndex)
+                else -> AppTransitions.tabExit(tabMovesForward(initialState.destination.route, targetState.destination.route))
             }
         },
         popEnterTransition = {
@@ -77,7 +92,7 @@ fun AppNavGraph(
             when {
                 isDetailRoute(initialRoute) -> AppTransitions.detailPopEnter()
                 fromIndex == toIndex && fromIndex != -1 -> EnterTransition.None
-                else -> AppTransitions.tabEnter(fromIndex > toIndex)
+                else -> AppTransitions.tabEnter(tabMovesForward(initialState.destination.route, targetState.destination.route))
             }
         },
         popExitTransition = {
@@ -87,36 +102,40 @@ fun AppNavGraph(
             when {
                 isDetailRoute(initialRoute) -> AppTransitions.detailPopExit()
                 fromIndex == toIndex && fromIndex != -1 -> ExitTransition.None
-                else -> AppTransitions.tabExit(fromIndex > toIndex)
+                else -> AppTransitions.tabExit(tabMovesForward(initialState.destination.route, targetState.destination.route))
             }
         }
     ) {
         composable(Screen.Dashboard.route) {
-            DashboardScreen(
-                onNavigateToServers = {
-                    navController.navigate(Screen.Proxies.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
+            Box(Modifier.fillMaxSize().padding(bottom = bottomBarPadding)) {
+                DashboardScreen(
+                    onNavigateToServers = {
+                        navController.navigate(Screen.Proxies.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
                         }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-                onNavigateToConnections = { navController.navigate(Screen.Connections.route) },
-                onNavigateToLogs = { navController.navigate(Screen.Logs.route) }
-            )
+                    },
+                    onNavigateToConnections = { navController.navigate(Screen.Connections.route) },
+                    onNavigateToLogs = { navController.navigate(Screen.Logs.route) }
+                )
+            }
         }
 
         composable(Screen.Proxies.route) {
-            ProxiesScreen()
+            Box(Modifier.fillMaxSize().padding(bottom = bottomBarPadding)) {
+                ProxiesScreen()
+            }
         }
 
         composable(Screen.Profiles.route) {
-            ProfilesScreen(
-                onEditProfileYaml = { profileId ->
-                    navController.navigate(Screen.YamlEditor.createRoute(profileId))
-                }
-            )
+            Box(Modifier.fillMaxSize().padding(bottom = bottomBarPadding)) {
+                ProfilesScreen(
+                    onEditProfileYaml = { profileId ->
+                        navController.navigate(Screen.YamlEditor.createRoute(profileId))
+                    }
+                )
+            }
         }
 
         composable(Screen.Routing.route) {
@@ -126,12 +145,14 @@ fun AppNavGraph(
         }
 
         composable(Screen.Settings.route) {
-            SettingsScreen(
-                onNavigateToRouting = { navController.navigate(Screen.Routing.route) },
-                onNavigateToSiteRules = { navController.navigate(Screen.SiteRules.route) },
-                onNavigateToLogs = { navController.navigate(Screen.Logs.route) },
-                onNavigateToConnections = { navController.navigate(Screen.Connections.route) }
-            )
+            Box(Modifier.fillMaxSize().padding(bottom = bottomBarPadding)) {
+                SettingsScreen(
+                    onNavigateToRouting = { navController.navigate(Screen.Routing.route) },
+                    onNavigateToSiteRules = { navController.navigate(Screen.SiteRules.route) },
+                    onNavigateToLogs = { navController.navigate(Screen.Logs.route) },
+                    onNavigateToConnections = { navController.navigate(Screen.Connections.route) }
+                )
+            }
         }
 
         composable(Screen.SiteRules.route) {

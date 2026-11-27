@@ -1,4 +1,6 @@
 <resources>
+    <string name="import_queue_full">Finish the pending imports, then open this link again.</string>
+    <string name="profiles_importing">Importing subscription…</string>
     <string name="app_name">Mihomet</string>
     <string name="tile_label">Mihomet</string>
     <string name="vpn_service_title">Mihomet Proxy Service</string>
@@ -62,10 +64,10 @@
     <string name="dashboard_traffic_activity">Traffic activity</string>
     <string name="graph_placeholder">Start the VPN to see live traffic</string>
     <string name="cd_dashboard_connect">Connect</string>
-    <string name="dashboard_status_connecting">CONNECTING...</string>
-    <string name="dashboard_status_disconnecting">DISCONNECTING...</string>
-    <string name="dashboard_status_protected">PROTECTED</string>
-    <string name="dashboard_status_disconnected">NOT CONNECTED</string>
+    <string name="dashboard_status_connecting">Connecting…</string>
+    <string name="dashboard_status_disconnecting">Disconnecting…</string>
+    <string name="dashboard_status_protected">Connected</string>
+    <string name="dashboard_status_disconnected">Not connected</string>
     <string name="dashboard_active_server">Active server</string>
     <string name="dashboard_select_server">Select server</string>
     <string name="dashboard_subscription_label">Subscription: %1$s</string>
@@ -496,4 +498,35 @@
     <string name="settings_auto_balancer_prefer">Prefer AUTO by default</string>
     <string name="settings_auto_balancer_prefer_desc">AUTO becomes the default pick of the panel\'s first select group</string>
     <string name="proxies_empty_hint">Import a subscription in Profiles or check the selected profile — nodes will appear here.</string>
+    <string name="conv_xray_invalid_node">Node could not be imported: %1$s</string>
+    <string name="conv_xray_transport">Protocol/transport combination is not supported by this core: %1$s</string>
+    <string name="conv_xray_field">Setting is not portable and was omitted: %1$s</string>
+    <string name="conv_xray_rule">Rule could not be preserved and was skipped entirely: %1$s</string>
+    <string name="conv_xray_reference">Unresolved reference was removed: %1$s</string>
+    <string name="conv_xray_cycle">Cyclic proxy dependency was removed: %1$s</string>
+    <string name="conv_xray_balancer">Balancer strategy was approximated by Mihomo: %1$s</string>
+    <string name="conv_xray_mux">Xray multiplexing is not compatible with smux and was disabled: %1$s</string>
+    <string name="conversion_report_title">Conversion report</string>
+    <string name="conversion_report_nodes">%1$d of %2$d nodes imported</string>
+    <string name="conversion_report_rules">%1$d of %2$d source rules preserved</string>
+    <string name="conversion_report_duplicates">%1$d identical connections merged</string>
+    <string name="conversion_report_complete">All supported settings were preserved</string>
+    <string name="conversion_report_warning_count">Conversion notes: %1$d</string>
+    <string name="profile_auto_update_note">Android may defer background updates to save battery.</string>
+    <string name="settings_category_connection">VPN, root mode and automatic startup</string>
+    <string name="settings_category_routing">Connection mode, apps and site rules</string>
+    <string name="settings_category_subscriptions">User-Agent, device identity and panel compatibility</string>
+    <string name="settings_category_appearance">Wallpaper colors, dark theme and language</string>
+    <string name="settings_category_notifications">Connection status and live traffic</string>
+    <string name="settings_category_advanced">DNS, tunnel, diagnostics and core updates</string>
+    <string name="profile_delete_title">Delete profile?</string>
+    <string name="profile_delete_message">Remove %1$s and its local configuration?</string>
+    <string name="profiles_err_refresh_removed">Profile was removed while its subscription was updating.</string>
+    <string name="logs_retained_count">Recent entries: %1$d · received: %2$d</string>
+    <string name="conversion_report_failed">Import or conversion failed</string>
+    <string name="conversion_report_privacy">Reports omit subscription URLs, credentials and raw parser excerpts.</string>
+    <string name="diagnostic_save">Save report</string>
+    <string name="diagnostic_share">Share report</string>
+    <string name="diagnostic_export_failed">Could not export the report. Please try again.</string>
+    <string name="diagnostic_detail_omitted">[omitted]</string>
 </resources>

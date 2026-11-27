@@ -2,6 +2,72 @@
 
 *Russian version: [compatibility-research.ru.md](compatibility-research.ru.md)*
 
+## Xray/Happ conversion update (2026-11-27)
+
+- Focus: Xray JSON/JSONC, outbound/config arrays and Happ arrays. Native
+  Clash/Mihomo is retained with validation and mandatory app safety overrides;
+  additional sing-box portability work is deferred.
+- Tags are scoped per configuration. All server/user variants are considered,
+  equivalent connections are deduplicated without merging different credentials,
+  and balancer selectors match prefixes. Broken or cyclic dependencies are
+  excluded with a report.
+- Routing preserves source order, AND between fields and OR within a field.
+  A rule with an unsupported condition is skipped as a whole; it is never widened
+  by keeping only the recognized conditions. For a Happ array, one routing policy
+  is selected (balancer configuration, then largest rule set); other policies are
+  explicitly reported rather than concatenated into contradictory global rules.
+- Xray Mux is not sing-box smux. VLESS KCP and security checks unsupported by the
+  pinned core cannot be claimed as equivalent working nodes. Nonportable DNS,
+  routing options and balancer approximations are visible in the saved report.
+- Reports persist counts and schema paths in Room v6 without source payloads or
+  credentials. No usable converted nodes means rejection, preserving the current
+  profile. Import and refresh use the same conversion/persistence path.
+- UA fallback validates every candidate, prefers rich routing/balancing content,
+  and continues after a partial rich conversion; a later cleaner rich response
+  replaces both the configuration and its associated metadata.
+- Public fixture provenance is in `app/src/test/resources/xray-public/sources.json`
+  (official XTLS examples pinned to a commit). API 35 tests verify these outputs
+  with the bundled core's `-t`, real HTTP/Room persistence and confirmed UI import.
+  The optional `scripts/test-xray-loopback.py` is for actual local wire tests;
+  a successful configuration check alone does not establish wire compatibility.
+- Reality conversion enables the pinned core's `support-x25519mlkem768` option
+  and supplies Xray's default Chrome fingerprint when absent. The isolated wire
+  suite covers both Xray 26.10.31 and 25.3.6. Its fallback TLS endpoint explicitly
+  negotiates X25519, TLS 1.3 and H2 so it also meets the older Reality server's
+  target requirements. Native YAML keeps its original settings.
+- Separate XHTTP download streams explicitly reset inherited TLS, Reality,
+  certificate bypass, path, headers and reuse settings. Only their active
+  security block applies. Nonportable trust/pinning requirements reject the
+  affected node, preserving compatible siblings. XMUX maps include every field
+  required by the native decoder, including defaults for omitted fields.
+- XHTTP `extra` replaces optional outer settings, as in Xray; outer host/path/mode
+  retain precedence. Modern `sessionID*` fields map to native `session-*` keys.
+- The pinned core's DOMAIN-REGEX uses `regexp2` with ignore-case enabled, not Go's
+  `regexp`. Converted expressions explicitly restore case-sensitive matching,
+  normalize named groups and literal parentheses for the native logical-rule
+  parser, and preserve regex commas. Known incompatible quoting, POSIX classes,
+  ungreedy flags and Unicode script properties are reported as unsupported
+  rules; Unicode general categories remain supported.
+- Current flat Trojan/Shadowsocks/HTTP/SOCKS settings retain authentication;
+  HTTP CONNECT headers, independent WebSocket `host`, HTTPUpgrade headers and
+  gRPC `user_agent` are mapped. Malformed server/user/config array entries are
+  counted, malformed active stream blocks reject the affected node, and
+  malformed rule lists skip the whole rule. Unmapped fields are reported without
+  persisting arbitrary source keys, which may themselves contain credentials.
+- The controlled wire suite now has 16 cases against each of Xray 26.10.31 and
+  25.3.6, including flat settings with authentication and HTTPUpgrade. It checks
+  that the destination actually received every named HTTP request.
+
+Protocol references for these regressions:
+- [Xray 26.10.31 stream and XHTTP configuration](https://github.com/XTLS/Xray-core/blob/v26.10.31/infra/conf/transport_method.go)
+- [Reality revision used by Xray 26.10.31](https://github.com/XTLS/REALITY/blob/83f621788ca8/tls.go)
+- [Mihomo 1.19.33 Reality client](https://github.com/MetaCubeX/mihomo/blob/v1.19.33/component/tls/reality.go)
+- [Mihomo 1.19.33 XHTTP option decoding and inheritance](https://github.com/MetaCubeX/mihomo/blob/v1.19.33/adapter/outbound/vless.go)
+- [Mihomo 1.19.33 DOMAIN-REGEX](https://github.com/MetaCubeX/mihomo/blob/v1.19.33/rules/common/domain_regex.go)
+
+Earlier dated observations below describe the behavior and panel responses at
+the time of the study, not a promise of complete cross-core equivalence.
+
 > Research results (sources: FlClash `chen08209/FlClash`, CMFA `MetaCubeX/ClashMetaForAndroid`,
 > Happ dev-docs `HappDev/happ_su`, Incy docs `INCY-DEV/incy-docs`, panel implementations
 > `MHSanaei/3x-ui internal/sub/happ.go|incy.go`, Remnawave SRR presets).

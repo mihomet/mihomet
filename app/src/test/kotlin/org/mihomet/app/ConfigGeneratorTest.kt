@@ -30,6 +30,18 @@ class ConfigGeneratorTest {
     """.trimIndent()
 
     @Test
+    fun `temporary probe opens only the authenticated controller and needs no root`() {
+        val parsed = Yaml().load<Map<String, Any>>(ConfigGenerator.generateProbeConfig(sampleYaml,
+            AppSettings(controllerPort = 19098, controllerSecret = "fixture-secret", vpnHttpProxy = true)))
+        for (key in listOf("tun", "tproxy-port", "redir-port", "routing-mark", "mixed-port", "port", "socks-port")) {
+            assertFalse("Probe must not inherit $key", parsed.containsKey(key))
+        }
+        assertFalse((parsed["dns"] as Map<*, *>).containsKey("listen"))
+        assertEquals("127.0.0.1:19098", parsed["external-controller"])
+        assertEquals("fixture-secret", parsed["secret"])
+    }
+
+    @Test
     @Suppress("UNCHECKED_CAST")
     fun `test config generator injects routing-mark and tproxy port`() {
         val settings = AppSettings(

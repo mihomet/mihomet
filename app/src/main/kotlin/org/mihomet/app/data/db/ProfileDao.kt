@@ -24,8 +24,23 @@ interface ProfileDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertProfile(profile: ProfileEntity): Long
 
+    @Transaction
+    suspend fun insertProfileSelectingFirst(profile: ProfileEntity): ProfileEntity {
+        val selected = profile.copy(isSelected = getSelectedProfile() == null)
+        return selected.copy(id = insertProfile(selected))
+    }
+
     @Update
     suspend fun updateProfile(profile: ProfileEntity)
+
+    /** Merge a completed download with current fields, serializing selection and deletion. */
+    @Transaction
+    suspend fun updateProfileAfterRefresh(id: Long, refresh: (ProfileEntity) -> ProfileEntity): ProfileEntity? {
+        val current = getProfileById(id) ?: return null
+        val updated = refresh(current)
+        updateProfile(updated)
+        return updated
+    }
 
     @Delete
     suspend fun deleteProfile(profile: ProfileEntity)

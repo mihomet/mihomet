@@ -1,0 +1,32 @@
+[
+  {
+    "fixture": "vless-reality.jsonc",
+    "source": "https://github.com/XTLS/Xray-examples/blob/167cded1a33ac7b0ce76fcf00ea2d8fb0604e927/VLESS-TCP-XTLS-Vision-REALITY/config_client.jsonc",
+    "sha256": "4a0d9f7840bfe88c11f54775c6186c4539d56b380e7b9be616b68bf52a6fbed9"
+  },
+  {
+    "fixture": "vless-xhttp.jsonc",
+    "source": "https://github.com/XTLS/Xray-examples/blob/167cded1a33ac7b0ce76fcf00ea2d8fb0604e927/VLESS-XHTTP-Reality/minimal-steal_others/client.jsonc",
+    "sha256": "8416a57ed0d798590948b2a3a9f47bcd16d9b421e02f242a6ec48b4d769010ce"
+  },
+  {
+    "fixture": "vmess-ws.jsonc",
+    "source": "https://github.com/XTLS/Xray-examples/blob/167cded1a33ac7b0ce76fcf00ea2d8fb0604e927/VMess-Websocket-TLS/config_client.jsonc",
+    "sha256": "8c576ea1673b5335ec53354aa9b33ce65777dd235e9d9262518137e01ca4fad1"
+  },
+  {
+    "fixture": "vless-grpc.jsonc",
+    "source": "https://github.com/XTLS/Xray-examples/blob/167cded1a33ac7b0ce76fcf00ea2d8fb0604e927/VLESS-GRPC/client.jsonc",
+    "sha256": "a9c1de16a7281a1a424ce611da947cdd499e1c3f5b87e87f979cecf8038866db"
+  },
+  {
+    "fixture": "vless-kcp-unsupported.jsonc",
+    "source": "https://github.com/XTLS/Xray-examples/blob/167cded1a33ac7b0ce76fcf00ea2d8fb0604e927/VLESS-mKCPSeed/config_client.jsonc",
+    "sha256": "0bd4fdc933c32a98fc65b02c39d6965624a248eff85e9ae0f0e005a76785522a"
+  },
+  {
+    "fixture": "trojan-tls.jsonc",
+    "source": "https://github.com/XTLS/Xray-examples/blob/167cded1a33ac7b0ce76fcf00ea2d8fb0604e927/Trojan-TCP-TLS (minimal)/config_client.jsonc",
+    "sha256": "09b43b537c3a91316b3d77c8054d677055c8a5790bc9917f1a63fec6682045a2"
+  }
+]

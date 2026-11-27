@@ -104,11 +104,8 @@ internal object UriListParser {
         if (sec == "reality") {
             map["tls"] = true
             map["servername"] = params["sni"] ?: server
-            map["reality-opts"] = mapOf(
-                "public-key" to (params["pbk"] ?: ""),
-                "short-id" to (params["sid"] ?: "")
-            )
-            params["fp"]?.let { map["client-fingerprint"] = it }
+            map["reality-opts"] = ConverterSupport.realityOptions(params["pbk"].orEmpty(), params["sid"].orEmpty())
+            map["client-fingerprint"] = params["fp"].orEmpty().ifBlank { "chrome" }
         } else if (sec == "tls") {
             map["tls"] = true
             map["servername"] = params["sni"] ?: server

@@ -2,11 +2,16 @@ package org.mihomet.app
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -14,6 +19,13 @@ import org.junit.runner.RunWith
 import org.mihomet.app.data.db.AppDatabase
 import org.mihomet.app.data.preferences.SettingsRepository
 import org.mihomet.app.data.subs.SubscriptionRepository
+import org.mihomet.app.data.subs.SubscriptionDownload
+import org.mihomet.app.core.config.UniversalConfigConverter
+import org.mihomet.app.data.db.ProfileType
+import org.mihomet.app.data.crypto.SecretsCipher
+import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * On-device verification of the content-aware UA fallback: the panel serves a
@@ -28,6 +40,7 @@ class SubscriptionUaFallbackInstrumentedTest {
 
     private lateinit var server: MockWebServer
     private lateinit var repo: SubscriptionRepository
+    private lateinit var db: AppDatabase
 
     private val plainBase64 = java.util.Base64.getEncoder().encodeToString(
         "vless://11111111-2222-3333-4444-555555555555@1.2.3.4:443?encryption=none#n1".toByteArray()
@@ -58,11 +71,7 @@ class SubscriptionUaFallbackInstrumentedTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         server = MockWebServer()
         server.start()
-        // Chain order: mihomet → mihomo → Happ (rich stops the walk)
-        server.enqueue(MockResponse().setBody(plainBase64))
-        server.enqueue(MockResponse().setBody(groupedYaml))
-        server.enqueue(MockResponse().setBody(richXray))
-        val db = androidx.room.Room.inMemoryDatabaseBuilder(
+        db = androidx.room.Room.inMemoryDatabaseBuilder(
             context, AppDatabase::class.java
         ).allowMainThreadQueries().build()
         val dao = db.profileDao()
@@ -76,10 +85,19 @@ class SubscriptionUaFallbackInstrumentedTest {
     @After
     fun tearDown() {
         server.shutdown()
+        db.close()
+    }
+
+    private fun enqueueThreeChannels() {
+        // Chain order: mihomet → mihomo → Happ (rich stops the walk).
+        server.enqueue(MockResponse().setBody(plainBase64))
+        server.enqueue(MockResponse().setBody(groupedYaml))
+        server.enqueue(MockResponse().setBody(richXray))
     }
 
     @Test
     fun fallbackChainLandsOnRichChannel() = runBlocking {
+        enqueueThreeChannels()
         val url = server.url("/sub/test").toString()
         val download = repo.downloadAndConvert(url)
         // The final stored response must be the RICH Xray channel: two vless
@@ -98,6 +116,7 @@ class SubscriptionUaFallbackInstrumentedTest {
 
     @Test
     fun chainWalksAllThreeUserAgents() = runBlocking {
+        enqueueThreeChannels()
         val url = server.url("/sub/walk").toString()
         repo.downloadAndConvert(url)
         val req1 = server.takeRequest()
@@ -107,5 +126,99 @@ class SubscriptionUaFallbackInstrumentedTest {
         assertTrue(req1.getHeader("User-Agent")!!.contains("mihomet", ignoreCase = true))
         assertTrue(req2.getHeader("User-Agent")!!.contains("mihomo", ignoreCase = true))
         assertTrue(req3.getHeader("User-Agent")!!.contains("Happ", ignoreCase = true))
+    }
+
+    @Test
+    fun laterLosslessRichChannelReplacesLossyYamlAndItsMetadata() = runBlocking {
+        val partial = richXray.replace("\"routing\":{", "\"dns\":{\"servers\":[\"localhost\"]},\"routing\":{")
+        server.enqueue(MockResponse().setBody(partial).addHeader("profile-title", "Lossy"))
+        server.enqueue(MockResponse().setBody(richXray).addHeader("profile-title", "Complete")
+            .addHeader("profile-update-interval", "1").addHeader("Subscription-Userinfo", "upload=12; download=34; total=500"))
+        val download = repo.downloadAndConvert(server.url("/sub/improving").toString())
+        assertEquals(2, server.requestCount)
+        assertTrue(download.outcome.report!!.issues.isEmpty())
+        assertEquals("Complete", download.meta.profileTitle)
+        val saved = repo.addProfile("Complete", org.mihomet.app.data.db.ProfileType.LOCAL, download)
+        val row = db.profileDao().getProfileById(saved.profile.id)!!
+        try {
+            assertTrue(row.isSelected)
+            assertEquals(1, row.updateIntervalHours)
+            assertEquals(34L, row.downloadUsed)
+            assertEquals(download.outcome.report, org.mihomet.app.core.config.ConversionReport.fromJson(row.conversionReport))
+            assertEquals(download.outcome.yaml, java.io.File(row.filePath).readText())
+        } finally {
+            java.io.File(row.filePath).delete()
+        }
+    }
+
+    @Test
+    fun refreshPreservesChangesMadeWhileTheResponseIsPending() = runBlocking {
+        val arrived = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest): MockResponse {
+                arrived.countDown()
+                check(release.await(10, TimeUnit.SECONDS))
+                return MockResponse().setBody(richXray).addHeader("profile-update-interval", "1")
+            }
+        }
+        val download = SubscriptionDownload(UniversalConfigConverter.convertToMihomoYamlWithOutcome(richXray))
+        val first = repo.addProfile("Before", ProfileType.REMOTE, download, server.url("/sub/pending").toString()).profile
+        val other = repo.addProfile("Other", ProfileType.LOCAL, download).profile
+        val dao = db.profileDao()
+        val refresh = async(Dispatchers.IO) { repo.refreshProfileWithOutcome(first) }
+        try {
+            assertTrue("refresh request did not arrive", arrived.await(10, TimeUnit.SECONDS))
+            dao.selectProfile(other.id)
+            val edited = dao.getProfileById(first.id)!!.copy(
+                name = "Edited", customHeaders = SecretsCipher.encryptIfSecret("""{"X-Fixture":"new"}"""),
+                overridePatch = "log-level: warning",
+                updateIntervalHours = 24, uploadUsed = 555
+            )
+            dao.updateProfile(edited)
+            release.countDown()
+            val updated = refresh.await().getOrThrow().profile
+            assertEquals("Edited", updated.name)
+            assertEquals(edited.customHeaders, updated.customHeaders)
+            assertEquals(edited.overridePatch, updated.overridePatch)
+            assertEquals(24, updated.updateIntervalHours)
+            assertEquals(555L, updated.uploadUsed)
+            assertFalse(updated.isSelected)
+            assertEquals(listOf(other.id), dao.getAllProfilesOnce().filter { it.isSelected }.map { it.id })
+            assertEquals(updated, dao.getProfileById(first.id))
+            assertEquals(download.outcome.yaml, File(first.filePath).readText())
+        } finally {
+            release.countDown()
+            File(first.filePath).delete()
+            File(other.filePath).delete()
+        }
+    }
+
+    @Test
+    fun deletedProfileIsNotRecreatedWhenAnOldRefreshCompletes() = runBlocking {
+        val arrived = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest): MockResponse {
+                arrived.countDown()
+                check(release.await(10, TimeUnit.SECONDS))
+                return MockResponse().setBody(richXray)
+            }
+        }
+        val download = SubscriptionDownload(UniversalConfigConverter.convertToMihomoYamlWithOutcome(richXray))
+        val profile = repo.addProfile("Deleted", ProfileType.REMOTE, download, server.url("/sub/deleted").toString()).profile
+        val refresh = async(Dispatchers.IO) { repo.refreshProfileWithOutcome(profile) }
+        try {
+            assertTrue("refresh request did not arrive", arrived.await(10, TimeUnit.SECONDS))
+            db.profileDao().deleteProfile(profile)
+            File(profile.filePath).delete()
+            release.countDown()
+            assertTrue(refresh.await().isFailure)
+            assertNull(db.profileDao().getProfileById(profile.id))
+            assertFalse(File(profile.filePath).exists())
+        } finally {
+            release.countDown()
+            File(profile.filePath).delete()
+        }
     }
 }

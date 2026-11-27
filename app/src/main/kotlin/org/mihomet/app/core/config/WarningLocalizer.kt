@@ -21,6 +21,17 @@ object WarningLocalizer {
      * [localize] is the thin Context-based wrapper around this.
      */
     fun resolve(warning: ConversionWarning): Pair<Int, List<String?>> = when (warning) {
+        is ConversionWarning.XrayLoss -> when (warning.issue.code) {
+            ConversionIssueCode.INVALID_NODE -> R.string.conv_xray_invalid_node
+            ConversionIssueCode.UNSUPPORTED_TRANSPORT -> R.string.conv_xray_transport
+            ConversionIssueCode.UNSUPPORTED_FIELD -> R.string.conv_xray_field
+            ConversionIssueCode.UNSUPPORTED_RULE -> R.string.conv_xray_rule
+            ConversionIssueCode.UNRESOLVED_REFERENCE -> R.string.conv_xray_reference
+            ConversionIssueCode.REFERENCE_CYCLE -> R.string.conv_xray_cycle
+            ConversionIssueCode.BALANCER_APPROXIMATION -> R.string.conv_xray_balancer
+            ConversionIssueCode.MUX_UNSUPPORTED -> R.string.conv_xray_mux
+        } to listOf(warning.issue.path)
+
         is ConversionWarning.UnrecognizedNode ->
             R.string.conv_warning_unrecognized to listOf(warning.uri)
 

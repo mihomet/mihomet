@@ -92,9 +92,8 @@ data class AppSettings(
     val dnsPort: Int = CoreConstants.DEFAULT_DNS_PORT,
     val controllerPort: Int = CoreConstants.DEFAULT_CONTROLLER_PORT,
     val ipv6Enabled: Boolean = false,
-    // Brand palette (violet/teal/rose) is the designed identity — Material You
-    // wallpaper tones are opt-in. Default ON hid the brand design on Android 12+.
-    val dynamicColor: Boolean = false,
+    // Material You is the fresh-install default; DataStore preserves saved choices.
+    val dynamicColor: Boolean = true,
     val darkTheme: Boolean = true,
     val amoledBlack: Boolean = false,
     // Theme accent color preset ID ("" = brand violet, "blue"/"teal"/etc)

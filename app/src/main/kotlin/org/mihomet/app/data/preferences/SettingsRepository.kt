@@ -108,7 +108,7 @@ class SettingsRepository(
                 dnsPort = preferences[PreferencesKeys.DNS_PORT] ?: CoreConstants.DEFAULT_DNS_PORT,
                 controllerPort = preferences[PreferencesKeys.CONTROLLER_PORT] ?: CoreConstants.DEFAULT_CONTROLLER_PORT,
                 ipv6Enabled = preferences[PreferencesKeys.IPV6_ENABLED] ?: false,
-                dynamicColor = preferences[PreferencesKeys.DYNAMIC_COLOR] ?: false,
+                dynamicColor = preferences[PreferencesKeys.DYNAMIC_COLOR] ?: true,
                 darkTheme = preferences[PreferencesKeys.DARK_THEME] ?: true,
                 amoledBlack = preferences[PreferencesKeys.AMOLED_BLACK] ?: false,
                 showSpeedInNotification = preferences[PreferencesKeys.SHOW_SPEED_NOTIFICATION] ?: true,
@@ -127,8 +127,9 @@ class SettingsRepository(
                 autoBalancerEnabled = preferences[PreferencesKeys.AUTO_BALANCER_ENABLED] ?: true,
                 accentColor = (preferences[PreferencesKeys.THEME_ACCENT] ?: "")
                     .take(16).replace(Regex("[^a-z_]"), ""),
-                autoBalancerExcludes = (preferences[PreferencesKeys.AUTO_BALANCER_EXCLUDES] ?: "")
-                    .replace(Regex("[\\p{Cntrl}]"), " ").take(2000),
+                autoBalancerExcludes = normalizeAutoBalancerExcludes(
+                    preferences[PreferencesKeys.AUTO_BALANCER_EXCLUDES].orEmpty()
+                ),
                 autoBalancerPreferDefault = preferences[PreferencesKeys.AUTO_BALANCER_PREFER_DEFAULT] ?: false,
                 autoStartOnBoot = preferences[PreferencesKeys.AUTO_START_ON_BOOT] ?: false,
                 lastMode = preferences[PreferencesKeys.LAST_MODE]
@@ -439,7 +440,7 @@ class SettingsRepository(
     suspend fun updateAutoBalancerExcludes(patterns: String) {
         context.dataStore.edit {
             it[PreferencesKeys.AUTO_BALANCER_EXCLUDES] =
-                patterns.replace(Regex("[\\p{Cntrl}\\r]"), "\n").take(2000)
+                normalizeAutoBalancerExcludes(patterns)
         }
     }
 
@@ -624,6 +625,12 @@ class SettingsRepository(
     }
 
     companion object {
+        internal fun normalizeAutoBalancerExcludes(raw: String): String = raw
+            .replace("\r\n", "\n").replace('\r', '\n')
+            .map { if (it != '\n' && it.isISOControl()) ' ' else it }.joinToString("")
+            .lineSequence().map { it.trim() }.filter { it.isNotEmpty() }
+            .joinToString("\n").take(2000)
+
         private const val TAG = "SettingsRepository"
 
         /** Upper bound for the data-loss gate's Room probe (see [hasEncryptedSecrets]). */
