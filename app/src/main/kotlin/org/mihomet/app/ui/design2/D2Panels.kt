@@ -3,12 +3,9 @@ package org.mihomet.app.ui.design2
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -32,10 +29,9 @@ fun D2SectionLabel(text: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun D2ScreenTitle(text: String, modifier: Modifier = Modifier, trailing: @Composable RowScope.() -> Unit = {}) {
-    Row(modifier.fillMaxWidth().heightIn(min = 64.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(text, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis)
-        trailing()
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, content = trailing)
+        Text(text, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(vertical = 4.dp))
     }
 }
 

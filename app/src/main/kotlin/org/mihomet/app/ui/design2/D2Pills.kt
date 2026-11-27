@@ -2,17 +2,14 @@ package org.mihomet.app.ui.design2
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import org.mihomet.app.R
 import org.mihomet.app.ui.components.PulsingStatusDot
 
 @Composable
@@ -38,18 +35,20 @@ fun <T> D2Segmented(
 ) {
     if (options.isEmpty()) return
     Surface(color = trackColor, modifier = modifier) {
-        ButtonGroup(
-            modifier = Modifier.fillMaxWidth().heightIn(min = height).selectableGroup(),
-            overflowIndicator = { menu ->
-                IconButton(onClick = { menu.show() }) {
-                    Icon(Icons.Default.MoreHoriz, stringResource(R.string.cd_menu))
-                }
-            },
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        FlowRow(
+            modifier = Modifier.fillMaxWidth().selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             options.forEach { option ->
-                toggleableItem(checked = selected == option.value, label = option.label,
-                    onCheckedChange = { if (it) onOptionSelected(option.value) }, weight = 1f)
+                ToggleButton(
+                    checked = selected == option.value,
+                    onCheckedChange = { if (it) onOptionSelected(option.value) },
+                    modifier = Modifier.heightIn(min = height),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Text(option.label, modifier = Modifier.width(IntrinsicSize.Max), maxLines = 1, textAlign = TextAlign.Center)
+                }
             }
         }
     }

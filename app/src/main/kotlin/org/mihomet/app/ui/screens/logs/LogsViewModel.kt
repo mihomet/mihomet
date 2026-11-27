@@ -18,7 +18,9 @@ import java.util.Locale
 
 data class LogsUiState(
     val logs: List<LogEntry> = emptyList(),
-    val selectedLevel: String = "all"
+    val selectedLevel: String = "all",
+    val totalCount: Long = 0,
+    val levelCounts: Map<String, Long> = emptyMap()
 )
 
 /**
@@ -54,23 +56,19 @@ class LogsViewModel(
     val uiState: StateFlow<LogsUiState> = _uiState.asStateFlow()
 
     init {
-        _uiState.update { it.copy(logs = AppLogBuffer.buffer.toList()) }
-
         viewModelScope.launch {
-            val settings = settingsRepository.settingsFlow.first()
-            if (settings.persistentLogging) {
-                AppLogBuffer.entries.collect { list ->
-                    _uiState.update { it.copy(logs = list) }
-                }
-            } else {
-                @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-                apiClientProvider.clientFlow.flatMapLatest { client ->
-                    client.streamLogs()
-                }.collect { entry ->
-                    AppLogBuffer.add(entry)
-                    _uiState.update { it.copy(logs = AppLogBuffer.buffer.toList()) }
+            AppLogBuffer.snapshot.collect { snapshot ->
+                _uiState.update {
+                    it.copy(logs = snapshot.entries, totalCount = snapshot.totalCount, levelCounts = snapshot.levelCounts)
                 }
             }
+        }
+        viewModelScope.launch {
+            @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+            settingsRepository.settingsFlow.map { it.persistentLogging }.distinctUntilChanged().flatMapLatest { persistent ->
+                if (persistent) emptyFlow()
+                else apiClientProvider.clientFlow.flatMapLatest { it.streamLogs() }
+            }.collect(AppLogBuffer::add)
         }
     }
 
@@ -80,7 +78,6 @@ class LogsViewModel(
 
     fun clearLogs() {
         AppLogBuffer.clear()
-        _uiState.update { it.copy(logs = emptyList()) }
     }
 
     /** Header (date + app version) plus the buffered log lines. */

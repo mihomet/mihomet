@@ -406,8 +406,8 @@ fun ProfilesScreen(
         }
 
         // Audit P0 §1.1: every external import waits for explicit confirmation.
-        state.conversionReport?.takeIf { state.behaviorConsent == null }?.let { report ->
-            ConversionReportSheet(report) { viewModel.showReport(null) }
+        state.conversionDiagnostic?.takeIf { state.behaviorConsent == null }?.let { diagnostic ->
+            ConversionReportSheet(diagnostic, viewModel::dismissDiagnostic)
         }
         state.pendingImport?.let { pending ->
             DeepLinkImportDialog(

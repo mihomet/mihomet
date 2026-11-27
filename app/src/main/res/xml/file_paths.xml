@@ -4,4 +4,5 @@
     <external-cache-path
         name="logs"
         path="logs/" />
+    <cache-path name="conversion-reports" path="conversion-reports/" />
 </paths>

@@ -51,6 +51,9 @@ class ImportFlowInstrumentedTest {
         server = MockWebServer().apply {
             dispatcher = object : Dispatcher() {
                 override fun dispatch(request: RecordedRequest): MockResponse {
+                    if (request.path == "/sub/invalid") {
+                        return MockResponse().setBody("unsupported://PRIVATE_TEST_TOKEN@invalid.example")
+                    }
                     val title = "$prefix-${request.path?.substringAfterLast('/')}"
                     return MockResponse().addHeader("profile-title", title).setBody("""
                         proxies:
@@ -110,6 +113,26 @@ class ImportFlowInstrumentedTest {
         compose.waitForIdle()
         assertEquals(0, server.requestCount)
         assertFalse(runBlocking { dao.getAllProfilesOnce().any { it.name.startsWith(prefix) } })
+    }
+
+
+    @Test
+    fun failedImportCanExportDiagnosticBeforeProfileExists() {
+        val url = sendImport("invalid")
+        waitForText(url)
+        compose.onNodeWithText(context.getString(R.string.action_add)).performClick()
+        waitForText(context.getString(R.string.conversion_report_failed))
+        compose.onNodeWithText(context.getString(R.string.diagnostic_save)).assertExists()
+        val directory = File(context.cacheDir, "conversion-reports")
+        directory.listFiles()?.forEach { it.delete() }
+        compose.onNodeWithText(context.getString(R.string.diagnostic_share)).performClick()
+        compose.waitUntil(10_000) { directory.listFiles()?.any { it.length() > 0 } == true }
+        val report = directory.listFiles().orEmpty().single().readText()
+        org.junit.Assert.assertTrue(report.contains("Failure: IMPORT_"))
+        assertFalse(report.contains("PRIVATE_TEST_TOKEN"))
+        assertFalse(report.contains(url))
+        assertFalse(runBlocking { dao.getAllProfilesOnce().any { it.name.startsWith(prefix) } })
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
     }
 
     @Test

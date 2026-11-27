@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.mihomet.app.R
 import org.mihomet.app.core.AppException
+import org.mihomet.app.core.AppErrorCode
 import org.mihomet.app.core.stringRes
 import org.mihomet.app.core.config.ConversionOutcome
 import org.mihomet.app.core.config.ConversionReport
@@ -41,7 +42,7 @@ data class ProfilesUiState(
     // Behavior-header changes requested by the subscription panel (audit P0 §1.1):
     // applied ONLY after the user accepts the consent dialog.
     val behaviorConsent: BehaviorConsent? = null,
-    val conversionReport: ConversionReport? = null
+    val conversionDiagnostic: ConversionDiagnostic? = null
 )
 
 /**
@@ -85,13 +86,21 @@ class ProfilesViewModel(
     private val successMessageFlow = MutableStateFlow<String?>(null)
     private val pendingImportFlow = MutableStateFlow<PendingImport?>(null)
     private val behaviorConsentFlow = MutableStateFlow<BehaviorConsent?>(null)
-    private val reportFlow = MutableStateFlow<ConversionReport?>(null)
+    private val reportFlow = MutableStateFlow<ConversionDiagnostic?>(null)
     private val importInProgressFlow = MutableStateFlow(false)
     private val importIdle = combine(pendingImportFlow, importInProgressFlow, behaviorConsentFlow, reportFlow) {
         pending, busy, consent, report -> pending == null && !busy && consent == null && report == null
     }
 
-    fun showReport(report: ConversionReport?) { reportFlow.value = report }
+    fun showReport(report: ConversionReport?) { reportFlow.value = report?.let { ConversionDiagnostic(report = it) } }
+
+    fun dismissDiagnostic() { reportFlow.value = null }
+
+    private fun recordImportFailure(error: Throwable) {
+        reportFlow.value = (reportFlow.value ?: ConversionDiagnostic()).copy(
+            failureCode = (error as? AppException)?.code ?: AppErrorCode.IMPORT_FAILED
+        )
+    }
 
     val uiState: StateFlow<ProfilesUiState> = combine(
         profileDao.getAllProfiles(),
@@ -107,7 +116,7 @@ class ProfilesViewModel(
             pendingImport = pendingImport,
             behaviorConsent = behaviorConsent
         )
-    }.combine(reportFlow) { state, report -> state.copy(conversionReport = report) }
+    }.combine(reportFlow) { state, report -> state.copy(conversionDiagnostic = report) }
         .combine(importInProgressFlow) { state, busy -> state.copy(importInProgress = busy) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProfilesUiState(isLoading = true))
 
@@ -218,12 +227,17 @@ class ProfilesViewModel(
         onError: (String) -> Unit = { errorMessageFlow.value = it }
     ) {
         if (!importInProgressFlow.compareAndSet(false, true)) return
+        reportFlow.value = null
         viewModelScope.launch {
             try {
-                action().fold(onSuccess) { onError(localizeError(it)) }
+                action().fold(onSuccess) {
+                    recordImportFailure(it)
+                    onError(localizeError(it))
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                recordImportFailure(e)
                 onError(localizeError(e))
             } finally {
                 importInProgressFlow.value = false
@@ -238,8 +252,11 @@ class ProfilesViewModel(
             else SubscriptionDownload(withContext(Dispatchers.Default) {
                 UniversalConfigConverter.convertToMihomoYamlWithOutcome(source)
             })
+            val diagnostic = ConversionDiagnostic(download.outcome.report, download.outcome.warnings)
+            if (download.outcome.warnings.isNotEmpty()) reportFlow.value = diagnostic
             if (!isValidGeneratedConfig(download.outcome.yaml)) {
-                return Result.failure(IllegalArgumentException(context.getString(R.string.profiles_invalid_result)))
+                reportFlow.value = diagnostic
+                return Result.failure(AppException(AppErrorCode.IMPORT_NO_COMPATIBLE_CONFIG))
             }
             val resolvedName = resolveImportName(name, source, remote, download)
             val result = subscriptionRepository.addProfile(
@@ -247,11 +264,13 @@ class ProfilesViewModel(
                 download, if (remote) source.trim() else "", normalizedHeaders
             )
             requestBehaviorConsent(result.profile.id, result.profile.name, result.meta)
-            reportFlow.value = result.outcome.report?.takeIf { it.issues.isNotEmpty() }
+            reportFlow.value = diagnostic.takeIf { it.safeWarnings.isNotEmpty() }
             errorMessageFlow.value = null
             Result.success(appendWarnings(context.getString(R.string.profiles_added, resolvedName), result.outcome))
         } catch (e: CancellationException) {
             throw e
+        } catch (e: AppException) {
+            Result.failure(e)
         } catch (e: SubscriptionHeaders.HeaderValidationException) {
             Result.failure(IllegalArgumentException(headerViolationMessage(e.violation)))
         } catch (e: Exception) {
@@ -284,17 +303,19 @@ class ProfilesViewModel(
      */
     fun updateProfile(profile: ProfileEntity) {
         if (profile.type != ProfileType.REMOTE) return
+        reportFlow.value = null
         viewModelScope.launch {
             subscriptionRepository.refreshProfileWithOutcome(profile)
                 .onSuccess { result ->
                     val outcome = result.outcome
-                    reportFlow.value = outcome.report?.takeIf { it.issues.isNotEmpty() }
+                    reportFlow.value = ConversionDiagnostic(outcome.report, outcome.warnings).takeIf { it.safeWarnings.isNotEmpty() }
                     requestBehaviorConsent(result.profile.id, result.profile.name, result.meta)
                     errorMessageFlow.value = null
                     successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_updated), outcome)
                 }
                 .onFailure { e ->
                     if (e is CancellationException) throw e
+                    recordImportFailure(e)
                     errorMessageFlow.value =
                         context.getString(R.string.profiles_update_failed, localizeError(e))
                 }

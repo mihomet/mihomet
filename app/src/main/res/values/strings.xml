@@ -64,10 +64,10 @@
     <string name="dashboard_traffic_activity">Traffic activity</string>
     <string name="graph_placeholder">Start the VPN to see live traffic</string>
     <string name="cd_dashboard_connect">Connect</string>
-    <string name="dashboard_status_connecting">CONNECTING...</string>
-    <string name="dashboard_status_disconnecting">DISCONNECTING...</string>
-    <string name="dashboard_status_protected">PROTECTED</string>
-    <string name="dashboard_status_disconnected">NOT CONNECTED</string>
+    <string name="dashboard_status_connecting">Connecting…</string>
+    <string name="dashboard_status_disconnecting">Disconnecting…</string>
+    <string name="dashboard_status_protected">Connected</string>
+    <string name="dashboard_status_disconnected">Not connected</string>
     <string name="dashboard_active_server">Active server</string>
     <string name="dashboard_select_server">Select server</string>
     <string name="dashboard_subscription_label">Subscription: %1$s</string>
@@ -522,4 +522,11 @@
     <string name="profile_delete_title">Delete profile?</string>
     <string name="profile_delete_message">Remove %1$s and its local configuration?</string>
     <string name="profiles_err_refresh_removed">Profile was removed while its subscription was updating.</string>
+    <string name="logs_retained_count">Recent entries: %1$d · received: %2$d</string>
+    <string name="conversion_report_failed">Import or conversion failed</string>
+    <string name="conversion_report_privacy">Reports omit subscription URLs, credentials and raw parser excerpts.</string>
+    <string name="diagnostic_save">Save report</string>
+    <string name="diagnostic_share">Share report</string>
+    <string name="diagnostic_export_failed">Could not export the report. Please try again.</string>
+    <string name="diagnostic_detail_omitted">[omitted]</string>
 </resources>

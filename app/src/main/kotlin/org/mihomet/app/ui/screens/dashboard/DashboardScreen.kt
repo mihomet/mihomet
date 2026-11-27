@@ -18,8 +18,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -130,7 +131,7 @@ fun DashboardScreen(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ConnectionHero(state: DashboardUiState, onToggle: () -> Unit) {
+internal fun ConnectionHero(state: DashboardUiState, onToggle: () -> Unit) {
     val busy = state.isConnecting || state.isDisconnecting
     val status = stringResource(when {
         state.isDisconnecting -> R.string.dashboard_status_disconnecting
@@ -140,17 +141,16 @@ private fun ConnectionHero(state: DashboardUiState, onToggle: () -> Unit) {
     })
     val action = stringResource(if (state.isRunning) R.string.action_disconnect else if (busy) R.string.action_cancel else R.string.cd_dashboard_connect)
     val container by animateColorAsState(when {
-        busy -> MaterialTheme.colorScheme.tertiaryContainer
+        busy -> MaterialTheme.colorScheme.primaryContainer
         state.isRunning -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.surfaceContainerHighest
-    }, label = "connectionColor")
+    }, animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(), label = "connectionColor")
     val content = when {
-        busy -> MaterialTheme.colorScheme.onTertiaryContainer
+        busy -> MaterialTheme.colorScheme.onPrimaryContainer
         state.isRunning -> MaterialTheme.colorScheme.onPrimary
         else -> MaterialTheme.colorScheme.primary
     }
-    val progress by ExpressiveMorph.progress(if (state.isRunning) 1f else 0f)
-    val animatedShape = remember(progress) { ExpressiveMorph.shape(ExpressiveMorph.SQUARE, ExpressiveMorph.COOKIE_12) { progress } }
+    val progress = ExpressiveMorph.progress(if (state.isRunning) 1f else 0f)
     val start by ServiceState.connectionStartTime.collectAsStateWithLifecycle()
     var uptime by remember { mutableStateOf("") }
     LaunchedEffect(state.isRunning, start) {
@@ -163,13 +163,14 @@ private fun ConnectionHero(state: DashboardUiState, onToggle: () -> Unit) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.size(192.dp), contentAlignment = Alignment.Center) {
             if (state.isRunning || busy) {
-                val transition = rememberInfiniteTransition(label = "connectionAura")
-                val scale by transition.animateFloat(0.96f, 1.04f, infiniteRepeatable(tween(if (busy) 800 else 2200), RepeatMode.Reverse), label = "auraScale")
-                Box(Modifier.size(180.dp).scale(scale).clip(D2.Hero).background(container.copy(alpha = 0.13f)))
-                Box(Modifier.size(160.dp).clip(D2.Hero).background(container.copy(alpha = 0.18f)))
+                Box(Modifier.size(180.dp).clip(D2.Hero).background(container.copy(alpha = 0.08f)))
+                Box(Modifier.size(160.dp).clip(D2.Hero).background(container.copy(alpha = 0.12f)))
             }
             Box(
-                Modifier.size(140.dp).clip(animatedShape).background(container)
+                Modifier.size(140.dp).graphicsLayer {
+                    shape = ExpressiveMorph.shape(ExpressiveMorph.SQUARE, ExpressiveMorph.COOKIE_12) { progress.value }
+                    clip = true
+                }.background(container)
                     .toggleable(state.isRunning, enabled = !state.isDisconnecting, role = Role.Switch, onValueChange = { onToggle() })
                     .semantics { contentDescription = action; stateDescription = status },
                 contentAlignment = Alignment.Center
@@ -178,7 +179,7 @@ private fun ConnectionHero(state: DashboardUiState, onToggle: () -> Unit) {
                 else Icon(if (state.isRunning) Icons.Default.Shield else Icons.Default.PowerSettingsNew, null, Modifier.size(56.dp), tint = content)
             }
         }
-        Text(status, style = MaterialTheme.typography.headlineMedium)
+        Text(status, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
         val mode = stringResource(if (state.isRootMode) R.string.dashboard_mode_root_tproxy else R.string.dashboard_mode_vpn)
         D2Caption(if (uptime.isEmpty()) mode else "$mode · $uptime")
     }

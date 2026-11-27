@@ -8,38 +8,50 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
-import java.util.concurrent.CopyOnWriteArrayList
+import java.util.Locale
+
+/** Counts cover everything received since Clear; only recent entries occupy memory. */
+data class LogBufferSnapshot(
+    val entries: List<LogEntry> = emptyList(),
+    val totalCount: Long = 0,
+    val levelCounts: Map<String, Long> = emptyMap()
+) {
+    fun count(level: String): Long = if (level == "all") totalCount else levelCounts[level] ?: 0
+}
 
 object AppLogBuffer {
+    internal const val CAPACITY = 1000
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var continuousJob: Job? = null
-    val buffer = CopyOnWriteArrayList<LogEntry>()
-    private val _entries = MutableStateFlow<List<LogEntry>>(emptyList())
-    val entries = _entries.asStateFlow()
+    private val buffer = ArrayDeque<LogEntry>(CAPACITY)
+    private val _snapshot = MutableStateFlow(LogBufferSnapshot())
+    val snapshot = _snapshot.asStateFlow()
 
+    @Synchronized
     fun add(entry: LogEntry) {
-        buffer.add(entry)
-        if (buffer.size > 1000) {
-            buffer.removeAt(0)
-        }
-        _entries.value = buffer.toList()
+        if (buffer.size == CAPACITY) buffer.removeFirst()
+        buffer.addLast(entry)
+        val previous = _snapshot.value
+        val level = entry.type.lowercase(Locale.ROOT)
+        _snapshot.value = LogBufferSnapshot(
+            entries = buffer.toList(),
+            totalCount = previous.totalCount + 1,
+            levelCounts = previous.levelCounts + (level to ((previous.levelCounts[level] ?: 0) + 1))
+        )
     }
 
+    @Synchronized
     fun clear() {
         buffer.clear()
-        _entries.value = emptyList()
+        _snapshot.value = LogBufferSnapshot()
     }
 
     @Synchronized
     fun startContinuousLogging(clientProvider: MihomoApiClientProvider) {
-        if (continuousJob != null) return
+        if (continuousJob?.isActive == true) return
         continuousJob = scope.launch {
             @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-            clientProvider.clientFlow.flatMapLatest { client ->
-                client.streamLogs()
-            }.collect { entry ->
-                add(entry)
-            }
+            clientProvider.clientFlow.flatMapLatest { client -> client.streamLogs() }.collect(::add)
         }
     }
 

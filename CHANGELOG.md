@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Fixed
+- Keep screen titles and action labels readable on compact layouts and larger
+  font scales; restore the standard Material typography and use "Connected" /
+  "Подключено" for the active connection state.
+- Correct dock-tab transition direction and align screen transitions around a
+  consistent, shorter motion curve. Keep the selected accent color while
+  connecting and remove the pulsing hero animation.
+- Keep the log view pinned only while the reader is already at the bottom, and
+  track cumulative log totals beyond the 1,000-entry display buffer.
+- Export conversion diagnostics from failed imports as sanitized text files or
+  through the system share sheet.
+- Run CI on Android API 26 and 35, including navigation-motion regression tests.
+
 ## 1.3.8
 
 ### Converter and import

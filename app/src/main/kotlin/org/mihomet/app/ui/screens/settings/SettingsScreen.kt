@@ -3,6 +3,9 @@ package org.mihomet.app.ui.screens.settings
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.togetherWith
+import org.mihomet.app.ui.navigation.AppTransitions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Icon
@@ -89,61 +92,70 @@ fun SettingsScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { ExpressiveSnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = D2.ScreenH),
-            verticalArrangement = Arrangement.spacedBy(D2.SectionGap),
-            contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp)
-        ) {
-            item {
-                if (section < 0) D2ScreenTitle(stringResource(R.string.nav_settings))
-                else D2BackHeader(stringResource(R.string.nav_settings), stringResource(R.string.cd_back), { section = -1 })
-            }
-            if (section < 0) {
+        AnimatedContent(
+            targetState = section,
+            transitionSpec = {
+                val forward = targetState >= 0
+                AppTransitions.tabEnter(forward) togetherWith AppTransitions.tabExit(forward)
+            },
+            label = "settingsCategory"
+        ) { targetSection ->
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = D2.ScreenH),
+                verticalArrangement = Arrangement.spacedBy(D2.SectionGap),
+                contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp)
+            ) {
                 item {
-                    D2Panel(contentPadding = PaddingValues(0.dp)) {
-                        val categories = listOf(
-                            Triple(R.string.settings_connection_mode, Icons.Default.VpnKey, R.string.settings_category_connection),
-                            Triple(R.string.settings_routing_section, Icons.Default.Route, R.string.settings_category_routing),
-                            Triple(R.string.settings_subs_section, Icons.Default.CloudDownload, R.string.settings_category_subscriptions),
-                            Triple(R.string.settings_appearance, Icons.Default.Palette, R.string.settings_category_appearance),
-                            Triple(R.string.settings_notifications, Icons.Default.Notifications, R.string.settings_category_notifications),
-                            Triple(R.string.settings_advanced, Icons.Default.Tune, R.string.settings_category_advanced)
-                        )
-                        categories.forEachIndexed { index, category ->
-                            D2Row(icon = category.second, title = stringResource(category.first), subtitle = stringResource(category.third),
-                                onClick = { section = index; isAdvancedExpanded = true }) {
-                                Icon(Icons.Default.ChevronRight, contentDescription = null)
+                    if (targetSection < 0) D2ScreenTitle(stringResource(R.string.nav_settings))
+                    else D2BackHeader(stringResource(R.string.nav_settings), stringResource(R.string.cd_back), { section = -1 })
+                }
+                if (targetSection < 0) {
+                    item {
+                        D2Panel(contentPadding = PaddingValues(0.dp)) {
+                            val categories = listOf(
+                                Triple(R.string.settings_connection_mode, Icons.Default.VpnKey, R.string.settings_category_connection),
+                                Triple(R.string.settings_routing_section, Icons.Default.Route, R.string.settings_category_routing),
+                                Triple(R.string.settings_subs_section, Icons.Default.CloudDownload, R.string.settings_category_subscriptions),
+                                Triple(R.string.settings_appearance, Icons.Default.Palette, R.string.settings_category_appearance),
+                                Triple(R.string.settings_notifications, Icons.Default.Notifications, R.string.settings_category_notifications),
+                                Triple(R.string.settings_advanced, Icons.Default.Tune, R.string.settings_category_advanced)
+                            )
+                            categories.forEachIndexed { index, category ->
+                                D2Row(icon = category.second, title = stringResource(category.first), subtitle = stringResource(category.third),
+                                    onClick = { section = index; isAdvancedExpanded = true }) {
+                                    Icon(Icons.Default.ChevronRight, contentDescription = null)
+                                }
                             }
                         }
                     }
-                }
-                item {
-                    D2Panel(contentPadding = PaddingValues(0.dp)) {
-                        D2Row(Icons.Default.Hub, stringResource(R.string.nav_connections), onClick = onNavigateToConnections) {
-                            Icon(Icons.Default.ChevronRight, null)
-                        }
-                        D2Row(Icons.Default.Terminal, stringResource(R.string.nav_logs), onClick = onNavigateToLogs) {
-                            Icon(Icons.Default.ChevronRight, null)
+                    item {
+                        D2Panel(contentPadding = PaddingValues(0.dp)) {
+                            D2Row(Icons.Default.Hub, stringResource(R.string.nav_connections), onClick = onNavigateToConnections) {
+                                Icon(Icons.Default.ChevronRight, null)
+                            }
+                            D2Row(Icons.Default.Terminal, stringResource(R.string.nav_logs), onClick = onNavigateToLogs) {
+                                Icon(Icons.Default.ChevronRight, null)
+                            }
                         }
                     }
-                }
-                if (oemBrand != OemHints.OemBrand.STOCK) item { OemDiagnosticsSection(oemBrand, oemLaunch, oemLabel) }
-                item { AboutSection() }
-            } else item {
-                when (section) {
-                    0 -> ConnectionModeSection(settings, viewModel)
-                    1 -> RoutingSection(settings, viewModel, onNavigateToRouting, onNavigateToSiteRules)
-                    2 -> SubscriptionsSection(settings, viewModel, { showSubscriptionUaDialog = true }, { showSubscriptionHwidDialog = true })
-                    3 -> AppearanceSection(settings, viewModel) { showLanguageDialog = true }
-                    4 -> NotificationsSection(settings, viewModel)
-                    5 -> AdvancedSection(
-                        state, viewModel, isAdvancedExpanded, { isAdvancedExpanded = it },
-                        { showPortsDialog = true }, { showLatencyDialog = true },
-                        { showDnsDialog = true }, { showMtuDialog = true }, onNavigateToLogs
-                    )
+                    if (oemBrand != OemHints.OemBrand.STOCK) item { OemDiagnosticsSection(oemBrand, oemLaunch, oemLabel) }
+                    item { AboutSection() }
+                } else item {
+                    when (targetSection) {
+                        0 -> ConnectionModeSection(settings, viewModel)
+                        1 -> RoutingSection(settings, viewModel, onNavigateToRouting, onNavigateToSiteRules)
+                        2 -> SubscriptionsSection(settings, viewModel, { showSubscriptionUaDialog = true }, { showSubscriptionHwidDialog = true })
+                        3 -> AppearanceSection(settings, viewModel) { showLanguageDialog = true }
+                        4 -> NotificationsSection(settings, viewModel)
+                        5 -> AdvancedSection(
+                            state, viewModel, isAdvancedExpanded, { isAdvancedExpanded = it },
+                            { showPortsDialog = true }, { showLatencyDialog = true },
+                            { showDnsDialog = true }, { showMtuDialog = true }, onNavigateToLogs
+                        )
+                    }
                 }
             }
         }

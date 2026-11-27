@@ -7,6 +7,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,7 +30,6 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.mihomet.app.R
-import org.mihomet.app.ui.components.CountBadge
 import org.mihomet.app.ui.components.D2BackHeader
 import org.mihomet.app.ui.components.ExpressiveSnackbarHost
 import org.mihomet.app.ui.design2.D2
@@ -45,7 +45,7 @@ import org.mihomet.app.ui.theme.HapticType
 
 /**
  * Logs on the Edition 2 language: big back-title header with round tonal
- * actions, a springy segmented level filter and the console as one filled
+ * actions, a wrapping level filter and the console as one filled
  * tonal panel — no outlined cards anywhere.
  */
 @Composable
@@ -60,8 +60,22 @@ fun LogsScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val filteredLogs = state.logs.filter {
-        state.selectedLevel == "all" || it.type.equals(state.selectedLevel, ignoreCase = true)
+    val filteredLogs = remember(state.logs, state.selectedLevel) {
+        state.logs.withIndex().filter {
+            state.selectedLevel == "all" || it.value.type.equals(state.selectedLevel, ignoreCase = true)
+        }
+    }
+    val receivedCount = if (state.selectedLevel == "all") state.totalCount else state.levelCounts[state.selectedLevel] ?: 0
+    var followTail by remember { mutableStateOf(true) }
+    LaunchedEffect(listState) {
+        listState.interactionSource.interactions.collect { interaction ->
+            if (interaction is DragInteraction.Start) followTail = false
+        }
+    }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress to listState.canScrollForward }.collect { (scrolling, canScrollForward) ->
+            if (!scrolling && !canScrollForward) followTail = true
+        }
     }
 
     val shareLogs: () -> Unit = {
@@ -95,9 +109,9 @@ fun LogsScreen(
         }
     }
 
-    LaunchedEffect(filteredLogs.size) {
-        if (filteredLogs.isNotEmpty()) {
-            listState.animateScrollToItem(filteredLogs.size - 1)
+    LaunchedEffect(receivedCount, state.selectedLevel) {
+        if (followTail && filteredLogs.isNotEmpty()) {
+            listState.scrollToItem(filteredLogs.size - 1)
         }
     }
 
@@ -119,14 +133,12 @@ fun LogsScreen(
                 onBack = onNavigateBack,
                 modifier = Modifier.padding(top = 12.dp)
             ) {
-                CountBadge(count = filteredLogs.size)
-                Spacer(modifier = Modifier.width(10.dp))
                 D2IconAction(
                     icon = Icons.Default.ContentCopy,
                     contentDescription = stringResource(R.string.cd_copy),
                     onClick = {
                         AppHaptics.perform(context, HapticType.CLICK, view)
-                        val text = filteredLogs.joinToString("\n") { "[${it.type.uppercase()}] ${it.payload}" }
+                        val text = filteredLogs.joinToString("\n") { "[${it.value.type.uppercase()}] ${it.value.payload}" }
                         val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         cm.setPrimaryClip(ClipData.newPlainText("Mihomet Logs", text))
                     }
@@ -149,7 +161,14 @@ fun LogsScreen(
                 )
             }
 
-            // ── Level filter: springy segmented control ──────────────────────
+            Text(
+                stringResource(R.string.logs_retained_count, filteredLogs.size, receivedCount),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+
+            // ── Level filter ────────────────────────────────────────────────
             D2Segmented(
                 options = listOf(
                     "all" to R.string.logs_level_all,
@@ -188,7 +207,8 @@ fun LogsScreen(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        items(filteredLogs) { log ->
+                        items(filteredLogs, key = { state.totalCount - state.logs.size + it.index }) { indexed ->
+                            val log = indexed.value
                             val tagColor = when (log.type.lowercase()) {
                                 "error" -> AccentRed
                                 "warning" -> AccentOrange
@@ -201,15 +221,16 @@ fun LogsScreen(
                                     text = "[${log.type.uppercase()}] ",
                                     color = tagColor,
                                     fontFamily = FontFamily.Monospace,
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
                                     text = log.payload,
+                                    modifier = Modifier.weight(1f),
                                     color = MaterialTheme.colorScheme.onSurface,
                                     fontFamily = FontFamily.Monospace,
-                                    fontSize = 11.sp,
-                                    lineHeight = 15.sp
+                                    fontSize = 12.sp,
+                                    lineHeight = 18.sp
                                 )
                             }
                         }

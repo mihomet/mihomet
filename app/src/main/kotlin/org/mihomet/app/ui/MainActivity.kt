@@ -12,6 +12,20 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
@@ -210,33 +224,47 @@ class MainActivity : ComponentActivity() {
                         ) { settings.darkTheme }
                     )
                 }
+                val density = LocalDensity.current
+                val layoutDirection = LocalLayoutDirection.current
+                var bottomBarHeight by remember { mutableStateOf(0.dp) }
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     containerColor = MaterialTheme.colorScheme.background,
-                    contentWindowInsets = WindowInsets.safeDrawing,
-                    bottomBar = {
-                        if (showBottomBar) {
+                    contentWindowInsets = WindowInsets.safeDrawing
+                ) { innerPadding ->
+                    Box(Modifier.fillMaxSize()) {
+                        AppNavGraph(
+                            navController = navController,
+                            paddingValues = PaddingValues(
+                                start = innerPadding.calculateStartPadding(layoutDirection),
+                                top = innerPadding.calculateTopPadding(),
+                                end = innerPadding.calculateEndPadding(layoutDirection),
+                                bottom = innerPadding.calculateBottomPadding()
+                            ),
+                            bottomBarPadding = (bottomBarHeight - innerPadding.calculateBottomPadding()).coerceAtLeast(0.dp)
+                        )
+                        AnimatedVisibility(
+                            visible = showBottomBar,
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                            enter = slideInVertically(tween(300, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(300)),
+                            exit = slideOutVertically(tween(300, easing = FastOutSlowInEasing)) { it } + fadeOut(tween(300))
+                        ) {
                             ExpressiveNavigationBar(
                                 items = bottomNavItems,
                                 currentRoute = currentRoute,
                                 onItemSelected = { screen ->
                                     navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                         launchSingleTop = true
                                         restoreState = true
                                     }
                                 },
-                                modifier = Modifier.navigationBarsPadding()
+                                modifier = Modifier.onSizeChanged { size ->
+                                    bottomBarHeight = with(density) { size.height.toDp() }
+                                }.navigationBarsPadding()
                             )
                         }
                     }
-                ) { innerPadding ->
-                    AppNavGraph(
-                        navController = navController,
-                        paddingValues = innerPadding
-                    )
                 }
 
             // Battery-optimization prompt (FlClash BatteryPlugin pattern): shown at

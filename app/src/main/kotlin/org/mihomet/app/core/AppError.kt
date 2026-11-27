@@ -14,6 +14,7 @@ enum class AppErrorCode(
     val resKeyName: String
 ) {
     IMPORT_NO_COMPATIBLE_CONFIG("profiles_invalid_result"),
+    IMPORT_FAILED("conversion_report_failed"),
     PROFILE_YAML_EMPTY("profiles_err_yaml_empty"),
     PROFILE_YAML_INVALID("profiles_err_yaml_invalid"),
     SUBSCRIPTION_UNDECRYPTABLE("profiles_subscription_undecryptable"),
@@ -42,6 +43,7 @@ class AppException(
 /** Resource id for a code; args are formatted by the caller via Context.getString(res, *args). */
 fun AppErrorCode.stringRes(): Int = when (this) {
     AppErrorCode.IMPORT_NO_COMPATIBLE_CONFIG -> R.string.profiles_invalid_result
+    AppErrorCode.IMPORT_FAILED -> R.string.conversion_report_failed
     AppErrorCode.PROFILE_YAML_EMPTY -> R.string.profiles_err_yaml_empty
     AppErrorCode.PROFILE_YAML_INVALID -> R.string.profiles_err_yaml_invalid
     AppErrorCode.SUBSCRIPTION_UNDECRYPTABLE -> R.string.profiles_subscription_undecryptable

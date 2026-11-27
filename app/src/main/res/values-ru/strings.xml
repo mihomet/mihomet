@@ -64,10 +64,10 @@
     <string name="dashboard_traffic_activity">Активность трафика</string>
     <string name="graph_placeholder">Запустите VPN, чтобы увидеть трафик</string>
     <string name="cd_dashboard_connect">Подключение</string>
-    <string name="dashboard_status_connecting">ПОДКЛЮЧЕНИЕ...</string>
-    <string name="dashboard_status_disconnecting">ОТКЛЮЧЕНИЕ...</string>
-    <string name="dashboard_status_protected">ЗАЩИЩЕНО</string>
-    <string name="dashboard_status_disconnected">НЕ ПОДКЛЮЧЕНО</string>
+    <string name="dashboard_status_connecting">Подключение…</string>
+    <string name="dashboard_status_disconnecting">Отключение…</string>
+    <string name="dashboard_status_protected">Подключено</string>
+    <string name="dashboard_status_disconnected">Не подключено</string>
     <string name="dashboard_active_server">Активный сервер</string>
     <string name="dashboard_select_server">Выбрать сервер</string>
     <string name="dashboard_subscription_label">Подписка: %1$s</string>
@@ -525,4 +525,11 @@
     <string name="profile_delete_title">Удалить профиль?</string>
     <string name="profile_delete_message">Удалить «%1$s» и его локальную конфигурацию?</string>
     <string name="profiles_err_refresh_removed">Профиль удалён во время обновления подписки.</string>
+    <string name="logs_retained_count">Последних записей: %1$d · получено: %2$d</string>
+    <string name="conversion_report_failed">Не удалось импортировать или преобразовать конфигурацию</string>
+    <string name="conversion_report_privacy">Отчёт не содержит ссылок подписки, учётных данных и исходных фрагментов ошибок парсера.</string>
+    <string name="diagnostic_save">Сохранить отчёт</string>
+    <string name="diagnostic_share">Поделиться отчётом</string>
+    <string name="diagnostic_export_failed">Не удалось экспортировать отчёт. Попробуйте ещё раз.</string>
+    <string name="diagnostic_detail_omitted">[скрыто]</string>
 </resources>
