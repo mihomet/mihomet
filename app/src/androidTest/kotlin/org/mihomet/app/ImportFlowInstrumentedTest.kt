@@ -1,5 +1,7 @@
 package org.mihomet.app
 
+import android.accessibilityservice.AccessibilityService
+import android.app.UiAutomation
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -20,6 +22,7 @@ import okhttp3.mockwebserver.RecordedRequest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -132,7 +135,11 @@ class ImportFlowInstrumentedTest {
         assertFalse(report.contains("PRIVATE_TEST_TOKEN"))
         assertFalse(report.contains(url))
         assertFalse(runBlocking { dao.getAllProfilesOnce().any { it.name.startsWith(prefix) } })
-        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
+        assertTrue(
+            InstrumentationRegistry.getInstrumentation().uiAutomation
+                .performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK),
+        )
+        compose.waitForIdle()
     }
 
     @Test
