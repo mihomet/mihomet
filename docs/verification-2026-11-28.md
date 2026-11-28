@@ -30,8 +30,8 @@ JAVA_HOME=/home/misha/.jdks/jdk-21 ./gradlew \
 The original broad gate (including instrumentation APK assembly, detekt and lint)
 completed successfully in 7m57s with 35 tasks executed and 103 up-to-date. After
 the retry-chain fix, the required compile, full unit-test, debug APK and release
-APK tasks completed successfully in 4m40s with 21 tasks executed and 77 up-to-date. Test counts below
-come from `app/build/test-results/testDebugUnitTest/TEST-*.xml`; lint details
+APK tasks completed successfully in 4m40s with 21 tasks executed and 77 up-to-date.
+Test counts below come from `app/build/test-results/testDebugUnitTest/TEST-*.xml`; lint details
 come from the generated reports.
 
 | Check | Recorded result |
