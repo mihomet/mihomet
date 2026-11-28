@@ -10,16 +10,20 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mihomet.app.core.CoreManager
+import java.net.InetAddress
 
 @RunWith(AndroidJUnit4::class)
 class CoreProbeInstrumentedTest {
     @Test
     fun temporaryCoreCanReachLoopbackWithoutRootOrAnActiveVpn() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val server = MockWebServer().apply { enqueue(MockResponse().setResponseCode(204)); start() }
+        val server = MockWebServer().apply {
+            enqueue(MockResponse().setResponseCode(204))
+            start(InetAddress.getByName("127.0.0.1"), 0)
+        }
         try {
             val result = CoreManager(context).runTemporaryCoreProbe("rules: ['MATCH,DIRECT']") {
-                it.testNodeDelay("DIRECT", server.url("/probe").toString(), 3000).getOrThrow()
+                it.testNodeDelay("DIRECT", "http://127.0.0.1:${server.port}/probe", 3000).getOrThrow()
             }
             assertTrue(
                 "Unprivileged probe failed: error=${result.exceptionOrNull()?.javaClass?.simpleName}, " +

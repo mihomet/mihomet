@@ -327,6 +327,18 @@ startup failures. A subsequent diagnostic full run had 38 passed, one skipped
 and the source-button semantic-layout assertion failure described above:
 `/tmp/mihomet-followup-final-api35-diagnostic-20261128.log` (173.686 s).
 
+## CoreProbe IPv4 follow-up
+
+The intermittent API 35 failure in CI was isolated to the loopback target used by the
+temporary-core latency probe. The failing run reported `delay=-1` and `requests=0` after
+the temporary core controller had become ready, so the mock HTTP server was never reached.
+The test now binds MockWebServer explicitly to `127.0.0.1` and passes a literal IPv4 URL,
+matching the temporary core controller host and removing resolver/address-family ambiguity.
+
+The focused `CoreProbeInstrumentedTest` passed three consecutive times on the connected
+Android 15 / API 35 emulator after this change. This is evidence for the test fixture
+stability, not a claim that all core-to-network paths are covered.
+
 ## Remaining limits and publication status
 
 - Physical ARM devices, root/TProxy operation and a real VPN tunnel were not
