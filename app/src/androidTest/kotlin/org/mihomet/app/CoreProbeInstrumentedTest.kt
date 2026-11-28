@@ -21,7 +21,11 @@ class CoreProbeInstrumentedTest {
             val result = CoreManager(context).runTemporaryCoreProbe("rules: ['MATCH,DIRECT']") {
                 it.testNodeDelay("DIRECT", server.url("/probe").toString(), 3000).getOrThrow()
             }
-            assertTrue("Unprivileged probe failed: ${result.exceptionOrNull()?.javaClass?.simpleName}", result.getOrThrow() >= 0)
+            assertTrue(
+                "Unprivileged probe failed: error=${result.exceptionOrNull()?.javaClass?.simpleName}, " +
+                    "delay=${result.getOrNull()}, requests=${server.requestCount}",
+                result.getOrThrow() >= 0
+            )
             assertEquals(1, server.requestCount)
         } finally {
             server.shutdown()

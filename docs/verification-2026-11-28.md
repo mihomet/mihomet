@@ -3,10 +3,11 @@
 This records the current working-tree `Unreleased` changes: conversion-source
 export, optional Aptabase analytics, conversion-report corrections and interface
 follow-up. The final JDK 21 host gate succeeded. Full API 26 and API 35
-instrumentation suites passed before the last copy-only analytics disclosure
-revision; no emulator was connected for a repeat after that wording change. An
-earlier CoreProbe failure remains unexplained. This is not an all-platform pass
-or verification of a production-signed release.
+instrumentation suites passed before the last analytics disclosure and test
+clarity revisions. After those revisions, focused instrumentation reruns passed
+on API 26 and API 35. An earlier intermittent CoreProbe failure remains
+unexplained. This is not an all-platform pass or verification of a
+production-signed release.
 
 The scope follows [CHANGELOG.md](../CHANGELOG.md#unreleased) and
 [analytics.md](analytics.md). The existing
@@ -244,6 +245,8 @@ of a production signature or a production-signed installation.
 | API 26 full rerun, 40 tests, 85.832 s | 39 | 0 | 1 | `/tmp/mihomet-followup-final-api26-rerun-20261128.log` |
 | API 26 current full suite, 41 tests, 92.123 s | 40 | 0 | 1 | `/tmp/mihomet-followup-final-current-api26-20261128-full.log` |
 | API 35 final full suite, 41 tests, 151.958 s | 40 | 0 | 1 | `/tmp/mihomet-followup-final-current-api35-20261128-full.log` |
+| API 26 focused subscription fallback suite after CI fix, 8 tests | 8 | 0 | 0 | local JDK 21 run, `SubscriptionUaFallbackInstrumentedTest` |
+| API 35 focused CoreProbe + subscription fallback suites, 9 tests | 9 | 0 | 0 | local JDK 21 run, `CoreProbeInstrumentedTest` + `SubscriptionUaFallbackInstrumentedTest` |
 
 The initial failure was
 `CoreProbeInstrumentedTest.temporaryCoreCanReachLoopbackWithoutRootOrAnActiveVpn`,
@@ -255,8 +258,9 @@ APK/API 26; production/test code was not changed between them.
 
 **The cause of the initial negative probe result is not established.** The same
 probe later passed three isolated repeats, the prior full rerun and the current
-full API 26 suite. These successful reruns show that the failure did not recur;
-they do not explain the initial result.
+full API 26 suite. It also passed in the focused API 35 rerun after CI reported
+an intermittent failure. These successful reruns show that the failure did not
+recur; they do not explain the original result.
 
 The single skip in each current API 26/API 35 full suite is the optional
 `XrayLoopbackInstrumentedTest.convertedClientsReachTheLocalHttpServerThroughXray`:

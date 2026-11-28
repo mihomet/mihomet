@@ -145,11 +145,12 @@ class SubscriptionUaFallbackInstrumentedTest {
 
     @Test
     fun failedUaAttemptsDoNotRetainEarlierResponseBodiesInExceptionChains() = runBlocking {
-        val responses = listOf(
-            "unsupported synthetic response one",
-            "unsupported synthetic response two",
-            "unsupported synthetic response three"
-        )
+        // A failed subscription walks every built-in User-Agent, including the
+        // six-client compatibility chain. Keep one distinct response per try
+        // so the final diagnostic payload must come from the last attempt.
+        val responses = SubscriptionRepository.UA_FALLBACK_CHAIN.indices.map { index ->
+            "unsupported synthetic response ${index + 1}"
+        }
         responses.forEach { server.enqueue(MockResponse().setBody(it)) }
 
         val failure = runCatching {
@@ -160,7 +161,7 @@ class SubscriptionUaFallbackInstrumentedTest {
         failure as AppException
         assertEquals(AppErrorCode.IMPORT_NO_COMPATIBLE_CONFIG, failure.code)
         assertEquals(responses.last(), failure.sourcePayload)
-        assertEquals(3, server.requestCount)
+        assertEquals(responses.size, server.requestCount)
         assertTrue("the latest attempt should be the only retained cause", failure.cause?.suppressed?.isEmpty() == true)
     }
 
