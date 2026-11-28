@@ -42,6 +42,9 @@ fun ConversionReportSheet(diagnostic: ConversionDiagnostic, onDismiss: () -> Uni
                 if (report != null) {
                     Text(stringResource(R.string.conversion_report_nodes, report.importedNodes, report.sourceNodes), style = MaterialTheme.typography.titleMedium)
                     Text(stringResource(R.string.conversion_report_rules, report.importedRules, report.sourceRules))
+                    if (report.alternativeRules > 0) {
+                        Text(stringResource(R.string.conversion_report_alternative_rules, report.alternativeRules))
+                    }
                     if (report.duplicateNodes > 0) Text(stringResource(R.string.conversion_report_duplicates, report.duplicateNodes))
                 }
                 if (descriptions.isEmpty() && failure == null) Text(stringResource(R.string.conversion_report_complete), color = MaterialTheme.colorScheme.primary)
@@ -53,7 +56,22 @@ fun ConversionReportSheet(diagnostic: ConversionDiagnostic, onDismiss: () -> Uni
                     colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
                 )
             }
-            item { DiagnosticExportActions(export) }
+            item {
+                DiagnosticExportActions(
+                    text = export,
+                    sensitiveText = diagnostic.sourcePayload?.let {
+                        { writer ->
+                            appendConversionDiagnostic(
+                                writer,
+                                diagnostic,
+                                BuildConfig.VERSION_NAME,
+                                listOfNotNull(failure) + descriptions,
+                                includeSource = true
+                            )
+                        }
+                    }
+                )
+            }
             item { Text(stringResource(R.string.conversion_report_privacy), style = MaterialTheme.typography.bodySmall) }
             item {
                 FilledTonalButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {

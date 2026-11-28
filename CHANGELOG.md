@@ -2,7 +2,34 @@
 
 ## Unreleased
 
+### Added
+- Export available conversion input, including unimported fields, with the current
+  import/manual-refresh warning or error report through a separately confirmed
+  file action. Ordinary saved/shared reports exclude the source; this extra
+  diagnostic copy stays in memory and cannot be recovered from saved reports.
+  Happ key/decryption errors retain the encrypted response body. The source
+  export choice survives activity recreation without storing the source in
+  saved state; losing the confirmed source handler requires fresh confirmation
+  rather than substituting another operation's source.
+- Add optional Aptabase analytics, off by default and inactive without a supported
+  cloud app key configured before building. Bounded launch/conversion events are
+  sent on a best-effort basis after user opt-in; subscriptions, configurations
+  and error text are excluded. The settings disclose
+  the SDK metadata and the limits of withdrawing already handed-off events.
+
 ### Fixed
+- Exclude an unused Android test monitor from the Aptabase runtime dependency
+  so it cannot shadow the monitor used by Espresso instrumentation tests.
+- Install the Keystore data-loss gate before starting the analytics settings
+  collector, preserving encrypted data when a stored key is unavailable.
+- Count routing rules from the selected Xray/Happ configuration separately from
+  rules in alternative configurations that are not merged.
+- Preserve the failed operation's source and converter context when profile
+  persistence fails; keep source, report and warnings tied to the same selected
+  failure across User-Agent retries, including when a later attempt has its own
+  payload or fails with a network error.
+- Build failure diagnostics from the failed operation so overlapping imports
+  or refreshes cannot export another profile's source.
 - Keep screen titles and action labels readable on compact layouts and larger
   font scales; restore the standard Material typography and use "Connected" /
   "Подключено" for the active connection state.
@@ -14,6 +41,10 @@
 - Export conversion diagnostics from failed imports as sanitized text files or
   through the system share sheet.
 - Run CI on Android API 26 and 35, including navigation-motion regression tests.
+
+### Verification
+- Current build/device results and remaining limits are recorded in
+  [the Unreleased verification report](docs/verification-2026-11-28.md).
 
 ## 1.3.8
 

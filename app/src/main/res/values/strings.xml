@@ -294,6 +294,10 @@
     <string name="settings_override_log_level_desc">Current value: %1$s</string>
     <string name="settings_persistent_logging_title">Continuous log recording</string>
     <string name="settings_persistent_logging_desc">Keep recording logs in the background even when the Logs screen is closed</string>
+    <string name="settings_analytics_title">Optional usage analytics</string>
+    <string name="settings_analytics_desc">Off by default. Send app launches and conversion results. Subscriptions and configurations are not sent.</string>
+    <string name="settings_analytics_details">What data is sent</string>
+    <string name="settings_analytics_disclosure">With your consent, app_started is sent without custom properties. conversion_completed includes the format, conversion validity and warning count. Aptabase adds a timestamp, session ID, Android/OS version, language, app version/build, SDK version, device model and debug flag. Aptabase processes the request IP address and User-Agent transiently in memory to derive the country and region and a daily rotating pseudonymous identifier. The IP address and User-Agent are not stored, but the derived country, region and event data are retained for up to five years in the app key’s US or EU region. Source payloads, URLs, profiles, configurations, credentials and error text are not sent. Conversion events are limited to 50 per app process. Turning analytics off immediately blocks new events; a request already handed to the SDK cannot be recalled.</string>
     <string name="settings_happ_keys">Happ crypto keys</string>
     <string name="settings_happ_key_add">Add key</string>
     <string name="keyring_added">Key added</string>
@@ -506,9 +510,11 @@
     <string name="conv_xray_cycle">Cyclic proxy dependency was removed: %1$s</string>
     <string name="conv_xray_balancer">Balancer strategy was approximated by Mihomo: %1$s</string>
     <string name="conv_xray_mux">Xray multiplexing is not compatible with smux and was disabled: %1$s</string>
+    <string name="conv_xray_alternative_rules">Rules from an alternative configuration were not merged: %1$s</string>
     <string name="conversion_report_title">Conversion report</string>
     <string name="conversion_report_nodes">%1$d of %2$d nodes imported</string>
-    <string name="conversion_report_rules">%1$d of %2$d source rules preserved</string>
+    <string name="conversion_report_rules">Rules preserved from selected config: %1$d of %2$d</string>
+    <string name="conversion_report_alternative_rules">%1$d rules from alternative configurations were not merged</string>
     <string name="conversion_report_duplicates">%1$d identical connections merged</string>
     <string name="conversion_report_complete">All supported settings were preserved</string>
     <string name="conversion_report_warning_count">Conversion notes: %1$d</string>
@@ -529,4 +535,9 @@
     <string name="diagnostic_share">Share report</string>
     <string name="diagnostic_export_failed">Could not export the report. Please try again.</string>
     <string name="diagnostic_detail_omitted">[omitted]</string>
+    <string name="diagnostic_export_source">Export source payload</string>
+    <string name="diagnostic_source_title">Export sensitive source?</string>
+    <string name="diagnostic_source_warning">The source may contain subscription URLs, credentials, access tokens, node addresses or other sensitive configuration. Share it only with someone you trust.</string>
+    <string name="diagnostic_source_confirm">Export source</string>
+    <string name="diagnostic_source_cancel">Cancel</string>
 </resources>

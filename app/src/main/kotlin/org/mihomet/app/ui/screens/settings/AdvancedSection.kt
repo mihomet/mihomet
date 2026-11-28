@@ -4,9 +4,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.AltRoute
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Dns
@@ -54,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.mihomet.app.R
 import org.mihomet.app.core.HappCrypto
+import org.mihomet.app.data.analytics.AnalyticsTracker
 import org.mihomet.app.data.preferences.ProfileOverrides
 import org.mihomet.app.data.preferences.TunOptions
 import org.mihomet.app.ui.components.accentContentColor
@@ -543,6 +547,42 @@ internal fun AdvancedSection(
                             viewModel.updatePersistentLogging(it)
                         }
                     )
+
+                    if (AnalyticsTracker.hasValidAppKey()) {
+                        var showAnalyticsDetails by remember { mutableStateOf(false) }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                        ExpressiveSwitchRow(
+                            icon = Icons.Default.Analytics,
+                            iconBg = MaterialTheme.colorScheme.tertiaryContainer,
+                            iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
+                            title = stringResource(R.string.settings_analytics_title),
+                            subtitle = stringResource(R.string.settings_analytics_desc),
+                            checked = settings.analyticsEnabled,
+                            onCheckedChange = {
+                                AppHaptics.perform(context, HapticType.CLICK, view)
+                                viewModel.updateAnalyticsEnabled(it)
+                            }
+                        )
+                        TextButton(onClick = { showAnalyticsDetails = true }) {
+                            Text(stringResource(R.string.settings_analytics_details))
+                        }
+                        if (showAnalyticsDetails) {
+                            AlertDialog(
+                                onDismissRequest = { showAnalyticsDetails = false },
+                                title = { Text(stringResource(R.string.settings_analytics_title)) },
+                                text = {
+                                    Text(stringResource(R.string.settings_analytics_disclosure),
+                                        modifier = Modifier.verticalScroll(rememberScrollState()))
+                                },
+                                confirmButton = {
+                                    TextButton(onClick = { showAnalyticsDetails = false }) {
+                                        Text(stringResource(R.string.action_close))
+                                    }
+                                }
+                            )
+                        }
+                    }
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 

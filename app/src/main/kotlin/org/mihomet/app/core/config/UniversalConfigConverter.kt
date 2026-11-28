@@ -30,7 +30,7 @@ object UniversalConfigConverter {
      */
     fun convertToMihomoYamlWithOutcome(content: String): ConversionOutcome {
         val trimmed = content.trim().removePrefix("\uFEFF").trim()
-        if (trimmed.isBlank()) return ConversionOutcome(content, emptyList())
+        if (trimmed.isBlank()) return ConversionOutcome(content, emptyList(), format = null)
 
         val warnings = mutableListOf<ConversionWarning>()
 
@@ -44,26 +44,47 @@ object UniversalConfigConverter {
         }
 
         val payload = decoded.trim().removePrefix("\uFEFF").trim()
+        val format: String
         val yaml = when {
-            HappRoutingConverter.isHappRouting(trimmed) -> HappRoutingConverter.convertHappRoutingToMihomoYaml(trimmed)
-            HappRoutingConverter.isHappRouting(payload) -> HappRoutingConverter.convertHappRoutingToMihomoYaml(payload)
+            HappRoutingConverter.isHappRouting(trimmed) -> {
+                format = "happ-routing"
+                HappRoutingConverter.convertHappRoutingToMihomoYaml(trimmed)
+            }
+            HappRoutingConverter.isHappRouting(payload) -> {
+                format = "happ-routing"
+                HappRoutingConverter.convertHappRoutingToMihomoYaml(payload)
+            }
             WireGuardConfParser.isWireGuardConf(payload) -> {
+                format = "wireguard"
                 // Wrap in a full config shape ("proxies: [ ... ]"): the bare proxy
                 // map would fail ProfileValidation (no proxies/rules keys) and the
                 // whitelist sanitizer would strip every field at generation time.
                 val proxy = WireGuardConfParser.parse(payload, "WireGuard")
                 org.yaml.snakeyaml.Yaml().dump(mapOf("proxies" to listOf(proxy)))
             }
-            ClashYamlConverter.isClashYaml(payload) -> ClashYamlConverter.validateAndNormalizeYaml(payload, warnings)
-            XrayJsonConverter.isXrayJson(payload) -> return XrayJsonConverter.convert(payload)
-            SingBoxConverter.isSingBoxJson(payload) -> SingBoxConverter.convertSingBoxJsonToMihomoYaml(payload, warnings)
-            UriListConverter.isUriList(payload) -> UriListConverter.convertUriListToMihomoYaml(payload, warnings)
+            ClashYamlConverter.isClashYaml(payload) -> {
+                format = "clash-yaml"
+                ClashYamlConverter.validateAndNormalizeYaml(payload, warnings)
+            }
+            XrayJsonConverter.isXrayJson(payload) -> {
+                format = "xray"
+                return XrayJsonConverter.convert(payload).copy(format = "xray")
+            }
+            SingBoxConverter.isSingBoxJson(payload) -> {
+                format = "sing-box"
+                SingBoxConverter.convertSingBoxJsonToMihomoYaml(payload, warnings)
+            }
+            UriListConverter.isUriList(payload) -> {
+                format = "uri-list"
+                UriListConverter.convertUriListToMihomoYaml(payload, warnings)
+            }
             else -> {
+                format = "unknown"
                 warnings.add(ConversionWarning.UnknownFormat)
                 payload
             }
         }
-        return ConversionOutcome(yaml, warnings)
+        return ConversionOutcome(yaml, warnings, format = format)
     }
 
     /**

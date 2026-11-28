@@ -16,6 +16,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mihomet.app.core.AppErrorCode
+import org.mihomet.app.core.AppException
 import org.mihomet.app.data.db.AppDatabase
 import org.mihomet.app.data.preferences.SettingsRepository
 import org.mihomet.app.data.subs.SubscriptionRepository
@@ -112,6 +114,77 @@ class SubscriptionUaFallbackInstrumentedTest {
             "expected at least 2 vless proxies in the rich conversion",
             Regex("type: vless").findAll(yaml).count() >= 2
         )
+        assertTrue(
+            "diagnostics must retain the selected source payload",
+            download.sourcePayload?.contains("\"n2\"") == true
+        )
+    }
+
+    @Test
+    fun oversizedFallbackDoesNotAttachPreviousUaSourceOrWarnings() = runBlocking {
+        val failedSource = "synthetic unsupported subscription token"
+        server.enqueue(MockResponse().setBody(failedSource))
+        server.enqueue(
+            MockResponse()
+                .setBody("")
+                .setHeader("Content-Length", (SubscriptionRepository.MAX_SUBSCRIPTION_BYTES + 1).toString())
+        )
+
+        val failure = runCatching {
+            repo.downloadAndConvert(server.url("/sub/fallback").toString())
+        }.exceptionOrNull()
+
+        assertTrue("expected a typed size failure, got $failure", failure is AppException)
+        failure as AppException
+        assertEquals(AppErrorCode.SUBSCRIPTION_TOO_LARGE, failure.code)
+        assertNull(failure.sourcePayload)
+        assertTrue(failure.conversionWarnings.isEmpty())
+        assertTrue("previous UA exceptions must not be retained", failure.suppressed.isEmpty())
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun failedUaAttemptsDoNotRetainEarlierResponseBodiesInExceptionChains() = runBlocking {
+        // A failed subscription walks every built-in User-Agent, including the
+        // six-client compatibility chain. Keep one distinct response per try
+        // so the final diagnostic payload must come from the last attempt.
+        val responses = SubscriptionRepository.UA_FALLBACK_CHAIN.indices.map { index ->
+            "unsupported synthetic response ${index + 1}"
+        }
+        responses.forEach { server.enqueue(MockResponse().setBody(it)) }
+
+        val failure = runCatching {
+            repo.downloadAndConvert(server.url("/sub/failures").toString())
+        }.exceptionOrNull()
+
+        assertTrue("expected a typed conversion failure, got $failure", failure is AppException)
+        failure as AppException
+        assertEquals(AppErrorCode.IMPORT_NO_COMPATIBLE_CONFIG, failure.code)
+        assertEquals(responses.last(), failure.sourcePayload)
+        assertEquals(responses.size, server.requestCount)
+        assertTrue("the latest attempt should be the only retained cause", failure.cause?.suppressed?.isEmpty() == true)
+    }
+
+    @Test
+    fun encryptedResponseIsRetainedWhenHappKeyIsMissing() = runBlocking {
+        val encryptedSource = "synthetic encrypted response"
+        val missingKeyId = "key-mihomet-export-missing-98765"
+        repeat(3) {
+            server.enqueue(
+                MockResponse()
+                    .setBody(encryptedSource)
+                    .addHeader("encrypt-tag", "synthetic-tag")
+            )
+        }
+
+        val failure = runCatching {
+            repo.downloadAndConvert(server.url("/sub/export?key=$missingKeyId").toString())
+        }.exceptionOrNull()
+
+        assertTrue("expected a typed key failure, got $failure", failure is AppException)
+        failure as AppException
+        assertEquals(AppErrorCode.ENC_SUB_UNKNOWN_KEY, failure.code)
+        assertEquals(encryptedSource, failure.sourcePayload)
     }
 
     @Test

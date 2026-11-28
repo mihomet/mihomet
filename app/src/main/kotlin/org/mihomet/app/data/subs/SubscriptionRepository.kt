@@ -17,14 +17,17 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.mihomet.app.BuildConfig
-import org.mihomet.app.R
 import org.mihomet.app.core.AppErrorCode
 import org.mihomet.app.core.AppException
 import org.mihomet.app.core.HappCrypto
 import org.mihomet.app.core.HwidProvider
+import org.mihomet.app.core.appExceptionOrNull
+import org.mihomet.app.core.sourcePayloadOrNull
+import org.mihomet.app.core.withConversionContext
 import org.mihomet.app.core.config.ConfigGenerator
 import org.mihomet.app.core.config.ConversionOutcome
 import org.mihomet.app.core.config.UniversalConfigConverter
+import org.mihomet.app.data.analytics.AnalyticsTracker
 import org.mihomet.app.data.db.ProfileDao
 import org.mihomet.app.data.db.ProfileEntity
 import org.mihomet.app.data.db.ProfileType
@@ -45,8 +48,13 @@ import java.io.File
 data class SubscriptionDownload(
     val outcome: ConversionOutcome,
     val userinfo: SubscriptionUserinfo? = null,
-    val meta: SubscriptionMeta = SubscriptionMeta()
-)
+    val meta: SubscriptionMeta = SubscriptionMeta(),
+    /** Original local input or decrypted remote subscription payload. */
+    val sourcePayload: String? = null
+) {
+    override fun toString(): String =
+        "SubscriptionDownload(format=${outcome.format}, sourcePayloadPresent=${sourcePayload != null})"
+}
 
 /**
  * Successful profile refresh: the updated (and persisted) entity plus the
@@ -56,8 +64,13 @@ data class SubscriptionDownload(
 data class ProfileRefreshResult(
     val profile: ProfileEntity,
     val outcome: ConversionOutcome,
-    val meta: SubscriptionMeta = SubscriptionMeta()
-)
+    val meta: SubscriptionMeta = SubscriptionMeta(),
+    /** Original decrypted subscription payload used for this refresh. */
+    val sourcePayload: String? = null
+) {
+    override fun toString(): String =
+        "ProfileRefreshResult(format=${outcome.format}, sourcePayloadPresent=${sourcePayload != null})"
+}
 
 /**
  * Single owner of the subscription fetch pipeline: UA fallback chain, `x-hwid`
@@ -78,6 +91,38 @@ data class ProfileRefreshResult(
  */
 internal class SubscriptionTooLargeException(message: String) : IllegalStateException(message)
 
+/** Keeps the diagnostic context attached to whichever typed failure wins the retry chain. */
+internal fun chainDownloadFailure(
+    error: Throwable,
+    sourcePayload: String?,
+    previous: AppException?
+): AppException {
+    val typed = error.appExceptionOrNull()
+    val previousTyped = previous?.appExceptionOrNull()
+    val selected = when {
+        typed != null && typed.code != AppErrorCode.IMPORT_FAILED -> typed
+        previousTyped != null && previousTyped.code != AppErrorCode.IMPORT_FAILED -> previousTyped
+        else -> typed ?: previousTyped
+    }
+    val selectedFromCurrent = selected != null && selected === typed
+    val selectedSource = when {
+        selectedFromCurrent -> selected.sourcePayload ?: sourcePayload ?: error.sourcePayloadOrNull()
+        selected != null -> selected.sourcePayload ?: previous?.sourcePayloadOrNull()
+        else -> sourcePayload ?: error.sourcePayloadOrNull() ?: previous?.sourcePayloadOrNull()
+    }
+
+    // Keep only selected error metadata from prior attempts. Chaining exceptions
+    // would retain their response bodies, and payloads only describe this attempt.
+    return AppException(
+        selected?.code ?: AppErrorCode.IMPORT_FAILED,
+        *(selected?.args ?: emptyArray()),
+        cause = error,
+        sourcePayload = selectedSource,
+        conversionReport = selected?.conversionReport,
+        conversionWarnings = selected?.conversionWarnings.orEmpty()
+    )
+}
+
 /**
  * Body text plus the headers of a successful subscription attempt, captured
  * inside the streaming [HttpClient.prepareGet] execute-block: the response is
@@ -93,7 +138,8 @@ private data class SubscriptionAttempt(
 class SubscriptionRepository(
     private val context: Context,
     private val profileDao: ProfileDao,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val analyticsTracker: AnalyticsTracker? = null
 ) {
 
     private val importMutex = Mutex()
@@ -137,7 +183,9 @@ class SubscriptionRepository(
             var chosenOutcome: ConversionOutcome? = null
             var userinfo: SubscriptionUserinfo? = null
             var meta = SubscriptionMeta()
-            var lastException: Exception? = null
+            var lastException: AppException? = null
+            var chosenSourcePayload: String? = null
+            var lastConvertedOutcome: ConversionOutcome? = null
             // Content-aware acceptance: the first response that converts WITH
             // proxy-groups beats a group-less one (panels that serve a bare URI
             // list to unknown User-Agents). A group-less success is kept as a
@@ -145,6 +193,7 @@ class SubscriptionRepository(
             var sawQuality = SubscriptionContentChoice.ChannelQuality.PLAIN
 
             for (ua in userAgentsToTry) {
+                var attemptPayload: String? = null
                 try {
                     // prepareGet().execute reads the body INSIDE the block through
                     // a streaming channel and closes the response on block exit —
@@ -168,7 +217,7 @@ class SubscriptionRepository(
                         val contentLength = resp.headers["Content-Length"]?.toLongOrNull()
                         if (contentLength != null && contentLength > MAX_SUBSCRIPTION_BYTES) {
                             throw SubscriptionTooLargeException(
-                                context.getString(R.string.profiles_too_large)
+                                AppErrorCode.SUBSCRIPTION_TOO_LARGE.name
                             )
                         }
                         // Streamed read with a hard cap enforced on the actual bytes
@@ -179,7 +228,7 @@ class SubscriptionRepository(
                         val body = readBodyWithLimit(
                             resp.bodyAsChannel(),
                             MAX_SUBSCRIPTION_BYTES,
-                            context.getString(R.string.profiles_too_large)
+                            AppErrorCode.SUBSCRIPTION_TOO_LARGE.name
                         )
                         if (body.isBlank()) return@execute null
                         // All headers we keep must be captured inside this block:
@@ -196,11 +245,20 @@ class SubscriptionRepository(
                         )
                     }
                     if (attempt != null) {
+                        // Keep the encrypted response available if key lookup or
+                        // decryption fails before the converter can see a payload.
+                        attemptPayload = attempt.text
                         val payload = decryptAttempt(attempt, url)
+                        attemptPayload = payload
                         val outcome = UniversalConfigConverter.convertToMihomoYamlWithOutcome(payload)
+                        lastConvertedOutcome = outcome
                         if (!ProfileValidation.isValid(outcome.yaml)) {
-                            lastException = AppException(AppErrorCode.IMPORT_NO_COMPATIBLE_CONFIG)
-                            continue
+                            throw AppException(
+                                AppErrorCode.IMPORT_NO_COMPATIBLE_CONFIG,
+                                sourcePayload = payload,
+                                conversionReport = outcome.report,
+                                conversionWarnings = outcome.warnings
+                            )
                         }
                         val decision = SubscriptionContentChoice.evaluate(
                             currentHasResponse = chosenOutcome != null,
@@ -214,6 +272,7 @@ class SubscriptionRepository(
                             chosenOutcome = outcome
                             userinfo = attempt.userinfo
                             meta = attempt.meta
+                            chosenSourcePayload = payload
                             sawQuality = decision.sawQuality
                         }
                         if (decision.stop) break
@@ -222,21 +281,39 @@ class SubscriptionRepository(
                     throw e
                 } catch (e: SubscriptionTooLargeException) {
                     // Oversized for any User-Agent — retrying the chain is pointless.
-                    throw e
+                    val failure = AppException(
+                        AppErrorCode.SUBSCRIPTION_TOO_LARGE,
+                        cause = e,
+                        sourcePayload = attemptPayload
+                    )
+                    throw failure
                 } catch (e: Exception) {
-                    lastException = e
+                    lastException = chainDownloadFailure(e, attemptPayload, lastException)
                 }
             }
 
             if (chosenOutcome == null) {
-                if (lastException != null) throw lastException
-                throw IllegalStateException("Empty or unsuccessful response from subscription URL")
+                lastConvertedOutcome?.let { outcome ->
+                    analyticsTracker?.trackConversion(
+                        outcome = outcome,
+                        success = false
+                    )
+                }
+                throw lastException ?: AppException(
+                    AppErrorCode.IMPORT_FAILED
+                )
             }
+
+            analyticsTracker?.trackConversion(
+                outcome = chosenOutcome,
+                success = true
+            )
 
             SubscriptionDownload(
                 outcome = chosenOutcome,
                 userinfo = userinfo,
-                meta = meta
+                meta = meta,
+                sourcePayload = chosenSourcePayload
             )
         }
 
@@ -283,7 +360,14 @@ class SubscriptionRepository(
     ): ProfileRefreshResult = withContext(Dispatchers.IO) {
         importMutex.withLock {
             val outcome = enrichOutcome(download.outcome)
-            if (!ProfileValidation.isValid(outcome.yaml)) throw AppException(AppErrorCode.REFRESH_REJECTED_INVALID_CONFIG)
+            if (!ProfileValidation.isValid(outcome.yaml)) {
+                throw AppException(
+                    AppErrorCode.REFRESH_REJECTED_INVALID_CONFIG,
+                    sourcePayload = download.sourcePayload,
+                    conversionReport = outcome.report,
+                    conversionWarnings = outcome.warnings
+                )
+            }
             val effectiveUrl = download.meta.redirectUrl ?: url
             val encryptedUrl: String
             val encryptedHeaders: String
@@ -291,7 +375,13 @@ class SubscriptionRepository(
                 encryptedUrl = SecretsCipher.encryptIfSecret(effectiveUrl)
                 encryptedHeaders = SecretsCipher.encryptIfSecret(headers)
             } catch (e: SecretsCipher.SecretEncryptException) {
-                throw AppException(AppErrorCode.SUBSCRIPTION_ENCRYPT_FAILED, cause = e)
+                throw AppException(
+                    AppErrorCode.SUBSCRIPTION_ENCRYPT_FAILED,
+                    cause = e,
+                    sourcePayload = download.sourcePayload,
+                    conversionReport = outcome.report,
+                    conversionWarnings = outcome.warnings
+                )
             }
             val directory = File(context.filesDir, "profiles").apply { mkdirs() }
             val file = File(directory, "profile_${java.util.UUID.randomUUID()}.yaml")
@@ -312,10 +402,22 @@ class SubscriptionRepository(
             try {
                 atomicWriteText(file, outcome.yaml)
                 val inserted = profileDao.insertProfileSelectingFirst(entity)
-                ProfileRefreshResult(inserted, outcome, download.meta)
-            } catch (e: Exception) {
+                ProfileRefreshResult(inserted, outcome, download.meta, download.sourcePayload)
+            } catch (e: CancellationException) {
                 file.delete()
                 throw e
+            } catch (e: AppException) {
+                file.delete()
+                throw e.withConversionContext(download.sourcePayload, outcome.report, outcome.warnings)
+            } catch (e: Exception) {
+                file.delete()
+                throw AppException(
+                    AppErrorCode.IMPORT_FAILED,
+                    cause = e,
+                    sourcePayload = download.sourcePayload,
+                    conversionReport = outcome.report,
+                    conversionWarnings = outcome.warnings
+                )
             }
         }
     }
@@ -344,7 +446,12 @@ class SubscriptionRepository(
         // to DIRECT while the UI shows "connected". On rejection the profile
         // file and all metadata below are left untouched.
         if (!ProfileValidation.isValid(download.outcome.yaml)) {
-            throw AppException(AppErrorCode.REFRESH_REJECTED_INVALID_CONFIG)
+            throw AppException(
+                AppErrorCode.REFRESH_REJECTED_INVALID_CONFIG,
+                sourcePayload = download.sourcePayload,
+                conversionReport = download.outcome.report,
+                conversionWarnings = download.outcome.warnings
+            )
         }
         // Panel-initiated subscription relocation (New-Url / Fallback-Url): auto-migrate.
         val migratedUrl = download.meta.redirectUrl
@@ -358,28 +465,51 @@ class SubscriptionRepository(
         val encryptedUrl = try {
             SecretsCipher.encrypt(migratedUrl)
         } catch (e: SecretsCipher.SecretEncryptException) {
-            throw AppException(AppErrorCode.SUBSCRIPTION_ENCRYPT_FAILED, cause = e)
+            throw AppException(
+                AppErrorCode.SUBSCRIPTION_ENCRYPT_FAILED,
+                cause = e,
+                sourcePayload = download.sourcePayload,
+                conversionReport = download.outcome.report,
+                conversionWarnings = download.outcome.warnings
+            )
         }
         // If the server sent no Subscription-Userinfo this time, keep the previous quota.
         val quota = download.userinfo
-        val updated = profileDao.updateProfileAfterRefresh(profile.id) { current ->
-            // The row may have changed while HTTP was pending; never restore its old selection/settings.
-            atomicWriteText(File(current.filePath), download.outcome.yaml)
-            current.copy(
-                url = encryptedUrl,
-                lastUpdated = System.currentTimeMillis(),
-                uploadUsed = quota?.uploadUsed ?: current.uploadUsed,
-                downloadUsed = quota?.downloadUsed ?: current.downloadUsed,
-                trafficTotal = quota?.trafficTotal ?: current.trafficTotal,
-                expireAt = quota?.expireAt ?: current.expireAt,
-                conversionReport = download.outcome.report?.toJson().orEmpty(),
-                // A manual interval change made during the request wins over the panel suggestion.
-                updateIntervalHours = download.meta.updateIntervalHours
-                    .takeIf { it > 0 && current.updateIntervalHours == profile.updateIntervalHours }
-                    ?: current.updateIntervalHours
+        val updated = try {
+            profileDao.updateProfileAfterRefresh(profile.id) { current ->
+                // The row may have changed while HTTP was pending; never restore its old selection/settings.
+                atomicWriteText(File(current.filePath), download.outcome.yaml)
+                current.copy(
+                    url = encryptedUrl,
+                    lastUpdated = System.currentTimeMillis(),
+                    uploadUsed = quota?.uploadUsed ?: current.uploadUsed,
+                    downloadUsed = quota?.downloadUsed ?: current.downloadUsed,
+                    trafficTotal = quota?.trafficTotal ?: current.trafficTotal,
+                    expireAt = quota?.expireAt ?: current.expireAt,
+                    conversionReport = download.outcome.report?.toJson().orEmpty(),
+                    // A manual interval change made during the request wins over the panel suggestion.
+                    updateIntervalHours = download.meta.updateIntervalHours
+                        .takeIf { it > 0 && current.updateIntervalHours == profile.updateIntervalHours }
+                        ?: current.updateIntervalHours
+                )
+            } ?: throw AppException(
+                AppErrorCode.REFRESH_PROFILE_REMOVED,
+                sourcePayload = download.sourcePayload
             )
-        } ?: throw AppException(AppErrorCode.REFRESH_PROFILE_REMOVED)
-        return ProfileRefreshResult(updated, download.outcome, download.meta)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: AppException) {
+            throw e.withConversionContext(download.sourcePayload, download.outcome.report, download.outcome.warnings)
+        } catch (e: Exception) {
+            throw AppException(
+                AppErrorCode.IMPORT_FAILED,
+                cause = e,
+                sourcePayload = download.sourcePayload,
+                conversionReport = download.outcome.report,
+                conversionWarnings = download.outcome.warnings
+            )
+        }
+        return ProfileRefreshResult(updated, download.outcome, download.meta, download.sourcePayload)
     }
 
     companion object {

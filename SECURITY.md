@@ -62,3 +62,27 @@ against devices you do not own.
 - User profile YAML is filtered through a top-level key whitelist before it
   reaches the core: panel-supplied `listeners`, `tunnels`, `external-ui`,
   `geox-url`, etc. are dropped with a user-visible warning.
+
+### Diagnostics and optional analytics
+
+These additions are in `Unreleased` and are not included in the published v1.3.8.
+
+- Ordinary conversion-report saves and shares omit original source payloads.
+  Exporting a report with the original input requires a separate confirmation and
+  file selection. Such exports may contain credentials and should be shared only
+  with trusted recipients. The app retains this source in memory for the current
+  import/manual-refresh warning or error report, when input is available. Closing
+  or replacing that report discards this extra diagnostic copy; saved profile
+  reports and background refreshes do not retain it for later source export.
+  The converted profile YAML is still saved normally.
+- A remote source export contains one retained text response body, after Happ
+  decryption when successful; key/decryption errors retain the encrypted body.
+  Request/response headers and the full fallback-response history are excluded.
+  A response that exceeds the size limit before it is fully read provides no
+  source export. Bodies from earlier User-Agent fallback attempts are not retained
+  when the current attempt fails the size check.
+- [Usage analytics](docs/analytics.md) is off by default and requires both a
+  supported cloud app key configured before building and user opt-in. Events
+  exclude subscription URLs, source payloads, credentials and error text; the
+  settings disclose SDK metadata. Once the tracker observes the disabled setting,
+  it blocks new SDK handoffs; events already handed to the SDK cannot be recalled.
