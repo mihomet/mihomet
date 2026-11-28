@@ -30,6 +30,7 @@ object WarningLocalizer {
             ConversionIssueCode.REFERENCE_CYCLE -> R.string.conv_xray_cycle
             ConversionIssueCode.BALANCER_APPROXIMATION -> R.string.conv_xray_balancer
             ConversionIssueCode.MUX_UNSUPPORTED -> R.string.conv_xray_mux
+            ConversionIssueCode.ALTERNATIVE_RULES_NOT_MERGED -> R.string.conv_xray_alternative_rules
         } to listOf(warning.issue.path)
 
         is ConversionWarning.UnrecognizedNode ->

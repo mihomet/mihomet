@@ -10,6 +10,7 @@ import org.mihomet.app.core.CoreManager
 import org.mihomet.app.core.GitHubRelease
 import org.mihomet.app.core.HappCrypto
 import org.mihomet.app.data.api.MihomoApiClientProvider
+import org.mihomet.app.data.analytics.AnalyticsTracker
 import org.mihomet.app.data.preferences.AppSettings
 import org.mihomet.app.data.preferences.FirewallEngineType
 import org.mihomet.app.data.preferences.ProxyMode
@@ -45,7 +46,8 @@ data class SettingsUiState(
 class SettingsViewModel(
     private val settingsRepository: SettingsRepository,
     private val coreManager: CoreManager,
-    private val apiClientProvider: MihomoApiClientProvider
+    private val apiClientProvider: MihomoApiClientProvider,
+    private val analyticsTracker: AnalyticsTracker
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -242,6 +244,13 @@ class SettingsViewModel(
     fun updatePersistentLogging(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.updatePersistentLogging(enabled)
+        }
+    }
+
+    fun updateAnalyticsEnabled(enabled: Boolean) {
+        analyticsTracker.updateConsentFromUser(enabled)
+        viewModelScope.launch {
+            settingsRepository.updateAnalyticsEnabled(enabled)
         }
     }
 

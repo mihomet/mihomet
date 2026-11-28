@@ -20,6 +20,7 @@ import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
 import org.mihomet.app.data.api.AppLogBuffer
 import org.mihomet.app.data.api.MihomoApiClientProvider
+import org.mihomet.app.data.analytics.AnalyticsTracker
 import org.mihomet.app.data.crypto.SecretsCipher
 import org.mihomet.app.data.preferences.SettingsRepository
 import org.mihomet.app.data.subs.SubscriptionRefreshWorker
@@ -41,6 +42,7 @@ class MihometApplication : Application() {
      * by the [SecretsCipher.keyGate] lambda below.
      */
     private val keyGateVerdict = MutableStateFlow<Boolean?>(null)
+    private var analyticsTracker: AnalyticsTracker? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -91,6 +93,9 @@ class MihometApplication : Application() {
             }
         }
 
+        // Settings collectors can resolve the Keystore key; install the gate before starting them.
+        analyticsTracker = koin.get<AnalyticsTracker>().also { it.start(settingsRepository) }
+
         // Periodic background subscription refresh (WorkManager, KEEP policy).
         // Never blocks or breaks app startup if WorkManager init fails.
         runCatching {
@@ -116,6 +121,7 @@ class MihometApplication : Application() {
         // Last-resort cleanup for the application-owned scope (not called on
         // real devices in normal operation; unit-test/emulator paths use it).
         appScope.cancel()
+        analyticsTracker?.close()
         super.onTerminate()
     }
 

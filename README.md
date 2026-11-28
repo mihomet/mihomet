@@ -27,6 +27,11 @@
 - **Universal subscriptions:**
   - Automatic conversion of every popular format: Base64 URI lists, Clash YAML, sing-box JSON, Xray JSON, share links (`vless://`, `vmess://`, `trojan://`, `ss://`, `hysteria2://`, `tuic://`, `snell://`, `wg://`, `ssh://`), incl. SIP003 plugins (simple-obfs, v2ray-plugin).
   - Xray JSONC/Happ arrays: scoped tags, complete server/user expansion and compatible routing. Persistent per-profile reports explain skipped nodes, rules and options; unsupported server-verification requirements are rejected. Native Clash/Mihomo stays native.
+  - **Unreleased:** conversion reports can be saved or shared without source data.
+    A warning/error report from an import or manual refresh also offers a separately
+    confirmed source export when the input is available, including unimported fields.
+    This extra diagnostic copy stays in memory until the report is dismissed or
+    replaced; reopening a saved profile report cannot recover it.
   - Per-subscription custom headers (e.g. a panel access token) — encrypted at rest together with the URL.
   - Global identity settings: custom `User-Agent`, `x-hwid` on/off + override, per-profile overrides with the precedence *profile > global > default*.
   - Content-aware UA fallback: validate every response, prefer balancing/routing content over a flat list, and continue after a partial conversion to seek a less lossy rich response.
@@ -50,6 +55,10 @@
   - External-link imports require explicit confirmation; panel hints (auto-select profile, per-app routing, mode switch) apply only after user consent.
   - The core binary is a patched build from [mihomet/core](https://github.com/mihomet/core), verified by sha256 — and runtime core updates additionally by a signed manifest (rollback on any failure).
   - In-app self-update with a fail-closed verifier: semver, version-info.json binding, versionCode monotonicity and signing-certificate equality before anything is installed.
+  - **Unreleased:** [optional usage analytics](docs/analytics.md) is off by default
+    and requires a supported Aptabase cloud key configured before building the APK,
+    plus user opt-in. It excludes subscription/configuration contents; settings
+    disclose the SDK metadata.
 
 ---
 

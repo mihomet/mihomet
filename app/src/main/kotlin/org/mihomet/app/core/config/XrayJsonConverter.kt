@@ -44,7 +44,12 @@ internal object XrayJsonConverter {
         Graph(scopes, invalidConfigs).convert()
     } catch (_: Exception) {
         // Parser exceptions can contain the original JSON, including passwords.
-        ConversionOutcome("", listOf(ConversionWarning.XrayError(null)), ConversionReport(format = "xray"))
+        ConversionOutcome(
+            yaml = "",
+            warnings = listOf(ConversionWarning.XrayError(null)),
+            report = ConversionReport(format = "xray"),
+            format = "xray"
+        )
     }
 
     private class Scope(val index: Int, val item: JsonObject) {
@@ -71,6 +76,7 @@ internal object XrayJsonConverter {
         private var duplicates = 0
         private var sourceRules = 0
         private var importedRules = 0
+        private var alternativeRules = 0
 
         private fun issue(code: ConversionIssueCode, path: String) {
             issues.add(ConversionIssue(code, path))
@@ -87,7 +93,13 @@ internal object XrayJsonConverter {
         }
 
         fun convert(): ConversionOutcome {
-            sourceRules = scopes.sumOf { it.item.obj("routing").array("rules").size }
+            val routingScope = scopes.maxWithOrNull(compareBy<Scope> { it.balancers.isNotEmpty() }
+                .thenBy { it.item.obj("routing").array("rules").size })
+            sourceRules = routingScope?.item?.obj("routing")?.array("rules")?.size ?: 0
+            alternativeRules = scopes.filter { it !== routingScope }
+                .sumOf { it.item.obj("routing").array("rules").size }
+            scopes.filter { it !== routingScope && it.item.obj("routing").array("rules").isNotEmpty() }
+                .forEach { issue(ConversionIssueCode.ALTERNATIVE_RULES_NOT_MERGED, "configs[${it.index}].routing") }
             // Prefer individual Happ remarks when a separate balancer config repeats the same nodes.
             scopes.sortedBy { it.balancers.isNotEmpty() }.forEach(::collectNodes)
             scopes.forEach(::collectBalancers)
@@ -104,11 +116,8 @@ internal object XrayJsonConverter {
             groups[mainName] = linkedMapOf("name" to mainName, "type" to "select", "proxies" to mainMembers)
 
             val rules = linkedSetOf<String>()
-            val routingScope = scopes.maxWithOrNull(compareBy<Scope> { it.balancers.isNotEmpty() }
-                .thenBy { it.item.obj("routing").array("rules").size })
             for (scope in scopes) {
                 if (scope !== routingScope && scope.item.obj("routing").array("rules").isNotEmpty()) {
-                    issue(ConversionIssueCode.UNSUPPORTED_FIELD, "configs[${scope.index}].routing")
                     continue
                 }
                 val source = scope.item.obj("routing").array("rules")
@@ -141,10 +150,19 @@ internal object XrayJsonConverter {
         }
 
         private fun result(yaml: String): ConversionOutcome {
-            val report = ConversionReport("xray", sourceNodes, nodes.size, duplicates, sourceRules, importedRules, issues.distinct())
+            val report = ConversionReport(
+                format = "xray",
+                sourceNodes = sourceNodes,
+                importedNodes = nodes.size,
+                duplicateNodes = duplicates,
+                sourceRules = sourceRules,
+                importedRules = importedRules,
+                issues = issues.distinct(),
+                alternativeRules = alternativeRules
+            )
             val warnings = report.issues.map { ConversionWarning.XrayLoss(it) }.toMutableList<ConversionWarning>()
             if (nodes.isEmpty()) warnings.add(ConversionWarning.NoNodesXray)
-            return ConversionOutcome(yaml, warnings, report)
+            return ConversionOutcome(yaml, warnings, report, format = "xray")
         }
 
         private fun collectNodes(scope: Scope) {

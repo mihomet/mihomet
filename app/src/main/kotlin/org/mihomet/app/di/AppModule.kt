@@ -7,6 +7,7 @@ import org.koin.dsl.module
 import org.mihomet.app.core.CoreManager
 import org.mihomet.app.core.firewall.FirewallManager
 import org.mihomet.app.data.api.MihomoApiClientProvider
+import org.mihomet.app.data.analytics.AnalyticsTracker
 import org.mihomet.app.data.db.AppDatabase
 import org.mihomet.app.data.preferences.SettingsRepository
 import org.mihomet.app.data.subs.SubscriptionRepository
@@ -39,20 +40,21 @@ val appModule = module {
     single { SettingsRepository(androidContext(), get()) }
     single { CoreManager(androidContext()) }
     single { FirewallManager() }
-    single { SubscriptionRepository(androidContext(), get(), get()) }
+    single { SubscriptionRepository(androidContext(), get(), get(), get()) }
     // In-app self-update (audit P1.4): GitHub check + verified APK install
     single { AppUpdateManager(androidContext()) }
 
     // API Client (recreated only when controller port/secret changes)
     single { MihomoApiClientProvider(get()) }
+    single { AnalyticsTracker(androidContext()) }
 
     // ViewModels
     viewModel { DashboardViewModel(get(), get(), get(), get()) }
     viewModel { ProxiesViewModel(get(), get(), get(), get(), androidContext()) }
-    viewModel { ProfilesViewModel(androidContext(), get(), get(), get()) }
+    viewModel { ProfilesViewModel(androidContext(), get(), get(), get(), get()) }
     viewModel { RoutingViewModel(androidContext(), get()) }
     viewModel { ConnectionsViewModel(get()) }
     viewModel { LogsViewModel(get(), androidContext(), get()) }
-    viewModel { SettingsViewModel(get(), get(), get()) }
+    viewModel { SettingsViewModel(get(), get(), get(), get()) }
     viewModel { AppUpdateViewModel(get()) }
 }

@@ -109,6 +109,8 @@ data class AppSettings(
     val overrideTcpConcurrent: Boolean = true,
     val overrideLogLevel: String = ProfileOverrides.DEFAULT_LOG_LEVEL,
     val persistentLogging: Boolean = false,
+    // Privacy-first product analytics. Disabled until the user explicitly opts in.
+    val analyticsEnabled: Boolean = false,
     val overrideSnifferEnabled: Boolean = true,
     // Built-in auto-balancer: synthesize an AUTO url-test group when the profile
     // has no balancer of its own. Excludes = newline-separated name substrings

@@ -20,6 +20,11 @@ val coreProperties = Properties().apply {
 }
 val coreVersion = coreProperties.getProperty("version") ?: "core-v1.19.33-mihomet.3"
 val coreCacheDir = rootProject.layout.projectDirectory.dir(".mihomo-core-cache")
+val aptabaseAppKey = (project.findProperty("APTABASE_APP_KEY") as String?)
+    ?: System.getenv("APTABASE_APP_KEY").orEmpty()
+
+fun String.asBuildConfigString(): String =
+    "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
 
 val downloadMihomoCore by tasks.registering {
     group = "build"
@@ -119,6 +124,10 @@ android {
         targetSdk = 36
         versionCode = 14
         versionName = "1.3.8"
+
+        // Empty by default: analytics stays disabled until the user opts in and
+        // the build supplies an Aptabase app key.
+        buildConfigField("String", "APTABASE_APP_KEY", aptabaseAppKey.asBuildConfigString())
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -284,6 +293,14 @@ dependencies {
 
     // QR codes (subscription sharing)
     implementation(libs.zxing.core)
+
+    // Optional, explicitly opt-in analytics. The tracker does not initialize it
+    // when APTABASE_APP_KEY is absent or the user has not enabled analytics.
+    implementation(libs.aptabase.kotlin) {
+        // The published SDK declares an unused test monitor as a runtime
+        // dependency; it shadows Espresso's monitor in the app under test.
+        exclude(group = "androidx.test", module = "monitor")
+    }
 
     // Test
     testImplementation(libs.junit)

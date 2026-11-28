@@ -296,6 +296,10 @@
     <string name="settings_override_log_level_desc">Текущее значение: %1$s</string>
     <string name="settings_persistent_logging_title">Непрерывная запись логов</string>
     <string name="settings_persistent_logging_desc">Записывать логи в фоне постоянно, а не только при открытии экрана логов</string>
+    <string name="settings_analytics_title">Необязательная аналитика</string>
+    <string name="settings_analytics_desc">По умолчанию выключена. Отправляются запуски и результаты конвертации. Подписки и конфигурации не отправляются.</string>
+    <string name="settings_analytics_details">Какие данные отправляются</string>
+    <string name="settings_analytics_disclosure">С вашего согласия app_started отправляется без дополнительных свойств. Событие conversion_completed содержит формат, признак успешной конвертации и число предупреждений. Aptabase добавляет время, ID сессии, версию Android/ОС, язык, версию и номер сборки приложения, версию SDK, модель устройства и признак отладки. Aptabase временно обрабатывает IP-адрес и User-Agent запроса в памяти, чтобы определить страну и регион, а также создать ежедневно меняющийся псевдонимный идентификатор. IP-адрес и User-Agent не сохраняются, но страна, регион и данные событий хранятся до пяти лет в выбранном для ключа регионе — США или ЕС. Исходные данные, URL, профили, конфигурации, учётные данные и текст ошибок не отправляются. Отправка событий конвертации ограничена 50 событиями за процесс приложения. Выключение аналитики сразу блокирует новые события; запрос, уже переданный SDK, отозвать нельзя.</string>
     <string name="settings_happ_keys">Happ crypto-ключи</string>
     <string name="settings_happ_key_add">Добавить ключ</string>
     <string name="keyring_added">Ключ добавлен</string>
@@ -509,9 +513,11 @@
     <string name="conv_xray_cycle">Циклическая зависимость прокси удалена: %1$s</string>
     <string name="conv_xray_balancer">Стратегия балансировщика заменена приближением Mihomo: %1$s</string>
     <string name="conv_xray_mux">Мультиплексирование Xray несовместимо с smux и отключено: %1$s</string>
+    <string name="conv_xray_alternative_rules">Правила альтернативной конфигурации не объединялись: %1$s</string>
     <string name="conversion_report_title">Отчёт о конвертации</string>
     <string name="conversion_report_nodes">Импортировано узлов: %1$d из %2$d</string>
-    <string name="conversion_report_rules">Сохранено исходных правил: %1$d из %2$d</string>
+    <string name="conversion_report_rules">Сохранено правил выбранной конфигурации: %1$d из %2$d</string>
+    <string name="conversion_report_alternative_rules">Не объединено правил альтернативных конфигураций: %1$d</string>
     <string name="conversion_report_duplicates">Объединено одинаковых подключений: %1$d</string>
     <string name="conversion_report_complete">Все поддерживаемые настройки сохранены</string>
     <string name="conversion_report_warning_count">Замечаний при конвертации: %1$d</string>
@@ -532,4 +538,9 @@
     <string name="diagnostic_share">Поделиться отчётом</string>
     <string name="diagnostic_export_failed">Не удалось экспортировать отчёт. Попробуйте ещё раз.</string>
     <string name="diagnostic_detail_omitted">[скрыто]</string>
+    <string name="diagnostic_export_source">Экспортировать исходник</string>
+    <string name="diagnostic_source_title">Экспортировать чувствительные данные?</string>
+    <string name="diagnostic_source_warning">Исходник может содержать ссылки подписок, учётные данные, токены доступа, адреса узлов и другие чувствительные настройки. Передавайте его только доверенному человеку.</string>
+    <string name="diagnostic_source_confirm">Экспортировать исходник</string>
+    <string name="diagnostic_source_cancel">Отмена</string>
 </resources>

@@ -7,7 +7,8 @@ import kotlinx.serialization.json.Json
 @Serializable
 enum class ConversionIssueCode {
     INVALID_NODE, UNSUPPORTED_TRANSPORT, UNSUPPORTED_FIELD, UNSUPPORTED_RULE,
-    UNRESOLVED_REFERENCE, REFERENCE_CYCLE, BALANCER_APPROXIMATION, MUX_UNSUPPORTED
+    UNRESOLVED_REFERENCE, REFERENCE_CYCLE, BALANCER_APPROXIMATION, MUX_UNSUPPORTED,
+    ALTERNATIVE_RULES_NOT_MERGED
 }
 
 /** Paths are generated schema paths, never source values, credentials or parser excerpts. */
@@ -22,7 +23,8 @@ data class ConversionReport(
     val duplicateNodes: Int = 0,
     val sourceRules: Int = 0,
     val importedRules: Int = 0,
-    val issues: List<ConversionIssue> = emptyList()
+    val issues: List<ConversionIssue> = emptyList(),
+    val alternativeRules: Int = 0
 ) {
     val skippedNodes: Int get() = (sourceNodes - importedNodes - duplicateNodes).coerceAtLeast(0)
     val skippedRules: Int get() = (sourceRules - importedRules).coerceAtLeast(0)

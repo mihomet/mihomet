@@ -20,6 +20,7 @@ libsu = "5.2.2"
 snakeyaml = "2.2"
 coil = "2.7.0"
 zxing = "3.5.3"
+aptabase = "0.1.0"
 mockWebServer = "5.2.1"
 junit = "4.13.2"
 extJunit = "1.3.0"
@@ -86,6 +87,9 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 
 # QR codes (subscription sharing) — zxing core only, no Android parts
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+
+# Privacy-first opt-in product analytics. The app is a no-op when no key is configured.
+aptabase-kotlin = { group = "com.github.aptabase", name = "aptabase-kotlin", version.ref = "aptabase" }
 
 # Test
 junit = { group = "junit", name = "junit", version.ref = "junit" }

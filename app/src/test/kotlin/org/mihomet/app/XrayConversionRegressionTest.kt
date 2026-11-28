@@ -67,6 +67,31 @@ class XrayConversionRegressionTest {
         assertTrue(result.report!!.issues.any { it.code == ConversionIssueCode.UNSUPPORTED_RULE })
     }
 
+    @Test fun `alternative config rules are reported separately from selected config rules`() {
+        val selectedRules = (0 until 6).map {
+            """{"domain":["full:main-$it.example"],"outboundTag":"proxy"}"""
+        } + List(4) { """{"protocol":["bittorrent"],"outboundTag":"proxy"}""" }
+        val alternativeRules = listOf(
+            """{"domain":["full:alt-a.example"],"outboundTag":"alternate"}""",
+            """{"domain":["full:alt-b.example"],"outboundTag":"alternate"}"""
+        )
+        val selected = """{"outbounds":[${node()}],"routing":{"rules":[${selectedRules.joinToString(",")}]}}"""
+        val alternative = """{"outbounds":[${node("alternate", "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee")}],"routing":{"rules":[${alternativeRules.joinToString(",")}]}}"""
+
+        val result = outcome("[$selected,$alternative]")
+        val report = result.report!!
+
+        assertEquals(10, report.sourceRules)
+        assertEquals(6, report.importedRules)
+        assertEquals(4, report.skippedRules)
+        assertEquals(2, report.alternativeRules)
+        assertTrue(report.issues.any {
+            it.code == ConversionIssueCode.ALTERNATIVE_RULES_NOT_MERGED && it.path == "configs[1].routing"
+        })
+        assertFalse(result.yaml.contains("alt-a.example"))
+        assertFalse(result.yaml.contains("alt-b.example"))
+    }
+
     @Test fun `IPv6 and regex rules remain exact`() {
         val source = config(node(), """, "routing":{"rules":[{"ip":["2001:db8::/32"],"outboundTag":"proxy"},{"domain":["regexp:^news\\.(com|net)$"],"outboundTag":"proxy"}]}""")
         val rules = map(source)["rules"] as List<String>
@@ -192,6 +217,11 @@ class XrayConversionRegressionTest {
         assertEquals(report, ConversionReport.fromJson(report.toJson()))
         assertFalse(outcome("""{"outbounds":[{"protocol":"vless","settings":"$secret"}]}""").report!!.toJson().contains(secret))
         assertNull(ConversionReport.fromJson("broken"))
+    }
+
+    @Test fun `older conversion reports default alternative rule count to zero`() {
+        val legacy = """{"format":"xray","sourceRules":3,"importedRules":2,"issues":[]}"""
+        assertEquals(0, ConversionReport.fromJson(legacy)?.alternativeRules)
     }
 
     @Test fun `official public XTLS fixtures yield supported nodes or an explicit unsupported transport report`() {

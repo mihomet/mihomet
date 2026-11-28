@@ -13,5 +13,7 @@ package org.mihomet.app.core.config
 data class ConversionOutcome(
     val yaml: String,
     val warnings: List<ConversionWarning> = emptyList(),
-    val report: ConversionReport? = null
+    val report: ConversionReport? = null,
+    /** Stable allowlist key for aggregate analytics; never contains source text. */
+    val format: String? = null
 )

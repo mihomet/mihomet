@@ -11,9 +11,13 @@ import kotlinx.coroutines.withContext
 import org.mihomet.app.R
 import org.mihomet.app.core.AppException
 import org.mihomet.app.core.AppErrorCode
+import org.mihomet.app.core.appExceptionOrNull
+import org.mihomet.app.core.sourcePayloadOrNull
 import org.mihomet.app.core.stringRes
+import org.mihomet.app.core.withConversionContext
 import org.mihomet.app.core.config.ConversionOutcome
 import org.mihomet.app.core.config.ConversionReport
+import org.mihomet.app.data.analytics.AnalyticsTracker
 import org.mihomet.app.data.subs.SubscriptionDownload
 import org.mihomet.app.core.config.UniversalConfigConverter
 import org.mihomet.app.data.db.ProfileDao
@@ -79,7 +83,8 @@ class ProfilesViewModel(
     private val context: Context,
     private val profileDao: ProfileDao,
     private val subscriptionRepository: SubscriptionRepository,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val analyticsTracker: AnalyticsTracker
 ) : ViewModel() {
 
     private val errorMessageFlow = MutableStateFlow<String?>(null)
@@ -97,9 +102,7 @@ class ProfilesViewModel(
     fun dismissDiagnostic() { reportFlow.value = null }
 
     private fun recordImportFailure(error: Throwable) {
-        reportFlow.value = (reportFlow.value ?: ConversionDiagnostic()).copy(
-            failureCode = (error as? AppException)?.code ?: AppErrorCode.IMPORT_FAILED
-        )
+        reportFlow.value = buildConversionFailureDiagnostic(error)
     }
 
     val uiState: StateFlow<ProfilesUiState> = combine(
@@ -246,17 +249,52 @@ class ProfilesViewModel(
     }
 
     private suspend fun importContent(source: String, name: String, headers: String, remote: Boolean): Result<String> {
+        var downloadForDiagnostics: SubscriptionDownload? = null
         return try {
             val normalizedHeaders = SubscriptionHeaders.toJson(SubscriptionHeaders.parse(headers))
             val download = if (remote) subscriptionRepository.downloadAndConvert(source.trim(), normalizedHeaders)
-            else SubscriptionDownload(withContext(Dispatchers.Default) {
-                UniversalConfigConverter.convertToMihomoYamlWithOutcome(source)
-            })
-            val diagnostic = ConversionDiagnostic(download.outcome.report, download.outcome.warnings)
+            else {
+                val outcome = try {
+                    withContext(Dispatchers.Default) {
+                        UniversalConfigConverter.convertToMihomoYamlWithOutcome(source)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    throw AppException(
+                        AppErrorCode.IMPORT_FAILED,
+                        cause = e,
+                        sourcePayload = source
+                    )
+                }
+                SubscriptionDownload(outcome = outcome, sourcePayload = source)
+            }
+            downloadForDiagnostics = download
+            val validConfig = isValidGeneratedConfig(download.outcome.yaml)
+            // Remote downloads are tracked inside SubscriptionRepository so the
+            // same conversion boundary also covers manual and background refresh.
+            if (!remote) {
+                analyticsTracker.trackConversion(
+                    outcome = download.outcome,
+                    success = validConfig
+                )
+            }
+            val diagnostic = ConversionDiagnostic(
+                report = download.outcome.report,
+                warnings = download.outcome.warnings,
+                sourcePayload = download.sourcePayload
+            )
             if (download.outcome.warnings.isNotEmpty()) reportFlow.value = diagnostic
-            if (!isValidGeneratedConfig(download.outcome.yaml)) {
+            if (!validConfig) {
                 reportFlow.value = diagnostic
-                return Result.failure(AppException(AppErrorCode.IMPORT_NO_COMPATIBLE_CONFIG))
+                return Result.failure(
+                    AppException(
+                        AppErrorCode.IMPORT_NO_COMPATIBLE_CONFIG,
+                        sourcePayload = download.sourcePayload,
+                        conversionReport = download.outcome.report,
+                        conversionWarnings = download.outcome.warnings
+                    )
+                )
             }
             val resolvedName = resolveImportName(name, source, remote, download)
             val result = subscriptionRepository.addProfile(
@@ -270,11 +308,27 @@ class ProfilesViewModel(
         } catch (e: CancellationException) {
             throw e
         } catch (e: AppException) {
-            Result.failure(e)
+            Result.failure(e.withConversionContext(
+                downloadForDiagnostics?.sourcePayload,
+                downloadForDiagnostics?.outcome?.report,
+                downloadForDiagnostics?.outcome?.warnings.orEmpty()
+            ))
         } catch (e: SubscriptionHeaders.HeaderValidationException) {
             Result.failure(IllegalArgumentException(headerViolationMessage(e.violation)))
         } catch (e: Exception) {
-            Result.failure(IllegalArgumentException(context.getString(R.string.profiles_import_error, localizeError(e))))
+            val typed = e.appExceptionOrNull()
+            Result.failure(
+                AppException(
+                    typed?.code ?: AppErrorCode.IMPORT_FAILED,
+                    *(typed?.args ?: emptyArray()),
+                    cause = e,
+                    sourcePayload = e.sourcePayloadOrNull() ?: downloadForDiagnostics?.sourcePayload,
+                    conversionReport = typed?.conversionReport ?: downloadForDiagnostics?.outcome?.report,
+                    conversionWarnings = typed?.conversionWarnings
+                        ?.takeIf { it.isNotEmpty() }
+                        ?: downloadForDiagnostics?.outcome?.warnings.orEmpty()
+                )
+            )
         }
     }
 
@@ -308,7 +362,11 @@ class ProfilesViewModel(
             subscriptionRepository.refreshProfileWithOutcome(profile)
                 .onSuccess { result ->
                     val outcome = result.outcome
-                    reportFlow.value = ConversionDiagnostic(outcome.report, outcome.warnings).takeIf { it.safeWarnings.isNotEmpty() }
+                    reportFlow.value = ConversionDiagnostic(
+                        report = outcome.report,
+                        warnings = outcome.warnings,
+                        sourcePayload = result.sourcePayload
+                    ).takeIf { it.safeWarnings.isNotEmpty() }
                     requestBehaviorConsent(result.profile.id, result.profile.name, result.meta)
                     errorMessageFlow.value = null
                     successMessageFlow.value = appendWarnings(context.getString(R.string.profiles_updated), outcome)
@@ -483,12 +541,12 @@ class ProfilesViewModel(
      * legacy `e.message` fallback. Producers no longer carry UI-language strings.
      */
     private fun localizeError(e: Throwable): String {
-        if (e is AppException) {
-            val res = e.code.stringRes()
-            return if (e.args.isEmpty()) {
+        e.appExceptionOrNull()?.let { typed ->
+            val res = typed.code.stringRes()
+            return if (typed.args.isEmpty()) {
                 context.getString(res)
             } else {
-                context.getString(res, *e.args)
+                context.getString(res, *typed.args)
             }
         }
         return e.message ?: context.getString(R.string.profiles_unknown_error)
