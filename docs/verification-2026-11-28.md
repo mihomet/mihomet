@@ -1,11 +1,12 @@
 # Unreleased source export, opt-in analytics and UI verification — 2026-11-28
 
-This records the current working-tree `Unreleased` changes: conversion-source
-export, optional Aptabase analytics, conversion-report corrections and interface
-follow-up. The final JDK 21 host gate succeeded. Full API 26 and API 35
-instrumentation suites passed before the last analytics disclosure and test
-clarity revisions. After those revisions, focused instrumentation reruns passed
-on API 26 and API 35. An earlier intermittent CoreProbe failure remains
+This records the `Unreleased` changes on PR #3: conversion-source export, optional
+Aptabase analytics, conversion-report corrections and interface follow-up. The
+final JDK 21 host gate succeeded. After the last disclosure and test-clarity
+revisions, GitHub Actions passed the host checks and full API 26/API 35
+instrumentation jobs on commit `9bb5203981b9aeb8f6cf3303bb94c2950ff4ba23`. Each
+emulator job reported 43 test executions, zero failures and one assumption skip
+for the optional Xray harness. An earlier intermittent CoreProbe failure remains
 unexplained. This is not an all-platform pass or verification of a
 production-signed release.
 
@@ -15,8 +16,8 @@ The scope follows [CHANGELOG.md](../CHANGELOG.md#unreleased) and
 [UI follow-up verification](verification-2026-11-27-ui-followup.md) were read for
 context. Their 664/672 JVM counts, older Android runs, screenshots, wire cases and
 VPN smoke results are historical evidence, not fresh checks of these changes.
-The build configuration still identifies the app as 1.3.8 (14); these working-tree
-changes are Unreleased.
+The build configuration still identifies the app as 1.3.8 (14); these changes
+remain `Unreleased`.
 
 ## Build and static checks
 
@@ -247,6 +248,9 @@ of a production signature or a production-signed installation.
 | API 35 final full suite, 41 tests, 151.958 s | 40 | 0 | 1 | `/tmp/mihomet-followup-final-current-api35-20261128-full.log` |
 | API 26 focused subscription fallback suite after CI fix, 8 tests | 8 | 0 | 0 | local JDK 21 run, `SubscriptionUaFallbackInstrumentedTest` |
 | API 35 focused CoreProbe + subscription fallback suites, 9 tests | 9 | 0 | 0 | local JDK 21 run, `CoreProbeInstrumentedTest` + `SubscriptionUaFallbackInstrumentedTest` |
+| GitHub Actions API 26 full job | 43 executions reported | 0 | 1 | [CI run 46118256386](https://github.com/mihomet/mihomet/actions/runs/46118256386), job 140896810569; optional Xray harness assumption-skipped |
+| GitHub Actions API 35 full job | 43 executions reported | 0 | 1 | [CI run 46118256386](https://github.com/mihomet/mihomet/actions/runs/46118256386), job 140896810506; optional Xray harness assumption-skipped |
+| GitHub Actions host checks | Passed | 0 | 0 | [CI run 46118256386](https://github.com/mihomet/mihomet/actions/runs/46118256386), job 140896810351; compile, JVM tests, lint, detekt, debug APK, core hash/version checks |
 
 The initial failure was
 `CoreProbeInstrumentedTest.temporaryCoreCanReachLoopbackWithoutRootOrAnActiveVpn`,
@@ -336,14 +340,16 @@ and the source-button semantic-layout assertion failure described above:
   No live Aptabase ingestion/dashboard or production-signed APK was tested.
 - [Promo drafts](promo/2026-11-28.md) describe v1.3.8, not these Unreleased
   additions. GitHub Discussion #2 was published; the other platform copy remains
-  draft material.
+  draft material. PR #3 is still a draft; analytics/source-export work has not been
+  merged or released.
 - Evidence uses repository documentation/code, synthetic test data, existing
   build/test artifacts and the explicitly listed local logs. Private sources
   and the user's diagnostics attachment were not accessed.
 
-The Unreleased working-tree changes have not been committed, pushed or tagged.
-Local `/tmp` logs and build outputs are evidence on this workstation, not tracked
-release artifacts; later runs may replace build reports.
+PR #3 is open as a draft, and its changes are committed and pushed on
+`codex/diagnostics-analytics`; they have not been merged or tagged. Local `/tmp`
+logs and build outputs are evidence on this workstation, not tracked release
+artifacts; later runs may replace build reports.
 
 ## Follow-up audit fixes
 
